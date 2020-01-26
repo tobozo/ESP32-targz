@@ -1,3 +1,36 @@
+/*\
+
+  MIT License
+
+  Copyright (c) 2020 tobozo
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+  ESP32-tgz is a wrapper to uzlib.h and untar.h third party libraries.
+  Those libraries have been adapted and/or modified to fit this project's needs
+  and are bundled with their initial license files.
+
+  - uzlib: https://github.com/pfalcon/uzlib
+  - untar: https://github.com/dsoprea/TinyUntar
+
+\*/
+
 #include "uzlib/uzlib.h"     // https://github.com/pfalcon/uzlib
 
 extern "C" {
@@ -8,25 +41,46 @@ extern "C" {
 #include <SPIFFS.h>
 #include <Update.h>
 
-fs::File untarredFile;
-fs::FS *tarFS = NULL;
 
 #define GZIP_DICT_SIZE 32768
 #define GZIP_BUFF_SIZE 4096
 
+
+fs::File untarredFile;
+fs::FS *tarFS = nullptr;
+const char* tarDestFolder = nullptr;
+entry_callbacks_t tarCallbacks;
+bool firstblock;
+int gzTarBlockPos = 0;
+byte blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
+static uint32_t untarredBytesCount = 0;
+
 // stores the gzip dictionnary, will eat 32KB ram and be freed afterwards
 unsigned char *uzlib_gzip_dict = nullptr;
+uint8_t *uzlib_buffer = nullptr;
+int32_t uzlib_bytesleft = 0;
+int8_t uzLibLastProgress = -1;
+unsigned char __attribute__((aligned(4))) uzlib_read_cb_buff[GZIP_BUFF_SIZE];
+
+// unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
+int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
+// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
+int tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
+// checks if gzFile is a valid gzip file
+bool readGzHeaders(fs::File &gzFile);
+// extract 4K of data from gzip
+int gzProcessBlock();
+// uncompresses *gzipped* sourceFile to destFile, filesystems may differ
+void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
+// flashes the ESP with the content of a *gzipped* file
+void gzUpdater( fs::FS &fs, const char* gz_filename );
+// naive ls
+void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1 );
+// show progress
+void (*gzProgressCallback)( uint8_t progress );
+void (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
 
 struct uzlib_uncomp uzLibDecompressor;
-
-// checks if gzFile is a valid gzip file
-bool uzLibFileIsGzip(fs::File &gzFile);
-// uncompresses *gzipped* sourceFile to destFile, filesystems may differ
-void uzFileExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
-// flashes the ESP with the content of a *gzipped* file
-void uzUpdater( const char* gz_filename );
-
-unsigned char __attribute__((aligned(4))) uzlib_read_cb_buff[GZIP_BUFF_SIZE];
 
 struct TarGzStream {
   Stream *gz;
@@ -38,31 +92,71 @@ struct TarGzStream {
 
 TarGzStream tarGzStream;
 
+typedef void (*genericProgressCallback)( uint8_t progress );
 
-int8_t uzLibLastProgress = -1;
+void tgzLogger(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  vprintf(format, args);
+  va_end(args);
+}
 
-void uzLibProgressCallback( uint8_t progress ) {
-  if( uzLibLastProgress != progress ) {
-    uzLibLastProgress = progress;
-    log_n("Progress: %d percent", progress );
-  }
+void setProgressCallback( genericProgressCallback cb ) {
+  gzProgressCallback = cb;
 }
 
 
-void (*uzLibWriteCallback)( unsigned char* buff, size_t buffsize );
-
-
-static void uzLibUpdateWriteCallback( unsigned char* buff, size_t buffsize ) {
+static void gzUpdateWriteCallback( unsigned char* buff, size_t buffsize ) {
   Update.write( buff, buffsize );
 }
 
 
-static void uzLibStreamWriteCallback( unsigned char* buff, size_t buffsize ) {
+static void gzStreamWriteCallback( unsigned char* buff, size_t buffsize ) {
   tarGzStream.output->write( buff, buffsize );
 }
 
 
-int uzLibStreamReadCallback( struct uzlib_uncomp *m ) {
+static void gzProcessTarBuffer( unsigned char* buff, size_t buffsize ) {
+  if( firstblock ) {
+    tar_setup(&tarCallbacks, NULL);
+    firstblock = false;
+  }
+  for( byte i=0;i<blockmod;i++) {
+    if(read_tar_step() != 0) {
+      log_d("Failed reading %d bytes in gzip block #%d", TAR_BLOCK_SIZE, blockmod);
+      break;
+    }
+  }
+}
+
+
+int gzFeedTarBuffer( unsigned char* buff, size_t buffsize ) {
+  if( buffsize%TAR_BLOCK_SIZE !=0 ) {
+    log_e("Can't unmerge tar blocks (%d bytes) from gz block (%d bytes)", buffsize, GZIP_BUFF_SIZE);
+    return 0;
+  }
+  byte blockpos = gzTarBlockPos%blockmod;
+  memcpy( buff, uzlib_buffer+(TAR_BLOCK_SIZE*blockpos), TAR_BLOCK_SIZE );
+  gzTarBlockPos++;
+  return TAR_BLOCK_SIZE;
+}
+
+// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
+void defaultProgressCallback( uint8_t progress ) {
+  if( uzLibLastProgress != progress ) {
+    uzLibLastProgress = progress;
+    if( progress == 0 ) {
+      Serial.print("Progress:\n[0%");
+    } else if( progress == 100 ) {
+      Serial.println("100%]");
+    } else {
+      Serial.print("Z"); // assert the lack of precision by using a decimal sign :-)
+    }
+  }
+}
+
+
+int gzStreamReadCallback( struct uzlib_uncomp *m ) {
   m->source = uzlib_read_cb_buff;
   m->source_limit = uzlib_read_cb_buff + GZIP_BUFF_SIZE;
   tarGzStream.gz->readBytes( uzlib_read_cb_buff, GZIP_BUFF_SIZE );
@@ -70,311 +164,344 @@ int uzLibStreamReadCallback( struct uzlib_uncomp *m ) {
 }
 
 
-uint8_t uzLibFileGetByte(fs::File &file, const uint32_t addr) {
+uint8_t gzReadByte(fs::File &file, const uint32_t addr) {
   file.seek( addr );
   return file.read();
 }
 
+
 // check if a file has gzip headers, if so read its projected uncompressed size
-bool uzLibFileIsGzip(fs::File &gzFile) {
+bool readGzHeaders(fs::File &gzFile) {
   tarGzStream.output_size = 0;
   tarGzStream.gz_size = gzFile.size();
   bool ret = false;
-  if ((uzLibFileGetByte(gzFile, 0) == 0x1f) && (uzLibFileGetByte(gzFile, 1) == 0x8b)) {
+  if ((gzReadByte(gzFile, 0) == 0x1f) && (gzReadByte(gzFile, 1) == 0x8b)) {
     // GZIP signature matched.  Find real size as encoded at the end
-    tarGzStream.output_size =  uzLibFileGetByte(gzFile, tarGzStream.gz_size - 4);
-    tarGzStream.output_size += uzLibFileGetByte(gzFile, tarGzStream.gz_size - 3)<<8;
-    tarGzStream.output_size += uzLibFileGetByte(gzFile, tarGzStream.gz_size - 2)<<16;
-    tarGzStream.output_size += uzLibFileGetByte(gzFile, tarGzStream.gz_size - 1)<<24;
-    log_n("gzip file detected ! Left: %d, size:%d", tarGzStream.output_size, tarGzStream.gz_size);
+    tarGzStream.output_size =  gzReadByte(gzFile, tarGzStream.gz_size - 4);
+    tarGzStream.output_size += gzReadByte(gzFile, tarGzStream.gz_size - 3)<<8;
+    tarGzStream.output_size += gzReadByte(gzFile, tarGzStream.gz_size - 2)<<16;
+    tarGzStream.output_size += gzReadByte(gzFile, tarGzStream.gz_size - 1)<<24;
+    tgzLogger("gzip file detected ! gz size: %d bytes, expanded size:%d bytes\n", tarGzStream.gz_size, tarGzStream.output_size);
+    //TODO: check for free space left on device even though doing this SPIFFS/SD and SD_MMC totally differs ?
     ret = true;
   }
   gzFile.seek(0);
   return ret;
 }
 
-int uzLibUncompress() {
+
+int gzProcessBlock() {
+  uzLibDecompressor.dest_start = uzlib_buffer;
+  uzLibDecompressor.dest = uzlib_buffer;
+  int to_read = (uzlib_bytesleft > SPI_FLASH_SEC_SIZE) ? SPI_FLASH_SEC_SIZE : uzlib_bytesleft;
+  uzLibDecompressor.dest_limit = uzlib_buffer + to_read;
+  int res = uzlib_uncompress(&uzLibDecompressor);
+  if ((res != TINF_DONE) && (res != TINF_OK)) {
+    log_e("Error uncompressing data");
+    gzProgressCallback( 0 );
+    return 6; // Error uncompress body
+  } else {
+    gzProgressCallback( 100*(tarGzStream.output_size-uzlib_bytesleft)/tarGzStream.output_size );
+  }
+  // Fill any remaining with 0xff
+  for (int i = to_read; i < SPI_FLASH_SEC_SIZE; i++) {
+      uzlib_buffer[i] = 0xff;
+  }
+  gzWriteCallback( uzlib_buffer, SPI_FLASH_SEC_SIZE );
+  uzlib_bytesleft -= SPI_FLASH_SEC_SIZE;
+  return 0;
+}
+
+
+int gzUncompress() {
   if( !tarGzStream.gz->available() ) {
     log_e("gz resource doesn't exist!");
     return 1;
   }
   uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
-  int32_t left = tarGzStream.output_size;
-
-  uint8_t buffer[SPI_FLASH_SEC_SIZE];
-  //struct uzlib_uncomp uzLibDecompressor;
+  uzlib_bytesleft  = tarGzStream.output_size;
+  uzlib_buffer = new uint8_t [SPI_FLASH_SEC_SIZE];
   uzlib_init();
   uzLibDecompressor.source = NULL;
   uzLibDecompressor.source_limit = NULL;
-  uzLibDecompressor.source_read_cb = uzLibStreamReadCallback;
+  uzLibDecompressor.source_read_cb = gzStreamReadCallback;
   uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, GZIP_DICT_SIZE);
   int res = uzlib_gzip_parse_header(&uzLibDecompressor);
   if (res != TINF_OK) {
     log_e("uzlib_gzip_parse_header failed!");
     free( uzlib_gzip_dict );
+    free( uzlib_buffer );
+    uzlib_buffer = nullptr;
     return 5; // Error uncompress header read
   }
-  uzLibProgressCallback( 0 );
-  while( left>0 ) {
-    uzLibDecompressor.dest_start = buffer;
-    uzLibDecompressor.dest = buffer;
-    int to_read = (left > SPI_FLASH_SEC_SIZE) ? SPI_FLASH_SEC_SIZE : left;
-    uzLibDecompressor.dest_limit = buffer + to_read;
-    int res = uzlib_uncompress(&uzLibDecompressor);
-    if ((res != TINF_DONE) && (res != TINF_OK)) {
-      log_e("Error uncompressing data");
-      uzLibProgressCallback( 0 );
+  gzProgressCallback( 0 );
+  while( uzlib_bytesleft>0 ) {
+    int res = gzProcessBlock();
+    if (res!=0) {
       free( uzlib_gzip_dict );
-      return 6; // Error uncompress body
-    } else {
-      uzLibProgressCallback( 100*(tarGzStream.output_size-left)/tarGzStream.output_size );
+      free( uzlib_buffer );
+      uzlib_buffer = nullptr;
+      return res;
     }
-    // Fill any remaining with 0xff
-    for (int i = to_read; i < SPI_FLASH_SEC_SIZE; i++) {
-        buffer[i] = 0xff;
-    }
-    uzLibWriteCallback( buffer, SPI_FLASH_SEC_SIZE );
-    left  -= SPI_FLASH_SEC_SIZE;
   }
-  uzLibProgressCallback( 100 );
+  gzProgressCallback( 100 );
   free( uzlib_gzip_dict );
   uzlib_gzip_dict = nullptr;
+  free( uzlib_buffer );
+  uzlib_buffer = nullptr;
   return 0;
 }
 
 
-void uzFileExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile ) {
-  log_n("uzLib expander start!");
+// uncompress gz sourceFile to destFile
+void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile ) {
+  tgzLogger("uzLib expander start!\n");
   fs::File gz = sourceFS.open( sourceFile );
-  if( !uzLibFileIsGzip( gz ) ) {
+  if( !gzProgressCallback ) {
+    setProgressCallback( defaultProgressCallback );
+  }
+  if( !readGzHeaders( gz ) ) {
     log_e("Not a valid gzip file");
     gz.close();
     return;
   }
+  if( destFS.exists( destFile ) ) {
+    log_d("Deleting %s as it is in the way", destFile);
+    destFS.remove( destFile );
+  }
   fs::File outfile = destFS.open( destFile, FILE_WRITE );
-
   tarGzStream.gz = &gz;
   tarGzStream.output = &outfile;
-  uzLibWriteCallback = &uzLibStreamWriteCallback; // for regular unzipping
-  int ret = uzLibUncompress();
-  if( ret!=0 ) log_n("uzLibUncompress returned error code %d", ret);
+  gzWriteCallback = &gzStreamWriteCallback; // for regular unzipping
+  int ret = gzUncompress();
+  if( ret!=0 ) tgzLogger("gzUncompress returned error code %d\n", ret);
   outfile.close();
   gz.close();
-
-  log_n("uzLib expander finished!");
+  tgzLogger("uzLib expander finished!\n");
 }
 
 
-
-
-
-void uzUpdater( const char* gz_filename ) {
-
-  log_n("uzLib SPIFFS Updater start!");
-
-  if(!SPIFFS.begin(true)){
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-
-  fs::File gz = SPIFFS.open( gz_filename );
-
-  if( !uzLibFileIsGzip( gz ) ) {
+// uncompress gz to flash (expected to be a valid Arduino compiled binary sketch)
+void gzUpdater( fs::FS &fs, const char* gz_filename ) {
+  tgzLogger("uzLib SPIFFS Updater start!\n");
+  fs::File gz = fs.open( gz_filename );
+  if( !readGzHeaders( gz ) ) {
     log_e("Not a valid gzip file");
     gz.close();
     return;
   }
-
   tarGzStream.gz = &gz;
-  uzLibWriteCallback = &uzLibUpdateWriteCallback; // for unzipping direct to flash
+  gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
   Update.begin( ( ( tarGzStream.output_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ) );
-  int ret = uzLibUncompress();
-  if( ret!=0 ) log_n("uzLibUncompress returned error code %d", ret);
+  int ret = gzUncompress();
+  if( ret!=0 ) tgzLogger("gzUncompress returned error code %d\n", ret);
   gz.close();
 
   if ( Update.end() ) {
     Serial.println( "OTA done!" );
     if ( Update.isFinished() ) {
       // yay
-      log_n("Update finished !");
+      tgzLogger("Update finished !\n");
       ESP.restart();
     } else {
       Serial.println( "Update not finished? Something went wrong!" );
     }
   } else {
-    Serial.println( "Error Occurred. Error #: " + String( Update.getError() ) );
+    Serial.println( "Update Error Occurred. Error #: " + String( Update.getError() ) );
   }
-  log_n("uzLib SPIFFS Updater finished!");
+  tgzLogger("uzLib filesystem Updater finished!\n");
 }
 
 
-
-
-
-
-
-
-
-
-
-/*
-static void targzLibStreamWriteCallback( unsigned char* buff, size_t buffsize ) {
-  //tarGzStream.output->write( buff, buffsize );
-}
-*/
-
-
-
-int unTarLibHeaderCb(header_translated_t *proper,  int entry_index,  void *context_data) {
-
+int unTarHeaderCallBack(header_translated_t *proper,  int entry_index,  void *context_data) {
   dump_header(proper);
-
   if(proper->type == T_NORMAL) {
-    char file_path[256] = "";
-
-    strcat(file_path, "/tmp/");
+    char file_path[256] = ""; // TODO: normalize this for fs::FS, limit is 32, not 256
+    strcat(file_path, tarDestFolder);
+    strcat(file_path, "/");
     strcat(file_path, proper->filename);
+    if( tarFS->exists( file_path ) ) {
+      log_d("Deleting %s as it is in the way", file_path);
+      tarFS->remove( file_path );
+    }
+    tgzLogger("Creating %s\n", file_path);
+
     untarredFile = tarFS->open(file_path, FILE_WRITE);
     if(!untarredFile) {
-      printf("Could not open [%s] for write.\n", file_path);
+      log_e("Could not open [%s] for write.\n", file_path);
       return -1;
     }
-    log_n("Successfully created %s file descriptor", file_path);
     tarGzStream.output = &untarredFile;
   } else {
-    printf("Not writing non-normal file.\n\n");
+    log_e("Not writing non-normal file.\n\n");
   }
   return 0;
 }
 
-/*
-int unTarLibStreamReadGzCallback( unsigned char* buff, size_t buffsize ) {
-  //uzLibWriteCallback = &uzLibStreamWriteCallback; // for regular unzipping
-}*/
 
-
-int unTarLibStreamReadCallback( unsigned char* buff, size_t buffsize ) {
+int unTarStreamReadCallback( unsigned char* buff, size_t buffsize ) {
   return tarGzStream.tar->readBytes( buff, buffsize );
 }
 
-static uint32_t untarredBytesCount = 0;
 
-int unTarLibStreamWriteCallback(header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length) {
+int unTarStreamWriteCallback(header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length) {
   if( tarGzStream.output ) {
     tarGzStream.output->write(block, length);
     untarredBytesCount+=length;
-    //log_n("Wrote %d bytes", length);
-    if( untarredBytesCount%(length*80) == 0 ) {
-      Serial.println();
-    } else {
-      Serial.print(".");
+    log_v("Wrote %d bytes", length);
+    if( gzProgressCallback == nullptr ) {
+      if( untarredBytesCount%(length*80) == 0 ) {
+        Serial.println();
+      } else {
+        Serial.print("T");
+      }
     }
   }
   return 0;
 }
 
 
-int unTarLibEndCb(header_translated_t *proper, int entry_index, void *context_data) {
+int unTarEndCallBack(header_translated_t *proper, int entry_index, void *context_data) {
   if(untarredFile) {
-    log_n("Final size: %d", untarredFile.size() );
+    Serial.println();
+    //log_d("Final size: %d", untarredFile.size() );
     untarredFile.close();
   }
   return 0;
 }
 
 
-int untarFile(fs::FS &fs, const char* fileName) {
-
-  tarFS = &fs;
-
-  if( !fs.exists( fileName ) ) {
-    log_n("Error: file %s does not exist or is not reachable", fileName);
+// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
+int tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder ) {
+  tarFS = &destFS;
+  tarDestFolder = destFolder;
+  if( gzProgressCallback ) {
+    setProgressCallback( nullptr );
+  }
+  if( !sourceFS.exists( fileName ) ) {
+    tgzLogger("Error: file %s does not exist or is not reachable\n", fileName);
     return 1;
   }
-
-  if( !fs.exists("/tmp") ) {
-    fs.mkdir("/tmp");
+  if( !destFS.exists( tarDestFolder ) ) {
+    destFS.mkdir( tarDestFolder );
   }
-
   untarredBytesCount = 0;
-  entry_callbacks_t entry_callbacks = {
-    unTarLibHeaderCb,
-    unTarLibStreamWriteCallback,
-    unTarLibEndCb
+  tarCallbacks = {
+    unTarHeaderCallBack,
+    unTarStreamWriteCallback,
+    unTarEndCallBack
   };
-
-  fs::File tarFile = fs.open( fileName );
+  fs::File tarFile = sourceFS.open( fileName );
   tarGzStream.tar = &tarFile;
-  tinyUntarReadCallback = &unTarLibStreamReadCallback; // unTarLibStreamReadCallback reads n bytes from tar file
-
-  if(read_tar( &entry_callbacks, NULL ) != 0) {
+  tinyUntarReadCallback = &unTarStreamReadCallback;
+  if(read_tar( &tarCallbacks, NULL ) != 0) {
     printf("Read failed.\n\n");
     return -2;
   }
-
   return 0;
 }
 
 
-
-
-
-
-
-
-int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS ) {
-  log_n("targz expander start!");
-  fs::File gz = sourceFS.open( sourceFile );
-  if( !uzLibFileIsGzip( gz ) ) {
-    log_e("Not a valid gzip file");
-    gz.close();
-    return 1;
+int tarGzExpanderSetup() {
+  tgzLogger("setup begin\n");
+  untarredBytesCount = 0;
+  gzTarBlockPos = 0;
+  tarCallbacks = {
+    unTarHeaderCallBack,
+    unTarStreamWriteCallback,
+    unTarEndCallBack
+  };
+  tar_error_logger      = &tgzLogger;
+  tar_debug_logger      = &tgzLogger; // comment this out if too verbose
+  tinyUntarReadCallback = &gzFeedTarBuffer;
+  gzWriteCallback    = &gzProcessTarBuffer;
+  if( !gzProgressCallback ) {
+    setProgressCallback( defaultProgressCallback );
   }
-/*
-  unsigned char *uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
-  int32_t left = tarGzStream.output_size;
-
-  uint8_t buffer[SPI_FLASH_SEC_SIZE];
-  //struct uzlib_uncomp uzLibDecompressor;
+  uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
+  uzlib_bytesleft  = tarGzStream.output_size;
+  uzlib_buffer = new uint8_t [SPI_FLASH_SEC_SIZE];
   uzlib_init();
   uzLibDecompressor.source = NULL;
   uzLibDecompressor.source_limit = NULL;
-  uzLibDecompressor.source_read_cb = uzLibStreamReadCallback; //TODO: pipe this to untar
+  uzLibDecompressor.source_read_cb = gzStreamReadCallback;
   uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, GZIP_DICT_SIZE);
-  int res = uzlib_gzip_parse_header(&uzLibDecompressor);
+  tgzLogger("setup end\n");
+  return uzlib_gzip_parse_header(&uzLibDecompressor);
+}
+
+
+// unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
+int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder ) {
+  tgzLogger("targz expander start!\n");
+  fs::File gz = sourceFS.open( sourceFile );
+  tarGzStream.gz = &gz;
+  tarDestFolder = destFolder;
+  if( !tarGzStream.gz->available() ) {
+    log_e("gz resource doesn't exist!");
+    return 1;
+  }
+  if( !readGzHeaders( gz ) ) {
+    log_e("Not a valid gzip file");
+    gz.close();
+    return 2;
+  }
+  tarFS = &destFS;
+  if( !tarFS->exists( tarDestFolder ) ) {
+    tgzLogger("creating %s folder\n", tarDestFolder);
+    tarFS->mkdir( tarDestFolder );
+  }
+  int res = tarGzExpanderSetup();
   if (res != TINF_OK) {
     log_e("uzlib_gzip_parse_header failed!");
     free( uzlib_gzip_dict );
+    free( uzlib_buffer );
+    uzlib_buffer = nullptr;
     return 5; // Error uncompress header read
   }
-
-  if( !destFS.exists("/tmp") ) {
-    destFS.mkdir("/tmp");
+  gzProgressCallback( 0 );
+  firstblock = true;
+  while( uzlib_bytesleft>0 ) {
+    int res = gzProcessBlock();
+    if (res!=0) {
+      free( uzlib_gzip_dict );
+      free( uzlib_buffer );
+      uzlib_buffer = nullptr;
+      return res;
+    }
   }
-  tarFS = &destFS;
-
-  entry_callbacks_t entry_callbacks = {
-    unTarLibHeaderCb,
-    unTarLibStreamWriteCallback,
-    unTarLibEndCb
-  };
-*/
-
-  //fs::File tarFile = fs.open( "/tmp/tmp.tar" );
-  //tarGzStream.tar = &tarFile;
-  //tinyUntarReadCallback = &uzLibStreamWriteCallback;
-  //if(read_tar( &entry_callbacks, NULL ) != 0) {
-  //  printf("Read failed.\n\n");
-  //  return -2;
-  //}
-  //tarGzStream.gz = &gz;
-  //tarGzStream.output = &outfile;
-  //uzLibWriteCallback = &targzLibStreamWriteCallback; // for regular unzipping
-  //int ret = uzLibUncompress();
-  //if( ret!=0 ) log_n("uzLibUncompress returned error code %d", ret);
-  //outfile.close();
+  gzProgressCallback( 100 );
+  free( uzlib_gzip_dict );
+  uzlib_gzip_dict = nullptr;
+  free( uzlib_buffer );
+  uzlib_buffer = nullptr;
   gz.close();
-
-  log_n("uzLib expander finished!");
+  tgzLogger("success!\n");
   return 0;
+}
+
+
+// get a directory listing of a given filesystem
+void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels ) {
+  File root = fs.open( dirName );
+  if( !root ){
+    log_e( "Can't open %s dir", dirName );
+    return;
+  }
+  if( !root.isDirectory() ){
+    log_e( "%s is not a directory", dirName );
+    return;
+  }
+  File file = root.openNextFile();
+  while( file ){
+    if( file.isDirectory() ){
+      tgzLogger( "[DIR] %s\n", file.name() );
+      if( levels ){
+        tarGzListDir( fs, file.name(), levels -1 );
+      }
+    } else {
+      tgzLogger( "%32s %8d bytes\n", file.name(), file.size() );
+    }
+    file = root.openNextFile();
+  }
 }

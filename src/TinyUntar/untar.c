@@ -1,6 +1,21 @@
 #include "untar.h"
 
 char *empty_string = "";
+entry_callbacks_t *read_tar_callbacks = NULL;
+unsigned char *read_buffer = NULL;
+header_t header;
+header_translated_t header_translated;
+void *read_context_data = NULL;
+int num_blocks;
+int num_blocks_iterator;
+int current_data_size;
+int entry_index;
+int empty_count;
+int received_bytes;
+int indatablock;
+
+void (*tar_error_logger)(const char* subject, ...);
+void (*tar_debug_logger)(const char* subject, ...);
 
 int parse_header(const unsigned char buffer[512], header_t *header) {
   memcpy(header, buffer, sizeof(header_t));
@@ -9,11 +24,11 @@ int parse_header(const unsigned char buffer[512], header_t *header) {
 }
 
 static void log_error(const char *message) {
-  printf("ERROR: %s\n", message);
+  if(tar_error_logger) tar_error_logger("[ERROR]: %s\n", message);
 }
 
 static void log_debug(const char *message) {
-  printf("DEBUG: %s\n", message);
+  if(tar_debug_logger) tar_debug_logger("[DEBUG]: %s\n", message);
 }
 
 unsigned long long decode_base256(const unsigned char *buffer) {
@@ -196,11 +211,152 @@ static int read_block(unsigned char *buffer) {
 }
 
 
-entry_callbacks_t *read_tar_callbacks = NULL;
-unsigned char *read_buffer = NULL;
-header_t header;
-header_translated_t header_translated;
-void *read_context_data = NULL;
+int expand_tar_data_block() {
+
+  if(num_blocks_iterator >= num_blocks - 1)
+    current_data_size = get_last_block_portion_size(header_translated.filesize);
+  else
+    current_data_size = TAR_BLOCK_SIZE;
+
+  read_buffer[current_data_size] = 0;
+
+  if(read_tar_callbacks->data_cb(&header_translated, entry_index, read_context_data, read_buffer, current_data_size) != 0) {
+    //log_error("Data callback failed.");
+    return -7;
+  }
+  num_blocks_iterator++;
+  received_bytes += current_data_size;
+
+  return 0;
+
+}
+
+void tar_abort( const char* msgstr, int iserror ) {
+  if( iserror == 1 ) {
+    log_error( msgstr );
+  } else {
+    if( msgstr[0] != 0 ) {
+      log_debug( msgstr );
+    }
+  }
+  if( read_buffer != NULL ) {
+    free( read_buffer );
+    read_buffer = NULL;
+  }
+  read_tar_callbacks = NULL;
+}
+
+
+void tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
+  //log_debug("entering tar setup");
+  read_tar_callbacks = callbacks;
+  read_context_data = context_data;
+  read_buffer = (unsigned char*)malloc(TAR_BLOCK_SIZE + 1);
+  entry_index = 0;
+  empty_count = 0;
+  indatablock = -1;
+  read_buffer[TAR_BLOCK_SIZE] = 0;
+}
+
+
+int tar_datablock_step() {
+  if(num_blocks_iterator < num_blocks) {
+    if(read_block( read_buffer ) != 0) {
+      tar_abort("Could not read block. File too short.", 1);
+      return -6;
+    }
+    int res = expand_tar_data_block();
+    if( res != 0 ) {
+      tar_abort("Data callback failed", 1);
+      return res;
+    }
+    return 1;
+  } else {
+    indatablock = -1;
+    if(read_tar_callbacks->end_cb(&header_translated, entry_index, read_context_data) != 0) {
+      tar_abort("End callback failed.", 1);
+      return -5;
+    }
+    return -1;
+  }
+}
+
+
+int tar_step() {
+
+  if( indatablock == 0 ) {
+    return tar_datablock_step();
+  }
+
+  if(empty_count >= 2) {
+    tar_abort("tar expanding done!", 1);
+    return -1;
+  }
+
+  if(read_block( read_buffer ) != 0) {
+    tar_abort("tar expanding done!", 1);
+    return -1;
+  }
+  // If we haven't yet determined what format to support, read the
+  // header of the next entry, now. This should be done only at the
+  // top of the archive.
+  if( parse_header(read_buffer, &header) != 0) {
+      tar_abort("Could not understand the header of the first entry in the TAR.", 1);
+      return -3;
+  } else if(strlen(header.filename) == 0) {
+      empty_count++;
+      entry_index++;
+      return 0;
+  } else {
+    if(translate_header(&header, &header_translated) != 0) {
+      tar_abort("Could not translate header.", 1);
+      return -4;
+    }
+
+    if(read_tar_callbacks->header_cb(&header_translated, entry_index, read_context_data) != 0) {
+      tar_abort("Header callback failed.", 1);
+      return -5;
+    }
+    num_blocks_iterator = 0;
+    received_bytes = 0;
+    num_blocks = GET_NUM_BLOCKS(header_translated.filesize);
+    indatablock = 0;
+
+    int res = tar_datablock_step();
+    if( res < 0 ) {
+      char message[200];
+      snprintf(message, 200, "tar_datablock_step return code (%d)", res );
+      log_error(message);
+      return res;
+    }
+    return 0;
+  }
+
+}
+
+
+int read_tar_step() {
+  if( read_tar_callbacks == NULL ) {
+    //tar_abort("No callbacks defined!", 1);
+    return -1;
+  }
+  int res = tar_step();
+
+  if( res < 0 ) {
+    char message[200];
+    if( res != -1 ) {
+      snprintf(message, 200, "read_tar return code (%d)", res );
+      tar_abort(message, 1);
+      return res;
+    } else {
+      tar_abort("Unpacking success!", 0);
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+}
+
 
 int read_tar( entry_callbacks_t *callbacks, void *context_data) {
   if( read_tar_callbacks != NULL ) {
@@ -210,114 +366,60 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
   read_context_data = context_data;
   read_buffer = (unsigned char*)malloc(TAR_BLOCK_SIZE + 1);
 
-  //int header_checked = 0;
-  int i;
-
-  int num_blocks;
-  int current_data_size;
-  int entry_index = 0;
-  int empty_count = 0;
+  entry_index = 0;
+  empty_count = 0;
+  indatablock = -1;
 
   read_buffer[TAR_BLOCK_SIZE] = 0;
-
   // The end of the file is represented by two empty entries (which we
   // expediently identify by filename length).
   while(empty_count < 2) {
-    if(read_block( read_buffer ) != 0)
-        break;
-    // If we haven't yet determined what format to support, read the
-    // header of the next entry, now. This should be done only at the
-    // top of the archive.
-    if(parse_header(read_buffer, &header) != 0) {
-        log_error("Could not understand the header of the first entry in the TAR.");
-        free( read_buffer );
-        read_tar_callbacks = NULL;
-        return -3;
-    } else if(strlen(header.filename) == 0) {
-        empty_count++;
+    int res = tar_step();
+    if( res < 0 ) {
+      char message[200];
+      if( res != -1 ) {
+        snprintf(message, 200, "read_tar return code (%d)", res );
+        tar_abort(message, 1);
+        return res;
+      } else {
+        tar_abort("", 0);
+        return 0;
+      }
     } else {
-      if(translate_header(&header, &header_translated) != 0) {
-        log_error("Could not translate header.");
-        free( read_buffer );
-        read_tar_callbacks = NULL;
-        return -4;
-      }
-
-      if(read_tar_callbacks->header_cb(&header_translated, entry_index, read_context_data) != 0) {
-        log_error("Header callback failed.");
-        free( read_buffer );
-        read_tar_callbacks = NULL;
-        return -5;
-      }
-
-      i = 0;
-      int received_bytes = 0;
-      num_blocks = GET_NUM_BLOCKS(header_translated.filesize);
-      while(i < num_blocks) {
-        if(read_block( read_buffer ) != 0) {
-          log_error("Could not read block. File too short.");
-          free( read_buffer );
-          read_tar_callbacks = NULL;
-          return -6;
-        }
-
-        if(i >= num_blocks - 1)
-          current_data_size = get_last_block_portion_size(header_translated.filesize);
-        else
-          current_data_size = TAR_BLOCK_SIZE;
-
-        read_buffer[current_data_size] = 0;
-
-        if(read_tar_callbacks->data_cb(&header_translated, entry_index, read_context_data, read_buffer, current_data_size) != 0) {
-          log_error("Data callback failed.");
-          free( read_buffer );
-          read_tar_callbacks = NULL;
-          return -7;
-        }
-        i++;
-        received_bytes += current_data_size;
-      }
-
-      if(read_tar_callbacks->end_cb(&header_translated, entry_index, read_context_data) != 0) {
-        log_error("End callback failed.");
-        free( read_buffer );
-        read_tar_callbacks = NULL;
-        return -5;
-      }
+      continue;
     }
-
-    entry_index++;
   }
-  free( read_buffer );
-  read_tar_callbacks = NULL;
+  tar_abort("tar expanding done!", 0);
   return 0;
 }
 
+
 void dump_header(header_translated_t *header) {
-  printf("===========================================\n");
-  printf("      filename: %s\n", header->filename);
-  printf("      filemode: 0%o (%llu)\n", (unsigned int)header->filemode, header->filemode);
-  printf("           uid: 0%o (%llu)\n", (unsigned int)header->uid, header->uid);
-  printf("           gid: 0%o (%llu)\n", (unsigned int)header->gid, header->gid);
-  printf("      filesize: 0%o (%llu)\n", (unsigned int)header->filesize, header->filesize);
-  printf("         mtime: 0%o (%llu)\n", (unsigned int)header->mtime, header->mtime);
-  printf("      checksum: 0%o (%llu)\n", (unsigned int)header->checksum, header->checksum);
-  printf("          type: %d\n", header->type);
-  printf("   link_target: %s\n", header->link_target);
-  printf("\n");
+  if( !tar_debug_logger ) return;
+  tar_debug_logger("===========================================\n");
+  tar_debug_logger("      filename: %s\n", header->filename);
+  tar_debug_logger("      filemode: 0%o (%llu)\n", (unsigned int)header->filemode, header->filemode);
+  tar_debug_logger("           uid: 0%o (%llu)\n", (unsigned int)header->uid, header->uid);
+  tar_debug_logger("           gid: 0%o (%llu)\n", (unsigned int)header->gid, header->gid);
+  tar_debug_logger("      filesize: 0%o (%llu)\n", (unsigned int)header->filesize, header->filesize);
+  tar_debug_logger("         mtime: 0%o (%llu)\n", (unsigned int)header->mtime, header->mtime);
+  tar_debug_logger("      checksum: 0%o (%llu)\n", (unsigned int)header->checksum, header->checksum);
+  tar_debug_logger("          type: %d\n", header->type);
+  tar_debug_logger("   link_target: %s\n", header->link_target);
+  tar_debug_logger("\n");
 
-  printf("     ustar ind: %s\n", header->ustar_indicator);
-  printf("     ustar ver: %s\n", header->ustar_version);
-  printf("     user name: %s\n", header->user_name);
-  printf("    group name: %s\n", header->group_name);
-  printf("device (major): %llu\n", header->device_major);
-  printf("device (minor): %llu\n", header->device_minor);
-  printf("\n");
+  tar_debug_logger("     ustar ind: %s\n", header->ustar_indicator);
+  tar_debug_logger("     ustar ver: %s\n", header->ustar_version);
+  tar_debug_logger("     user name: %s\n", header->user_name);
+  tar_debug_logger("    group name: %s\n", header->group_name);
+  tar_debug_logger("device (major): %llu\n", header->device_major);
+  tar_debug_logger("device (minor): %llu\n", header->device_minor);
+  tar_debug_logger("\n");
 
-  printf("  data blocks = %d\n", GET_NUM_BLOCKS(header->filesize));
-  printf("  last block portion = %d\n", get_last_block_portion_size(header->filesize));
-  printf("===========================================\n");
-  printf("\n");
+  tar_debug_logger("  data blocks = %d\n", GET_NUM_BLOCKS(header->filesize));
+  tar_debug_logger("  last block portion = %d\n", get_last_block_portion_size(header->filesize));
+  tar_debug_logger("===========================================\n");
+  tar_debug_logger("\n");
 }
 
 enum entry_type_e get_type_from_char(char raw_type) {
