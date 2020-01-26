@@ -73,3 +73,12 @@ Flash the ESP with contents from `.gz` file
 
 
 ```
+
+
+Credits:
+--------
+
+  - [pfalcon](https://github.com/pfalcon/uzlib) (uzlib maintainer)
+  - [dsoprea](https://github.com/dsoprea/TinyUntar) (TinyUntar maintainer)
+  
+
