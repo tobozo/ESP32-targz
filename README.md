@@ -12,8 +12,20 @@ This library is a wrapper for the following two great libraries:
 
 Decompression support for .tar and .gz files
 
-This is a work in progress
+Usage
+-----
 
+```C
+    #include <ESP32-targz.h>
+```
+
+Scope
+-----
+
+  - This library is only for unpacking / decompressing, no compression support is provided whatsoever
+  - Although the examples use SPIFFS, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS)
+  - This is experimental, expect bugs!
+  - Contributions and feedback are more than welcome :-)
 
 
 Extract content from `.gz` file
