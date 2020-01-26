@@ -1,23 +1,24 @@
 # ESP32-targz
 
+## An ESP32-Arduino library that provides decompression support for .tar, .gz and .tar.gz files
+
 
 ![](ESP32-targz.png)
 
 
 
-This library is a wrapper for the following two great libraries:
+## This library is a wrapper for the following two great libraries:
 
   - uzlib https://github.com/pfalcon/uzlib
   - TinyUntar https://github.com/dsoprea/TinyUntar
 
-Decompression support for .tar and .gz files
+This library enables the channeling of gz->tar->filesystem data without using an intermediate file.
 
-Usage
------
+In order to reach this goal, TinyUntar was heavily modified to allow data streaming, however uzlib is used 'as is'.
 
-```C
-    #include <ESP32-targz.h>
-```
+uzlib will eat ~36KB of sram when used, and try to free them afterwards.
+TinyUntar requires 512bytes only so its memory footprint is negligible.
+
 
 Scope
 -----
@@ -26,6 +27,15 @@ Scope
   - Although the examples use SPIFFS, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
+
+
+Usage
+-----
+
+```C
+    #include <ESP32-targz.h>
+```
+
 
 
 Extract content from `.gz` file
@@ -86,11 +96,22 @@ Flash the ESP with contents from `.gz` file
 
 ```
 
+Known bugs
+----------
+
+  - .tar.gz files smaller than 4K aren't processed
+  - .tar files containing files smaller than 512 bytes aren't fully processed
+  - some .tar.gz formats aren't supported
+  - reading/writing simultaneously on SPIFFS may induce errors
+  - error detection isn't deferred efficiently, debugging may be painful
+
 
 Credits:
 --------
 
   - [pfalcon](https://github.com/pfalcon/uzlib) (uzlib maintainer)
   - [dsoprea](https://github.com/dsoprea/TinyUntar) (TinyUntar maintainer)
+  - [me-no-dev](https://github.com/me-no-dev) (inspiration and support)
+  - [atanisoft](https://github.com/atanisoft) (motivation and support)
   
 
