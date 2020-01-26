@@ -12,11 +12,11 @@
   - uzlib https://github.com/pfalcon/uzlib
   - TinyUntar https://github.com/dsoprea/TinyUntar
 
-This library enables the channeling of gz->tar->filesystem data without using an intermediate file.
+This library enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data without using an intermediate file.
 
-In order to reach this goal, TinyUntar was heavily modified to allow data streaming, however uzlib is used 'as is'.
+In order to reach this goal, TinyUntar was heavily modified to allow data streaming, however uzlib is used *as is*.
 
-uzlib will eat ~36KB of sram when used, and try to free them afterwards.
+:warning: uzlib will eat ~36KB of sram when used, and try to free them afterwards.
 TinyUntar requires 512bytes only so its memory footprint is negligible.
 
 
