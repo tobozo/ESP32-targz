@@ -76,9 +76,12 @@ void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
 void gzUpdater( fs::FS &fs, const char* gz_filename );
 // naive ls
 void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1 );
+// fs helper
+char *dirname(char *path);
 // show progress
 void (*gzProgressCallback)( uint8_t progress );
 void (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
+
 
 struct uzlib_uncomp uzLibDecompressor;
 
@@ -320,10 +323,29 @@ int unTarHeaderCallBack(header_translated_t *proper,  int entry_index,  void *co
     strcat(file_path, tarDestFolder);
     strcat(file_path, "/");
     strcat(file_path, proper->filename);
+
     if( tarFS->exists( file_path ) ) {
-      log_d("Deleting %s as it is in the way", file_path);
-      tarFS->remove( file_path );
+      untarredFile = tarFS->open(file_path);
+      bool isdir = untarredFile.isDirectory();
+      untarredFile.close();
+      if( isdir ) {
+        log_d("Keeping %s folder", file_path);
+      } else {
+        log_d("Deleting %s as it is in the way", file_path);
+        tarFS->remove( file_path );
+      }
+    } else {
+      // check if mkdir -d is needed for this file
+      char tmp_path[256];
+      memcpy( tmp_path, file_path, 256 );
+
+      char *dir_name = dirname( tmp_path );
+      if( !tarFS->exists( dir_name ) ) {
+        log_d("Creating %s folder", dir_name);
+        tarFS->mkdir( dir_name );
+      }
     }
+
     tgzLogger("Creating %s\n", file_path);
 
     untarredFile = tarFS->open(file_path, FILE_WRITE);
@@ -509,4 +531,65 @@ void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels ) {
     }
     file = root.openNextFile();
   }
+}
+
+
+/* dirname - return directory part of PATH.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   This file is part of the GNU C Library.
+   Contributed by Ulrich Drepper <drepper@cygnus.com>, 1996.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <http://www.gnu.org/licenses/>.  */
+char *dirname(char *path) {
+  static const char dot[] = ".";
+  char *last_slash;
+  /* Find last '/'.  */
+  last_slash = path != NULL ? strrchr (path, '/') : NULL;
+  if (last_slash != NULL && last_slash != path && last_slash[1] == '\0') {
+    /* Determine whether all remaining characters are slashes.  */
+    char *runp;
+    for (runp = last_slash; runp != path; --runp)
+      if (runp[-1] != '/')
+        break;
+    /* The '/' is the last character, we have to look further.  */
+    if (runp != path)
+      last_slash = (char*)memrchr(path, '/', runp - path);
+  }
+  if (last_slash != NULL) {
+    /* Determine whether all remaining characters are slashes.  */
+    char *runp;
+    for (runp = last_slash; runp != path; --runp)
+      if (runp[-1] != '/')
+        break;
+    /* Terminate the path.  */
+    if (runp == path) {
+      /* The last slash is the first character in the string.  We have to
+          return "/".  As a special case we have to return "//" if there
+          are exactly two slashes at the beginning of the string.  See
+          XBD 4.10 Path Name Resolution for more information.  */
+      if (last_slash == path + 1)
+        ++last_slash;
+      else
+        last_slash = path + 1;
+    } else
+      last_slash = runp;
+    last_slash[0] = '\0';
+  } else
+    /* This assignment is ill-designed but the XPG specs require to
+       return a string containing "." in any case no directory part is
+       found and so a static and constant string is required.  */
+    path = (char *) dot;
+  return path;
 }
