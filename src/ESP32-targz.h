@@ -31,6 +31,9 @@
 
 \*/
 
+// some compiler sweetener
+#define CC_UNUSED __attribute__((unused))
+
 #include "uzlib/uzlib.h"     // https://github.com/pfalcon/uzlib
 
 extern "C" {
@@ -51,6 +54,10 @@ extern "C" {
 
   #define FILE_READ "r"
   #define FILE_WRITE "w"
+
+  #ifndef SPI_FLASH_SEC_SIZE
+    #error Please use a more recent version of the ESP8266 SDK
+  #endif
 
   #define log_e tgzLogger
   #define log_w tgzLogger
@@ -119,7 +126,7 @@ TarGzStream tarGzStream;
 
 typedef void (*genericProgressCallback)( uint8_t progress );
 
-void tgzNullLogger(const char* format, ...) {
+void tgzNullLogger(CC_UNUSED const char* format, ...) {
   //
 }
 
@@ -145,7 +152,7 @@ static void gzStreamWriteCallback( unsigned char* buff, size_t buffsize ) {
 }
 
 
-static void gzProcessTarBuffer( unsigned char* buff, size_t buffsize ) {
+static void gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t buffsize ) {
   if( firstblock ) {
     tar_setup(&tarCallbacks, NULL);
     firstblock = false;
@@ -342,7 +349,7 @@ void gzUpdater( fs::FS &fs, const char* gz_filename ) {
 }
 
 
-int unTarHeaderCallBack(header_translated_t *proper,  int entry_index,  void *context_data) {
+int unTarHeaderCallBack(header_translated_t *proper,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data) {
   dump_header(proper);
   if(proper->type == T_NORMAL) {
     char file_path[256] = ""; // TODO: normalize this for fs::FS, limit is 32, not 256
@@ -392,7 +399,7 @@ int unTarStreamReadCallback( unsigned char* buff, size_t buffsize ) {
 }
 
 
-int unTarStreamWriteCallback(header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length) {
+int unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data, unsigned char *block, int length) {
   if( tarGzStream.output ) {
     tarGzStream.output->write(block, length);
     untarredBytesCount+=length;
@@ -409,7 +416,7 @@ int unTarStreamWriteCallback(header_translated_t *proper, int entry_index, void 
 }
 
 
-int unTarEndCallBack(header_translated_t *proper, int entry_index, void *context_data) {
+int unTarEndCallBack( CC_UNUSED header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data) {
   if(untarredFile) {
     Serial.println();
     //log_d("Final size: %d", untarredFile.size() );
