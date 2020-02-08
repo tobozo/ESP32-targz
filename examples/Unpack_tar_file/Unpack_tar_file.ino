@@ -7,9 +7,9 @@ void setup() {
   SPIFFS.begin(true);
 
   // expand tar contents to /tmp folder
-  tarExpander(SPIFFS, "/tobozo.tar", SPIFFS, "/tmp");
+  tarExpander(SPIFFS, "/tobozo.tar", SPIFFS, "/");
 
-  tarGzListDir( SPIFFS, "/tmp");
+  tarGzListDir( SPIFFS, "/");
 
 }
 
