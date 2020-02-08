@@ -37,9 +37,31 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
-#include <FS.h>
-#include <SPIFFS.h>
-#include <Update.h>
+#if defined( ESP32 )
+
+  #include <FS.h>
+  #include <SPIFFS.h>
+  #include <Update.h>
+
+#elif defined( ESP8266 )
+
+  #include <FS.h>
+  #include "spiffs/spiffs.h"
+  #include <Updater.h>
+
+  #define FILE_READ "r"
+  #define FILE_WRITE "w"
+
+  #define log_e tgzLogger
+  #define log_w tgzLogger
+  #define log_d tgzNullLogger
+  #define log_v tgzNullLogger
+
+#else
+
+  #error Unsupported architecture
+
+#endif
 
 
 #define GZIP_DICT_SIZE 32768
@@ -96,6 +118,10 @@ struct TarGzStream {
 TarGzStream tarGzStream;
 
 typedef void (*genericProgressCallback)( uint8_t progress );
+
+void tgzNullLogger(const char* format, ...) {
+  //
+}
 
 void tgzLogger(const char* format, ...) {
   va_list args;
@@ -259,7 +285,7 @@ int gzUncompress() {
 // uncompress gz sourceFile to destFile
 void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile ) {
   tgzLogger("uzLib expander start!\n");
-  fs::File gz = sourceFS.open( sourceFile );
+  fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   if( !gzProgressCallback ) {
     setProgressCallback( defaultProgressCallback );
   }
@@ -287,7 +313,7 @@ void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
 // uncompress gz to flash (expected to be a valid Arduino compiled binary sketch)
 void gzUpdater( fs::FS &fs, const char* gz_filename ) {
   tgzLogger("uzLib SPIFFS Updater start!\n");
-  fs::File gz = fs.open( gz_filename );
+  fs::File gz = fs.open( gz_filename, FILE_READ );
   if( !readGzHeaders( gz ) ) {
     log_e("Not a valid gzip file");
     gz.close();
@@ -325,7 +351,7 @@ int unTarHeaderCallBack(header_translated_t *proper,  int entry_index,  void *co
     strcat(file_path, proper->filename);
 
     if( tarFS->exists( file_path ) ) {
-      untarredFile = tarFS->open(file_path);
+      untarredFile = tarFS->open( file_path, FILE_READ );
       bool isdir = untarredFile.isDirectory();
       untarredFile.close();
       if( isdir ) {
@@ -413,7 +439,7 @@ int tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const c
     unTarStreamWriteCallback,
     unTarEndCallBack
   };
-  fs::File tarFile = sourceFS.open( fileName );
+  fs::File tarFile = sourceFS.open( fileName, FILE_READ );
   tarGzStream.tar = &tarFile;
   tinyUntarReadCallback = &unTarStreamReadCallback;
   if(read_tar( &tarCallbacks, NULL ) != 0) {
@@ -468,7 +494,7 @@ void tarGzExpanderCleanup() {
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
 int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder ) {
   tgzLogger("targz expander start!\n");
-  fs::File gz = sourceFS.open( sourceFile );
+  fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   tarGzStream.gz = &gz;
   tarDestFolder = destFolder;
   if( !tarGzStream.gz->available() ) {
@@ -510,7 +536,7 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
 
 // get a directory listing of a given filesystem
 void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels ) {
-  File root = fs.open( dirName );
+  File root = fs.open( dirName, FILE_READ );
   if( !root ){
     log_e( "Can't open %s dir", dirName );
     return;
