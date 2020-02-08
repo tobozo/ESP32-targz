@@ -1,6 +1,6 @@
 # ESP32-targz
 
-## An ESP32-Arduino library that provides decompression support for .tar, .gz and .tar.gz files
+## An ESP32-Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
 
 ![](ESP32-targz.png)
