@@ -1,9 +1,9 @@
 # ESP32-targz
 
 ## An ESP32-Arduino library to provide decompression support for .tar, .gz and .tar.gz files
-
-<img src="ESP32-targz.png" alt="ES32-targz logo" width="512"/>
-
+<p align="center">
+<img src="ESP32-targz.png" alt="ES32-targz logo" width="512" style="display:block;margin:auto" />
+</p>
 ## This library is a wrapper for the following two great libraries:
 
   - uzlib https://github.com/pfalcon/uzlib
