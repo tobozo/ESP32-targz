@@ -31,11 +31,11 @@ static void log_debug(const char *message) {
   if(tar_debug_logger) tar_debug_logger("[DEBUG]: %s\n", message);
 }
 
-unsigned long long decode_base256(const unsigned char *buffer) {
+unsigned long long decode_base256( __attribute__((unused)) const unsigned char *buffer) {
   return 0;
 }
 
-static void dump_hex(const char *ptr, int length) {
+__attribute__((unused)) static void dump_hex(const char *ptr, int length) {
   int i = 0;
   printf("DUMP: ");
   while(i < length) {
@@ -497,7 +497,7 @@ enum entry_type_e get_type_from_char(char raw_type) {
   return T_OTHER;
 }
 
-int inline get_last_block_portion_size(int filesize) {
+inline int get_last_block_portion_size(int filesize) {
   const int partial = filesize % TAR_BLOCK_SIZE;
   return (partial > 0 ? partial : TAR_BLOCK_SIZE);
 }

@@ -16,7 +16,7 @@ int (*tinyUntarReadCallback)( unsigned char* buff, size_t buffsize );
 
 //fread(buffer, 1, TAR_BLOCK_SIZE, fp);
 
-int inline get_last_block_portion_size(int filesize);
+inline int get_last_block_portion_size(int filesize);
 
 #ifdef _MSC_VER
 	#define strtoull _strtoui64
