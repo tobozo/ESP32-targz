@@ -431,6 +431,18 @@ int tarGzExpanderSetup() {
 }
 
 
+void tarGzExpanderCleanup() {
+  if( uzlib_gzip_dict != nullptr ) {
+    free( uzlib_gzip_dict );
+    uzlib_gzip_dict = nullptr;
+  }
+  if( uzlib_buffer != nullptr ) {
+    free( uzlib_buffer );
+    uzlib_buffer = nullptr;
+  }
+}
+
+
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
 int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder ) {
   tgzLogger("targz expander start!\n");
@@ -454,9 +466,7 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
   int res = tarGzExpanderSetup();
   if (res != TINF_OK) {
     log_e("uzlib_gzip_parse_header failed!");
-    free( uzlib_gzip_dict );
-    free( uzlib_buffer );
-    uzlib_buffer = nullptr;
+    tarGzExpanderCleanup();
     return 5; // Error uncompress header read
   }
   gzProgressCallback( 0 );
@@ -464,17 +474,12 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
   while( uzlib_bytesleft>0 ) {
     int res = gzProcessBlock();
     if (res!=0) {
-      free( uzlib_gzip_dict );
-      free( uzlib_buffer );
-      uzlib_buffer = nullptr;
+      tarGzExpanderCleanup();
       return res;
     }
   }
   gzProgressCallback( 100 );
-  free( uzlib_gzip_dict );
-  uzlib_gzip_dict = nullptr;
-  free( uzlib_buffer );
-  uzlib_buffer = nullptr;
+  tarGzExpanderCleanup();
   gz.close();
   tgzLogger("success!\n");
   return 0;
@@ -500,7 +505,7 @@ void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels ) {
         tarGzListDir( fs, file.name(), levels -1 );
       }
     } else {
-      tgzLogger( "%32s %8d bytes\n", file.name(), file.size() );
+      tgzLogger( "%-32s %8d bytes\n", file.name(), file.size() );
     }
     file = root.openNextFile();
   }

@@ -349,7 +349,7 @@ int read_tar_step() {
       tar_abort(message, 1);
       return res;
     } else {
-      tar_abort("Unpacking success!", 0);
+      //tar_abort("Unpacking success!", 0);
       return 0;
     }
   } else {
@@ -373,22 +373,60 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
   read_buffer[TAR_BLOCK_SIZE] = 0;
   // The end of the file is represented by two empty entries (which we
   // expediently identify by filename length).
+
   while(empty_count < 2) {
-    int res = tar_step();
-    if( res < 0 ) {
-      char message[200];
-      if( res != -1 ) {
-        snprintf(message, 200, "read_tar return code (%d)", res );
-        tar_abort(message, 1);
-        return res;
-      } else {
-        tar_abort("", 0);
-        return 0;
-      }
+    if(read_block( read_buffer ) != 0)
+        break;
+
+    // If we haven't yet determined what format to support, read the
+    // header of the next entry, now. This should be done only at the
+    // top of the archive.
+
+    if(parse_header(read_buffer, &header) != 0) {
+      tar_abort("Could not understand the header of the first entry in the TAR.", 1);
+      return -3;
+    } else if(strlen(header.filename) == 0) {
+      empty_count++;
     } else {
-      continue;
+      if(translate_header(&header, &header_translated) != 0) {
+        tar_abort("Could not translate header.", 1);
+        return -4;
+      }
+      if(callbacks->header_cb(&header_translated, entry_index, context_data) != 0) {
+        tar_abort("Header callback failed.", 1);
+        return -5;
+      }
+      int i = 0;
+      int received_bytes = 0;
+      num_blocks = GET_NUM_BLOCKS(header_translated.filesize);
+      while(i < num_blocks) {
+        if(read_block( read_buffer ) != 0) {
+          tar_abort("Could not read block. File too short.", 1);
+          return -6;
+        }
+
+        if(i >= num_blocks - 1)
+          current_data_size = get_last_block_portion_size(header_translated.filesize);
+        else
+          current_data_size = TAR_BLOCK_SIZE;
+
+        read_buffer[current_data_size] = 0;
+
+        if(callbacks->data_cb(&header_translated, entry_index, context_data, read_buffer, current_data_size) != 0) {
+          tar_abort("Data callback failed.", 1);
+          return -7;
+        }
+        i++;
+        received_bytes += current_data_size;
+      }
+      if(callbacks->end_cb(&header_translated, entry_index, context_data) != 0) {
+        tar_abort("End callback failed.", 1);
+        return -5;
+      }
     }
+    entry_index++;
   }
+
   tar_abort("tar expanding done!", 0);
   return 0;
 }
