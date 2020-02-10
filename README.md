@@ -1,6 +1,6 @@
 # ESP32-targz
 
-## An ESP32-Arduino library to provide decompression support for .tar, .gz and .tar.gz files
+## An ESP32/ESP8266 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
 <p align="center">
 <img src="ESP32-targz.png" alt="ES32-targz logo" width="512" />
@@ -99,11 +99,12 @@ Flash the ESP with contents from `.gz` file
 Known bugs
 ----------
 
-  - .tar.gz files smaller than 4K aren't processed
-  - .tar files containing files smaller than 512 bytes aren't fully processed
-  - some .tar.gz formats aren't supported
-  - reading/writing simultaneously on SPIFFS may induce errors
-  - error detection isn't deferred efficiently, debugging may be painful
+  - tarGzExpander: files smaller than 4K aren't processed
+  - tarGzExpander/tarExpander: some formats aren't supported (e.g contains symlinks or long filename/path)
+  - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
+  - ~~error detection isn't deferred efficiently, debugging may be painful~~
+  - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
+  - ~~reading/writing simultaneously on SPIFFS may induce errors~~
 
 
 Credits:
