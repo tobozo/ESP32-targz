@@ -2,6 +2,8 @@
 
 ## An ESP32-Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
+[![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
+
 <p align="center">
 <img src="ESP32-targz.png" alt="ES32-targz logo" width="512" />
 </p>
