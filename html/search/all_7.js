@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['genericprogresscallback',['genericProgressCallback',['../ESP32-targz_8cpp.html#ac5ee8ab247efd1a402991d9cb253f501',1,'ESP32-targz.cpp']]],
+  ['genlz77_2ec',['genlz77.c',['../genlz77_8c.html',1,'']]],
+  ['get_5flast_5fblock_5fportion_5fsize',['get_last_block_portion_size',['../untar_8c.html#a355bb1945f9d2291149480df7ac8aba6',1,'get_last_block_portion_size(int filesize):&#160;untar.c'],['../untar_8h.html#a355bb1945f9d2291149480df7ac8aba6',1,'get_last_block_portion_size(int filesize):&#160;untar.c']]],
+  ['get_5fnum_5fblocks',['GET_NUM_BLOCKS',['../untar_8h.html#a432289c470287efbbafb2f559d4bf514',1,'untar.h']]],
+  ['get_5ftype_5ffrom_5fchar',['get_type_from_char',['../untar_8c.html#a026b36c55149292f74f2ebf743373529',1,'get_type_from_char(char raw_type):&#160;untar.c'],['../untar_8h.html#a026b36c55149292f74f2ebf743373529',1,'get_type_from_char(char raw_type):&#160;untar.c']]],
+  ['gid',['gid',['../structheader__s.html#af066cfd50e176b1f5bf9d4277a409ec8',1,'header_s::gid()'],['../structheader__translated__s.html#a5ec5aa66c986221fe02c9ec437b8fb22',1,'header_translated_s::gid()']]],
+  ['group_5fname',['group_name',['../structheader__s.html#a5da4190bb147496e7e8e4f4d7753fbbf',1,'header_s::group_name()'],['../structheader__translated__s.html#a1fd13d17c244c7a39aa7e4221c8fcb3c',1,'header_translated_s::group_name()']]],
+  ['gz',['gz',['../structTarGzStream.html#a95e37faf200dbe1957dd2969fbc3fe83',1,'TarGzStream']]],
+  ['gz_5fsize',['gz_size',['../structTarGzStream.html#af25edc843b297bbf311e10c5c3a06a95',1,'TarGzStream']]],
+  ['gzexpander',['gzExpander',['../ESP32-targz_8cpp.html#acddb3fa5de990d7b1c38b3a9e051c81a',1,'gzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFile):&#160;ESP32-targz.cpp'],['../ESP32-targz_8h.html#acddb3fa5de990d7b1c38b3a9e051c81a',1,'gzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFile):&#160;ESP32-targz.cpp']]],
+  ['gzfeedtarbuffer',['gzFeedTarBuffer',['../ESP32-targz_8cpp.html#a76a1b14c3542e7fadf15e7c08355534a',1,'ESP32-targz.cpp']]],
+  ['gzip_5fbuff_5fsize',['GZIP_BUFF_SIZE',['../ESP32-targz_8cpp.html#ab570e96e8879b39cfc62a83a131ac42c',1,'ESP32-targz.cpp']]],
+  ['gzip_5fdict_5fsize',['GZIP_DICT_SIZE',['../ESP32-targz_8cpp.html#afeb89dc5dda4a163aebb2a0195941db3',1,'ESP32-targz.cpp']]],
+  ['gzprocessblock',['gzProcessBlock',['../ESP32-targz_8cpp.html#a5e34d11e283ba6a157df28d23c2a0b44',1,'gzProcessBlock():&#160;ESP32-targz.cpp'],['../ESP32-targz_8h.html#a5e34d11e283ba6a157df28d23c2a0b44',1,'gzProcessBlock():&#160;ESP32-targz.cpp']]],
+  ['gzprocesstarbuffer',['gzProcessTarBuffer',['../ESP32-targz_8cpp.html#ab36b675cf70737c74f3a4ec541656933',1,'ESP32-targz.cpp']]],
+  ['gzprogresscallback',['gzProgressCallback',['../ESP32-targz_8cpp.html#acc3af8a618d3c303aa31120f2eb40f3c',1,'ESP32-targz.cpp']]],
+  ['gzreadbyte',['gzReadByte',['../ESP32-targz_8cpp.html#ae2562ae5f7d7f41edd04ba586b0cfec9',1,'ESP32-targz.cpp']]],
+  ['gzstreamreadcallback',['gzStreamReadCallback',['../ESP32-targz_8cpp.html#af2f4baef1eb72f4aae11df0287c913af',1,'ESP32-targz.cpp']]],
+  ['gzstreamwritecallback',['gzStreamWriteCallback',['../ESP32-targz_8cpp.html#ad38734ad3c99f03481d41c1636176674',1,'ESP32-targz.cpp']]],
+  ['gztarblockpos',['gzTarBlockPos',['../ESP32-targz_8cpp.html#ace8e3812bfd7f8ece336032b2b0883e2',1,'ESP32-targz.cpp']]],
+  ['gzuncompress',['gzUncompress',['../ESP32-targz_8cpp.html#a018f5c86f4f5d51609f85183e46f92d6',1,'ESP32-targz.cpp']]],
+  ['gzupdater',['gzUpdater',['../ESP32-targz_8cpp.html#a950aaa5d8797a35db9aea94e2a669fc0',1,'gzUpdater(fs::FS &amp;fs, const char *gz_filename):&#160;ESP32-targz.cpp'],['../ESP32-targz_8h.html#a950aaa5d8797a35db9aea94e2a669fc0',1,'gzUpdater(fs::FS &amp;fs, const char *gz_filename):&#160;ESP32-targz.cpp']]],
+  ['gzupdatewritecallback',['gzUpdateWriteCallback',['../ESP32-targz_8cpp.html#ac282c18be6cf758f65db71e84a3ec1ba',1,'ESP32-targz.cpp']]],
+  ['gzwritecallback',['gzWriteCallback',['../ESP32-targz_8cpp.html#a488bc5d9b48f2a9abdfcbbae2da28c16',1,'ESP32-targz.cpp']]]
+];

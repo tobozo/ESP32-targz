@@ -1,0 +1,76 @@
+\hypertarget{tinfgzip_8c}{}\section{src/uzlib/tinfgzip.c File Reference}
+\label{tinfgzip_8c}\index{src/uzlib/tinfgzip.\+c@{src/uzlib/tinfgzip.\+c}}
+{\ttfamily \#include \char`\"{}tinf.\+h\char`\"{}}\\*
+Include dependency graph for tinfgzip.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{tinfgzip_8c__incl}
+\end{center}
+\end{figure}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{tinfgzip_8c_ad16d3314e1ed1f0124d728efbd474ad4}{F\+T\+E\+XT}~1
+\item 
+\#define \hyperlink{tinfgzip_8c_a8469cbeb2f8071938f6d68cd0c58c0f3}{F\+H\+C\+RC}~2
+\item 
+\#define \hyperlink{tinfgzip_8c_ad0c5ecb7071bdd157bce2e3b7ee930ad}{F\+E\+X\+T\+RA}~4
+\item 
+\#define \hyperlink{tinfgzip_8c_afd7feb39acd312085566c208e35c2362}{F\+N\+A\+ME}~8
+\item 
+\#define \hyperlink{tinfgzip_8c_ab1cb41f7a9d2436f79f01a537ba79b71}{F\+C\+O\+M\+M\+E\+NT}~16
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{tinfgzip_8c_ade2977d61e4759bc98b6d002009c5b2e}{tinf\+\_\+skip\+\_\+bytes} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, int num)
+\item 
+uint16\+\_\+t \hyperlink{tinfgzip_8c_a55f876fca9805cfd85b9a8e418a8d1f8}{tinf\+\_\+get\+\_\+uint16} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+int \hyperlink{tinfgzip_8c_a533b6cbc764b787f464a5d072cef0590}{uzlib\+\_\+gzip\+\_\+parse\+\_\+header} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\end{DoxyCompactItemize}
+
+
+\subsection{Macro Definition Documentation}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!F\+C\+O\+M\+M\+E\+NT@{F\+C\+O\+M\+M\+E\+NT}}
+\index{F\+C\+O\+M\+M\+E\+NT@{F\+C\+O\+M\+M\+E\+NT}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{F\+C\+O\+M\+M\+E\+NT}{FCOMMENT}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+C\+O\+M\+M\+E\+NT~16}\hypertarget{tinfgzip_8c_ab1cb41f7a9d2436f79f01a537ba79b71}{}\label{tinfgzip_8c_ab1cb41f7a9d2436f79f01a537ba79b71}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!F\+E\+X\+T\+RA@{F\+E\+X\+T\+RA}}
+\index{F\+E\+X\+T\+RA@{F\+E\+X\+T\+RA}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{F\+E\+X\+T\+RA}{FEXTRA}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+E\+X\+T\+RA~4}\hypertarget{tinfgzip_8c_ad0c5ecb7071bdd157bce2e3b7ee930ad}{}\label{tinfgzip_8c_ad0c5ecb7071bdd157bce2e3b7ee930ad}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!F\+H\+C\+RC@{F\+H\+C\+RC}}
+\index{F\+H\+C\+RC@{F\+H\+C\+RC}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{F\+H\+C\+RC}{FHCRC}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+H\+C\+RC~2}\hypertarget{tinfgzip_8c_a8469cbeb2f8071938f6d68cd0c58c0f3}{}\label{tinfgzip_8c_a8469cbeb2f8071938f6d68cd0c58c0f3}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!F\+N\+A\+ME@{F\+N\+A\+ME}}
+\index{F\+N\+A\+ME@{F\+N\+A\+ME}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{F\+N\+A\+ME}{FNAME}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+N\+A\+ME~8}\hypertarget{tinfgzip_8c_afd7feb39acd312085566c208e35c2362}{}\label{tinfgzip_8c_afd7feb39acd312085566c208e35c2362}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!F\+T\+E\+XT@{F\+T\+E\+XT}}
+\index{F\+T\+E\+XT@{F\+T\+E\+XT}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{F\+T\+E\+XT}{FTEXT}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+T\+E\+XT~1}\hypertarget{tinfgzip_8c_ad16d3314e1ed1f0124d728efbd474ad4}{}\label{tinfgzip_8c_ad16d3314e1ed1f0124d728efbd474ad4}
+
+
+\subsection{Function Documentation}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!tinf\+\_\+get\+\_\+uint16@{tinf\+\_\+get\+\_\+uint16}}
+\index{tinf\+\_\+get\+\_\+uint16@{tinf\+\_\+get\+\_\+uint16}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+get\+\_\+uint16(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{tinf_get_uint16(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}uint16\+\_\+t tinf\+\_\+get\+\_\+uint16 (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinfgzip_8c_a55f876fca9805cfd85b9a8e418a8d1f8}{}\label{tinfgzip_8c_a55f876fca9805cfd85b9a8e418a8d1f8}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!tinf\+\_\+skip\+\_\+bytes@{tinf\+\_\+skip\+\_\+bytes}}
+\index{tinf\+\_\+skip\+\_\+bytes@{tinf\+\_\+skip\+\_\+bytes}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+skip\+\_\+bytes(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, int num)}{tinf_skip_bytes(TINF_DATA *d, int num)}}]{\setlength{\rightskip}{0pt plus 5cm}void tinf\+\_\+skip\+\_\+bytes (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{int}]{num}
+\end{DoxyParamCaption}
+)}\hypertarget{tinfgzip_8c_ade2977d61e4759bc98b6d002009c5b2e}{}\label{tinfgzip_8c_ade2977d61e4759bc98b6d002009c5b2e}
+\index{tinfgzip.\+c@{tinfgzip.\+c}!uzlib\+\_\+gzip\+\_\+parse\+\_\+header@{uzlib\+\_\+gzip\+\_\+parse\+\_\+header}}
+\index{uzlib\+\_\+gzip\+\_\+parse\+\_\+header@{uzlib\+\_\+gzip\+\_\+parse\+\_\+header}!tinfgzip.\+c@{tinfgzip.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+gzip\+\_\+parse\+\_\+header(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_gzip_parse_header(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int uzlib\+\_\+gzip\+\_\+parse\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinfgzip_8c_a533b6cbc764b787f464a5d072cef0590}{}\label{tinfgzip_8c_a533b6cbc764b787f464a5d072cef0590}

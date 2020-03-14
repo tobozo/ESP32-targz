@@ -1,0 +1,11 @@
+<map id="src/uzlib/tinf_compat.h" name="src/uzlib/tinf_compat.h">
+<area shape="rect" id="node2" href="$uzlib_8h.html" title="src/uzlib/uzlib.h" alt="" coords="309,80,422,107"/>
+<area shape="rect" id="node3" href="$ESP32-targz_8cpp.html" title="src/ESP32&#45;targz.cpp" alt="" coords="146,155,289,181"/>
+<area shape="rect" id="node4" href="$tinf_8h.html" title="src/uzlib/tinf.h" alt="" coords="313,155,417,181"/>
+<area shape="rect" id="node10" href="$genlz77_8c.html" title="src/uzlib/genlz77.c" alt="" coords="441,155,572,181"/>
+<area shape="rect" id="node5" href="$adler32_8c.html" title="src/uzlib/adler32.c" alt="" coords="5,229,133,256"/>
+<area shape="rect" id="node6" href="$crc32_8c.html" title="src/uzlib/crc32.c" alt="" coords="158,229,277,256"/>
+<area shape="rect" id="node7" href="$tinfgzip_8c.html" title="src/uzlib/tinfgzip.c" alt="" coords="301,229,429,256"/>
+<area shape="rect" id="node8" href="$tinflate_8c.html" title="src/uzlib/tinflate.c" alt="" coords="453,229,579,256"/>
+<area shape="rect" id="node9" href="$tinfzlib_8c.html" title="src/uzlib/tinfzlib.c" alt="" coords="603,229,727,256"/>
+</map>

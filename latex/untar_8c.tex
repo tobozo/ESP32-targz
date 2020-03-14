@@ -1,0 +1,266 @@
+\hypertarget{untar_8c}{}\section{src/\+Tiny\+Untar/untar.c File Reference}
+\label{untar_8c}\index{src/\+Tiny\+Untar/untar.\+c@{src/\+Tiny\+Untar/untar.\+c}}
+{\ttfamily \#include \char`\"{}untar.\+h\char`\"{}}\\*
+Include dependency graph for untar.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=325pt]{untar_8c__incl}
+\end{center}
+\end{figure}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int \hyperlink{untar_8c_a37d761f4e21c047b69a1c787d7545fe0}{parse\+\_\+header} (const unsigned char buffer\mbox{[}512\mbox{]}, \hyperlink{untar_8h_a4eb4dd7e74c119ccddb3032242467d65}{header\+\_\+t} $\ast$\hyperlink{untar_8c_a441b9c4617aa27c0e2ce2c0075d168cf}{header})
+\item 
+static void \hyperlink{untar_8c_a01d8a280d07d6be2c11eaa34dab6d12e}{log\+\_\+error} (const char $\ast$message)
+\item 
+static void \hyperlink{untar_8c_a9f3d11b8e87610f70b0767faae8d1f95}{log\+\_\+debug} (const char $\ast$message)
+\item 
+unsigned long long \hyperlink{untar_8c_ac0b65f21a048709b014bd0aa8d50f933}{decode\+\_\+base256} (\hyperlink{untar_8c_a36f229bbda63818246ec86181b1fdd42}{\+\_\+\+\_\+attribute\+\_\+\+\_\+}((unused)) const unsigned char $\ast$buffer)
+\item 
+\hyperlink{untar_8c_a36f229bbda63818246ec86181b1fdd42}{\+\_\+\+\_\+attribute\+\_\+\+\_\+} ((unused))
+\item 
+char $\ast$ \hyperlink{untar_8c_aa3983387c16b8253e9779d28e7066477}{trim} (char $\ast$raw, int length)
+\item 
+int \hyperlink{untar_8c_a35b0e59f69785bdf0645539e08208e86}{translate\+\_\+header} (\hyperlink{untar_8h_a4eb4dd7e74c119ccddb3032242467d65}{header\+\_\+t} $\ast$raw\+\_\+header, \hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} $\ast$parsed)
+\item 
+static int \hyperlink{untar_8c_adf9da73e4d4d91394fdcb44ad9e08f1b}{read\+\_\+block} (unsigned char $\ast$buffer)
+\item 
+int \hyperlink{untar_8c_ad6c661be6052185b723d1b61b4230c2c}{expand\+\_\+tar\+\_\+data\+\_\+block} ()
+\item 
+void \hyperlink{untar_8c_a87d44cd86c2b507d593114fcb98d8012}{tar\+\_\+abort} (const char $\ast$msgstr, int iserror)
+\item 
+void \hyperlink{untar_8c_a8a2c247595deab4eb206de81ab794c12}{tar\+\_\+setup} (\hyperlink{untar_8h_a374771851af07213954828f59117f68f}{entry\+\_\+callbacks\+\_\+t} $\ast$callbacks, void $\ast$context\+\_\+data)
+\item 
+int \hyperlink{untar_8c_a5f022ed70207f0431474ef778b4ec599}{tar\+\_\+datablock\+\_\+step} ()
+\item 
+int \hyperlink{untar_8c_a75d11be61a477f9e6b2c885e8ac9a150}{tar\+\_\+step} ()
+\item 
+int \hyperlink{untar_8c_a0da5a4bc7052099389643d31c0d50204}{read\+\_\+tar\+\_\+step} ()
+\item 
+int \hyperlink{untar_8c_aeccecbf77a14d99cadc56bfd9e61c627}{read\+\_\+tar} (\hyperlink{untar_8h_a374771851af07213954828f59117f68f}{entry\+\_\+callbacks\+\_\+t} $\ast$callbacks, void $\ast$context\+\_\+data)
+\item 
+void \hyperlink{untar_8c_a2c4d587d1d719d983087ea9d70e005eb}{dump\+\_\+header} (\hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} $\ast$\hyperlink{untar_8c_a441b9c4617aa27c0e2ce2c0075d168cf}{header})
+\item 
+enum \hyperlink{untar_8h_a80803970220f2aa0557f3e438ea74705}{entry\+\_\+type\+\_\+e} \hyperlink{untar_8c_a026b36c55149292f74f2ebf743373529}{get\+\_\+type\+\_\+from\+\_\+char} (char raw\+\_\+type)
+\item 
+int \hyperlink{untar_8c_a355bb1945f9d2291149480df7ac8aba6}{get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size} (int filesize)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+char $\ast$ \hyperlink{untar_8c_a08dbc3829a656a80f849aff56467ced8}{empty\+\_\+string} = \char`\"{}\char`\"{}
+\item 
+\hyperlink{untar_8h_a374771851af07213954828f59117f68f}{entry\+\_\+callbacks\+\_\+t} $\ast$ \hyperlink{untar_8c_ac79c83e54d0de0e7fdb53ca96f2582a1}{read\+\_\+tar\+\_\+callbacks} = N\+U\+LL
+\item 
+unsigned char $\ast$ \hyperlink{untar_8c_a177b66f98e2dac199fb2fc3f7d72fcc4}{read\+\_\+buffer} = N\+U\+LL
+\item 
+\hyperlink{untar_8h_a4eb4dd7e74c119ccddb3032242467d65}{header\+\_\+t} \hyperlink{untar_8c_a441b9c4617aa27c0e2ce2c0075d168cf}{header}
+\item 
+\hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} \hyperlink{untar_8c_a0aa9525f0701b985aac6db38146ab0b5}{header\+\_\+translated}
+\item 
+void $\ast$ \hyperlink{untar_8c_a33483de02af2da5a5f8c396298488d63}{read\+\_\+context\+\_\+data} = N\+U\+LL
+\item 
+int \hyperlink{untar_8c_a9bfd163a083925243621097f52863412}{num\+\_\+blocks}
+\item 
+int \hyperlink{untar_8c_ac8ddc26613277a2545ee85ed2a52c8ba}{num\+\_\+blocks\+\_\+iterator}
+\item 
+int \hyperlink{untar_8c_ace2ae6c09b13753fa049055b10bc9de3}{current\+\_\+data\+\_\+size}
+\item 
+int \hyperlink{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}{entry\+\_\+index}
+\item 
+int \hyperlink{untar_8c_aa33ddbc5bd6269f340a0b9de721092a4}{empty\+\_\+count}
+\item 
+int \hyperlink{untar_8c_aa2aa829cf76dc3178bcee517b81d08e7}{received\+\_\+bytes}
+\item 
+int \hyperlink{untar_8c_af1a690ebf065ebd5f92556772ec6ebf3}{indatablock}
+\item 
+void($\ast$ \hyperlink{untar_8c_a185c080962694c7a3cb40f499d4be7ee}{tar\+\_\+error\+\_\+logger} )(const char $\ast$subject,...)
+\item 
+void($\ast$ \hyperlink{untar_8c_a9c87d8b80d78589a8de821fa3991470c}{tar\+\_\+debug\+\_\+logger} )(const char $\ast$subject,...)
+\end{DoxyCompactItemize}
+
+
+\subsection{Function Documentation}
+\index{untar.\+c@{untar.\+c}!\+\_\+\+\_\+attribute\+\_\+\+\_\+@{\+\_\+\+\_\+attribute\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+attribute\+\_\+\+\_\+@{\+\_\+\+\_\+attribute\+\_\+\+\_\+}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{\+\_\+\+\_\+attribute\+\_\+\+\_\+((unused))}{__attribute__((unused))}}]{\setlength{\rightskip}{0pt plus 5cm}\+\_\+\+\_\+attribute\+\_\+\+\_\+ (
+\begin{DoxyParamCaption}
+\item[{(unused)}]{}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a36f229bbda63818246ec86181b1fdd42}{}\label{untar_8c_a36f229bbda63818246ec86181b1fdd42}
+\index{untar.\+c@{untar.\+c}!decode\+\_\+base256@{decode\+\_\+base256}}
+\index{decode\+\_\+base256@{decode\+\_\+base256}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{decode\+\_\+base256(\+\_\+\+\_\+attribute\+\_\+\+\_\+((unused)) const unsigned char $\ast$buffer)}{decode_base256(__attribute__((unused)) const unsigned char *buffer)}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned long long decode\+\_\+base256 (
+\begin{DoxyParamCaption}
+\item[{{\bf \+\_\+\+\_\+attribute\+\_\+\+\_\+}((unused)) const unsigned char $\ast$}]{buffer}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_ac0b65f21a048709b014bd0aa8d50f933}{}\label{untar_8c_ac0b65f21a048709b014bd0aa8d50f933}
+\index{untar.\+c@{untar.\+c}!dump\+\_\+header@{dump\+\_\+header}}
+\index{dump\+\_\+header@{dump\+\_\+header}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{dump\+\_\+header(header\+\_\+translated\+\_\+t $\ast$header)}{dump_header(header_translated_t *header)}}]{\setlength{\rightskip}{0pt plus 5cm}void dump\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{{\bf header\+\_\+translated\+\_\+t} $\ast$}]{header}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a2c4d587d1d719d983087ea9d70e005eb}{}\label{untar_8c_a2c4d587d1d719d983087ea9d70e005eb}
+\index{untar.\+c@{untar.\+c}!expand\+\_\+tar\+\_\+data\+\_\+block@{expand\+\_\+tar\+\_\+data\+\_\+block}}
+\index{expand\+\_\+tar\+\_\+data\+\_\+block@{expand\+\_\+tar\+\_\+data\+\_\+block}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{expand\+\_\+tar\+\_\+data\+\_\+block()}{expand_tar_data_block()}}]{\setlength{\rightskip}{0pt plus 5cm}int expand\+\_\+tar\+\_\+data\+\_\+block (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_ad6c661be6052185b723d1b61b4230c2c}{}\label{untar_8c_ad6c661be6052185b723d1b61b4230c2c}
+\index{untar.\+c@{untar.\+c}!get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size@{get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size}}
+\index{get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size@{get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size(int filesize)}{get_last_block_portion_size(int filesize)}}]{\setlength{\rightskip}{0pt plus 5cm}int get\+\_\+last\+\_\+block\+\_\+portion\+\_\+size (
+\begin{DoxyParamCaption}
+\item[{int}]{filesize}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}\hypertarget{untar_8c_a355bb1945f9d2291149480df7ac8aba6}{}\label{untar_8c_a355bb1945f9d2291149480df7ac8aba6}
+\index{untar.\+c@{untar.\+c}!get\+\_\+type\+\_\+from\+\_\+char@{get\+\_\+type\+\_\+from\+\_\+char}}
+\index{get\+\_\+type\+\_\+from\+\_\+char@{get\+\_\+type\+\_\+from\+\_\+char}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{get\+\_\+type\+\_\+from\+\_\+char(char raw\+\_\+type)}{get_type_from_char(char raw_type)}}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf entry\+\_\+type\+\_\+e} get\+\_\+type\+\_\+from\+\_\+char (
+\begin{DoxyParamCaption}
+\item[{char}]{raw\+\_\+type}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a026b36c55149292f74f2ebf743373529}{}\label{untar_8c_a026b36c55149292f74f2ebf743373529}
+\index{untar.\+c@{untar.\+c}!log\+\_\+debug@{log\+\_\+debug}}
+\index{log\+\_\+debug@{log\+\_\+debug}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{log\+\_\+debug(const char $\ast$message)}{log_debug(const char *message)}}]{\setlength{\rightskip}{0pt plus 5cm}static void log\+\_\+debug (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{message}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{untar_8c_a9f3d11b8e87610f70b0767faae8d1f95}{}\label{untar_8c_a9f3d11b8e87610f70b0767faae8d1f95}
+\index{untar.\+c@{untar.\+c}!log\+\_\+error@{log\+\_\+error}}
+\index{log\+\_\+error@{log\+\_\+error}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{log\+\_\+error(const char $\ast$message)}{log_error(const char *message)}}]{\setlength{\rightskip}{0pt plus 5cm}static void log\+\_\+error (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{message}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{untar_8c_a01d8a280d07d6be2c11eaa34dab6d12e}{}\label{untar_8c_a01d8a280d07d6be2c11eaa34dab6d12e}
+\index{untar.\+c@{untar.\+c}!parse\+\_\+header@{parse\+\_\+header}}
+\index{parse\+\_\+header@{parse\+\_\+header}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{parse\+\_\+header(const unsigned char buffer[512], header\+\_\+t $\ast$header)}{parse_header(const unsigned char buffer[512], header_t *header)}}]{\setlength{\rightskip}{0pt plus 5cm}int parse\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{const unsigned char}]{buffer\mbox{[}512\mbox{]}, }
+\item[{{\bf header\+\_\+t} $\ast$}]{header}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a37d761f4e21c047b69a1c787d7545fe0}{}\label{untar_8c_a37d761f4e21c047b69a1c787d7545fe0}
+\index{untar.\+c@{untar.\+c}!read\+\_\+block@{read\+\_\+block}}
+\index{read\+\_\+block@{read\+\_\+block}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+block(unsigned char $\ast$buffer)}{read_block(unsigned char *buffer)}}]{\setlength{\rightskip}{0pt plus 5cm}static int read\+\_\+block (
+\begin{DoxyParamCaption}
+\item[{unsigned char $\ast$}]{buffer}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{untar_8c_adf9da73e4d4d91394fdcb44ad9e08f1b}{}\label{untar_8c_adf9da73e4d4d91394fdcb44ad9e08f1b}
+\index{untar.\+c@{untar.\+c}!read\+\_\+tar@{read\+\_\+tar}}
+\index{read\+\_\+tar@{read\+\_\+tar}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+tar(entry\+\_\+callbacks\+\_\+t $\ast$callbacks, void $\ast$context\+\_\+data)}{read_tar(entry_callbacks_t *callbacks, void *context_data)}}]{\setlength{\rightskip}{0pt plus 5cm}int read\+\_\+tar (
+\begin{DoxyParamCaption}
+\item[{{\bf entry\+\_\+callbacks\+\_\+t} $\ast$}]{callbacks, }
+\item[{void $\ast$}]{context\+\_\+data}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_aeccecbf77a14d99cadc56bfd9e61c627}{}\label{untar_8c_aeccecbf77a14d99cadc56bfd9e61c627}
+\index{untar.\+c@{untar.\+c}!read\+\_\+tar\+\_\+step@{read\+\_\+tar\+\_\+step}}
+\index{read\+\_\+tar\+\_\+step@{read\+\_\+tar\+\_\+step}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+tar\+\_\+step()}{read_tar_step()}}]{\setlength{\rightskip}{0pt plus 5cm}int read\+\_\+tar\+\_\+step (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a0da5a4bc7052099389643d31c0d50204}{}\label{untar_8c_a0da5a4bc7052099389643d31c0d50204}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+abort@{tar\+\_\+abort}}
+\index{tar\+\_\+abort@{tar\+\_\+abort}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+abort(const char $\ast$msgstr, int iserror)}{tar_abort(const char *msgstr, int iserror)}}]{\setlength{\rightskip}{0pt plus 5cm}void tar\+\_\+abort (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{msgstr, }
+\item[{int}]{iserror}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a87d44cd86c2b507d593114fcb98d8012}{}\label{untar_8c_a87d44cd86c2b507d593114fcb98d8012}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+datablock\+\_\+step@{tar\+\_\+datablock\+\_\+step}}
+\index{tar\+\_\+datablock\+\_\+step@{tar\+\_\+datablock\+\_\+step}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+datablock\+\_\+step()}{tar_datablock_step()}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+\_\+datablock\+\_\+step (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a5f022ed70207f0431474ef778b4ec599}{}\label{untar_8c_a5f022ed70207f0431474ef778b4ec599}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+setup@{tar\+\_\+setup}}
+\index{tar\+\_\+setup@{tar\+\_\+setup}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+setup(entry\+\_\+callbacks\+\_\+t $\ast$callbacks, void $\ast$context\+\_\+data)}{tar_setup(entry_callbacks_t *callbacks, void *context_data)}}]{\setlength{\rightskip}{0pt plus 5cm}void tar\+\_\+setup (
+\begin{DoxyParamCaption}
+\item[{{\bf entry\+\_\+callbacks\+\_\+t} $\ast$}]{callbacks, }
+\item[{void $\ast$}]{context\+\_\+data}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a8a2c247595deab4eb206de81ab794c12}{}\label{untar_8c_a8a2c247595deab4eb206de81ab794c12}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+step@{tar\+\_\+step}}
+\index{tar\+\_\+step@{tar\+\_\+step}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+step()}{tar_step()}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+\_\+step (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a75d11be61a477f9e6b2c885e8ac9a150}{}\label{untar_8c_a75d11be61a477f9e6b2c885e8ac9a150}
+\index{untar.\+c@{untar.\+c}!translate\+\_\+header@{translate\+\_\+header}}
+\index{translate\+\_\+header@{translate\+\_\+header}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{translate\+\_\+header(header\+\_\+t $\ast$raw\+\_\+header, header\+\_\+translated\+\_\+t $\ast$parsed)}{translate_header(header_t *raw_header, header_translated_t *parsed)}}]{\setlength{\rightskip}{0pt plus 5cm}int translate\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{{\bf header\+\_\+t} $\ast$}]{raw\+\_\+header, }
+\item[{{\bf header\+\_\+translated\+\_\+t} $\ast$}]{parsed}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_a35b0e59f69785bdf0645539e08208e86}{}\label{untar_8c_a35b0e59f69785bdf0645539e08208e86}
+\index{untar.\+c@{untar.\+c}!trim@{trim}}
+\index{trim@{trim}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{trim(char $\ast$raw, int length)}{trim(char *raw, int length)}}]{\setlength{\rightskip}{0pt plus 5cm}char$\ast$ trim (
+\begin{DoxyParamCaption}
+\item[{char $\ast$}]{raw, }
+\item[{int}]{length}
+\end{DoxyParamCaption}
+)}\hypertarget{untar_8c_aa3983387c16b8253e9779d28e7066477}{}\label{untar_8c_aa3983387c16b8253e9779d28e7066477}
+
+
+\subsection{Variable Documentation}
+\index{untar.\+c@{untar.\+c}!current\+\_\+data\+\_\+size@{current\+\_\+data\+\_\+size}}
+\index{current\+\_\+data\+\_\+size@{current\+\_\+data\+\_\+size}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{current\+\_\+data\+\_\+size}{current_data_size}}]{\setlength{\rightskip}{0pt plus 5cm}int current\+\_\+data\+\_\+size}\hypertarget{untar_8c_ace2ae6c09b13753fa049055b10bc9de3}{}\label{untar_8c_ace2ae6c09b13753fa049055b10bc9de3}
+\index{untar.\+c@{untar.\+c}!empty\+\_\+count@{empty\+\_\+count}}
+\index{empty\+\_\+count@{empty\+\_\+count}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{empty\+\_\+count}{empty_count}}]{\setlength{\rightskip}{0pt plus 5cm}int empty\+\_\+count}\hypertarget{untar_8c_aa33ddbc5bd6269f340a0b9de721092a4}{}\label{untar_8c_aa33ddbc5bd6269f340a0b9de721092a4}
+\index{untar.\+c@{untar.\+c}!empty\+\_\+string@{empty\+\_\+string}}
+\index{empty\+\_\+string@{empty\+\_\+string}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{empty\+\_\+string}{empty_string}}]{\setlength{\rightskip}{0pt plus 5cm}char$\ast$ empty\+\_\+string = \char`\"{}\char`\"{}}\hypertarget{untar_8c_a08dbc3829a656a80f849aff56467ced8}{}\label{untar_8c_a08dbc3829a656a80f849aff56467ced8}
+\index{untar.\+c@{untar.\+c}!entry\+\_\+index@{entry\+\_\+index}}
+\index{entry\+\_\+index@{entry\+\_\+index}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{entry\+\_\+index}{entry_index}}]{\setlength{\rightskip}{0pt plus 5cm}int entry\+\_\+index}\hypertarget{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}{}\label{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}
+\index{untar.\+c@{untar.\+c}!header@{header}}
+\index{header@{header}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{header}{header}}]{\setlength{\rightskip}{0pt plus 5cm}{\bf header\+\_\+t} header}\hypertarget{untar_8c_a441b9c4617aa27c0e2ce2c0075d168cf}{}\label{untar_8c_a441b9c4617aa27c0e2ce2c0075d168cf}
+\index{untar.\+c@{untar.\+c}!header\+\_\+translated@{header\+\_\+translated}}
+\index{header\+\_\+translated@{header\+\_\+translated}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{header\+\_\+translated}{header_translated}}]{\setlength{\rightskip}{0pt plus 5cm}{\bf header\+\_\+translated\+\_\+t} header\+\_\+translated}\hypertarget{untar_8c_a0aa9525f0701b985aac6db38146ab0b5}{}\label{untar_8c_a0aa9525f0701b985aac6db38146ab0b5}
+\index{untar.\+c@{untar.\+c}!indatablock@{indatablock}}
+\index{indatablock@{indatablock}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{indatablock}{indatablock}}]{\setlength{\rightskip}{0pt plus 5cm}int indatablock}\hypertarget{untar_8c_af1a690ebf065ebd5f92556772ec6ebf3}{}\label{untar_8c_af1a690ebf065ebd5f92556772ec6ebf3}
+\index{untar.\+c@{untar.\+c}!num\+\_\+blocks@{num\+\_\+blocks}}
+\index{num\+\_\+blocks@{num\+\_\+blocks}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{num\+\_\+blocks}{num_blocks}}]{\setlength{\rightskip}{0pt plus 5cm}int num\+\_\+blocks}\hypertarget{untar_8c_a9bfd163a083925243621097f52863412}{}\label{untar_8c_a9bfd163a083925243621097f52863412}
+\index{untar.\+c@{untar.\+c}!num\+\_\+blocks\+\_\+iterator@{num\+\_\+blocks\+\_\+iterator}}
+\index{num\+\_\+blocks\+\_\+iterator@{num\+\_\+blocks\+\_\+iterator}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{num\+\_\+blocks\+\_\+iterator}{num_blocks_iterator}}]{\setlength{\rightskip}{0pt plus 5cm}int num\+\_\+blocks\+\_\+iterator}\hypertarget{untar_8c_ac8ddc26613277a2545ee85ed2a52c8ba}{}\label{untar_8c_ac8ddc26613277a2545ee85ed2a52c8ba}
+\index{untar.\+c@{untar.\+c}!read\+\_\+buffer@{read\+\_\+buffer}}
+\index{read\+\_\+buffer@{read\+\_\+buffer}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+buffer}{read_buffer}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned char$\ast$ read\+\_\+buffer = N\+U\+LL}\hypertarget{untar_8c_a177b66f98e2dac199fb2fc3f7d72fcc4}{}\label{untar_8c_a177b66f98e2dac199fb2fc3f7d72fcc4}
+\index{untar.\+c@{untar.\+c}!read\+\_\+context\+\_\+data@{read\+\_\+context\+\_\+data}}
+\index{read\+\_\+context\+\_\+data@{read\+\_\+context\+\_\+data}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+context\+\_\+data}{read_context_data}}]{\setlength{\rightskip}{0pt plus 5cm}void$\ast$ read\+\_\+context\+\_\+data = N\+U\+LL}\hypertarget{untar_8c_a33483de02af2da5a5f8c396298488d63}{}\label{untar_8c_a33483de02af2da5a5f8c396298488d63}
+\index{untar.\+c@{untar.\+c}!read\+\_\+tar\+\_\+callbacks@{read\+\_\+tar\+\_\+callbacks}}
+\index{read\+\_\+tar\+\_\+callbacks@{read\+\_\+tar\+\_\+callbacks}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{read\+\_\+tar\+\_\+callbacks}{read_tar_callbacks}}]{\setlength{\rightskip}{0pt plus 5cm}{\bf entry\+\_\+callbacks\+\_\+t}$\ast$ read\+\_\+tar\+\_\+callbacks = N\+U\+LL}\hypertarget{untar_8c_ac79c83e54d0de0e7fdb53ca96f2582a1}{}\label{untar_8c_ac79c83e54d0de0e7fdb53ca96f2582a1}
+\index{untar.\+c@{untar.\+c}!received\+\_\+bytes@{received\+\_\+bytes}}
+\index{received\+\_\+bytes@{received\+\_\+bytes}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{received\+\_\+bytes}{received_bytes}}]{\setlength{\rightskip}{0pt plus 5cm}int received\+\_\+bytes}\hypertarget{untar_8c_aa2aa829cf76dc3178bcee517b81d08e7}{}\label{untar_8c_aa2aa829cf76dc3178bcee517b81d08e7}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+debug\+\_\+logger@{tar\+\_\+debug\+\_\+logger}}
+\index{tar\+\_\+debug\+\_\+logger@{tar\+\_\+debug\+\_\+logger}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+debug\+\_\+logger}{tar_debug_logger}}]{\setlength{\rightskip}{0pt plus 5cm}void($\ast$ tar\+\_\+debug\+\_\+logger) (const char $\ast$subject,...)}\hypertarget{untar_8c_a9c87d8b80d78589a8de821fa3991470c}{}\label{untar_8c_a9c87d8b80d78589a8de821fa3991470c}
+\index{untar.\+c@{untar.\+c}!tar\+\_\+error\+\_\+logger@{tar\+\_\+error\+\_\+logger}}
+\index{tar\+\_\+error\+\_\+logger@{tar\+\_\+error\+\_\+logger}!untar.\+c@{untar.\+c}}
+\subsubsection[{\texorpdfstring{tar\+\_\+error\+\_\+logger}{tar_error_logger}}]{\setlength{\rightskip}{0pt plus 5cm}void($\ast$ tar\+\_\+error\+\_\+logger) (const char $\ast$subject,...)}\hypertarget{untar_8c_a185c080962694c7a3cb40f499d4be7ee}{}\label{untar_8c_a185c080962694c7a3cb40f499d4be7ee}

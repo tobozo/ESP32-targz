@@ -1,0 +1,408 @@
+\hypertarget{ESP32-targz_8cpp}{}\section{src/\+E\+S\+P32-\/targz.cpp File Reference}
+\label{ESP32-targz_8cpp}\index{src/\+E\+S\+P32-\/targz.\+cpp@{src/\+E\+S\+P32-\/targz.\+cpp}}
+{\ttfamily \#include \char`\"{}E\+S\+P32-\/targz.\+h\char`\"{}}\\*
+{\ttfamily \#include \char`\"{}uzlib/uzlib.\+h\char`\"{}}\\*
+{\ttfamily \#include \char`\"{}Tiny\+Untar/untar.\+h\char`\"{}}\\*
+Include dependency graph for E\+S\+P32-\/targz.cpp\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{ESP32-targz_8cpp__incl}
+\end{center}
+\end{figure}
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \hyperlink{structTarGzStream}{Tar\+Gz\+Stream}
+\end{DoxyCompactItemize}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED}~\hyperlink{untar_8c_a36f229bbda63818246ec86181b1fdd42}{\+\_\+\+\_\+attribute\+\_\+\+\_\+}((unused))
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_afeb89dc5dda4a163aebb2a0195941db3}{G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE}~32768
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_ab570e96e8879b39cfc62a83a131ac42c}{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE}~4096
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_a6cddaf6595a84ce83082840a98ca51a8}{F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR}~\char`\"{}/\char`\"{}
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_ad52d51659a75e25d96fb04d22ff718cb}{F\+I\+L\+E\+\_\+\+R\+E\+AD}~\char`\"{}r\char`\"{}
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_ace34e503254fa9004599ddf122264c8f}{F\+I\+L\+E\+\_\+\+W\+R\+I\+TE}~\char`\"{}w\char`\"{}
+\item 
+\#define \hyperlink{ESP32-targz_8cpp_a518257817c69fec25290c1bebad544b0}{S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE}~4096
+\end{DoxyCompactItemize}
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef void($\ast$ \hyperlink{ESP32-targz_8cpp_ac5ee8ab247efd1a402991d9cb253f501}{generic\+Progress\+Callback}) (uint8\+\_\+t progress)
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+unsigned char \hyperlink{ESP32-targz_8cpp_a12d54f14711605460bd2f058babeb57a}{\+\_\+\+\_\+attribute\+\_\+\+\_\+} ((aligned(4))) uzlib\+\_\+read\+\_\+cb\+\_\+buff\mbox{[}\hyperlink{ESP32-targz_8cpp_ab570e96e8879b39cfc62a83a131ac42c}{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE}\mbox{]}
+\item 
+void \hyperlink{ESP32-targz_8cpp_a400945a5fabb73ac04f71adeb91ff2d0}{tgz\+Null\+Logger} (\hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} const char $\ast$format,...)
+\item 
+void \hyperlink{ESP32-targz_8cpp_ad32e306d98722d52047607bdaf5d0f70}{tgz\+Logger} (const char $\ast$format,...)
+\item 
+char $\ast$ \hyperlink{ESP32-targz_8cpp_ab1b6028f4625caec30c1020e737216e2}{dirname} (char $\ast$path)
+\item 
+void \hyperlink{ESP32-targz_8cpp_a24933a26ee91633c9b2b436839374476}{set\+Progress\+Callback} (\hyperlink{ESP32-targz_8cpp_ac5ee8ab247efd1a402991d9cb253f501}{generic\+Progress\+Callback} cb)
+\item 
+static void \hyperlink{ESP32-targz_8cpp_ac282c18be6cf758f65db71e84a3ec1ba}{gz\+Update\+Write\+Callback} (unsigned char $\ast$buff, size\+\_\+t buffsize)
+\item 
+static void \hyperlink{ESP32-targz_8cpp_ad38734ad3c99f03481d41c1636176674}{gz\+Stream\+Write\+Callback} (unsigned char $\ast$buff, size\+\_\+t buffsize)
+\item 
+static void \hyperlink{ESP32-targz_8cpp_ab36b675cf70737c74f3a4ec541656933}{gz\+Process\+Tar\+Buffer} (\hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} unsigned char $\ast$buff, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} size\+\_\+t buffsize)
+\item 
+int \hyperlink{ESP32-targz_8cpp_a76a1b14c3542e7fadf15e7c08355534a}{gz\+Feed\+Tar\+Buffer} (unsigned char $\ast$buff, size\+\_\+t buffsize)
+\item 
+void \hyperlink{ESP32-targz_8cpp_a140daab0ca33c2558bcc4f856c3dd1bd}{default\+Progress\+Callback} (uint8\+\_\+t progress)
+\item 
+int \hyperlink{ESP32-targz_8cpp_af2f4baef1eb72f4aae11df0287c913af}{gz\+Stream\+Read\+Callback} (struct \hyperlink{structuzlib__uncomp}{uzlib\+\_\+uncomp} $\ast$m)
+\item 
+uint8\+\_\+t \hyperlink{ESP32-targz_8cpp_ae2562ae5f7d7f41edd04ba586b0cfec9}{gz\+Read\+Byte} (fs\+::\+File \&file, const uint32\+\_\+t addr)
+\item 
+void \hyperlink{ESP32-targz_8cpp_abdcef0bceec9696afa93203b2820be4d}{tar\+Gz\+Expander\+Cleanup} ()
+\item 
+bool \hyperlink{ESP32-targz_8cpp_a05b8ccb59a181088df4b2f9d3242462b}{read\+Gz\+Headers} (fs\+::\+File \&gz\+File)
+\item 
+int \hyperlink{ESP32-targz_8cpp_a5e34d11e283ba6a157df28d23c2a0b44}{gz\+Process\+Block} ()
+\item 
+int \hyperlink{ESP32-targz_8cpp_a018f5c86f4f5d51609f85183e46f92d6}{gz\+Uncompress} ()
+\item 
+void \hyperlink{ESP32-targz_8cpp_acddb3fa5de990d7b1c38b3a9e051c81a}{gz\+Expander} (fs\+::\+FS source\+FS, const char $\ast$source\+File, fs\+::\+FS dest\+FS, const char $\ast$dest\+File)
+\item 
+void \hyperlink{ESP32-targz_8cpp_a950aaa5d8797a35db9aea94e2a669fc0}{gz\+Updater} (fs\+::\+FS \&fs, const char $\ast$gz\+\_\+filename)
+\item 
+int \hyperlink{ESP32-targz_8cpp_a902ca38dc2cff4f4893bd1dbd6fb301f}{un\+Tar\+Header\+Call\+Back} (\hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} $\ast$proper, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} int \hyperlink{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}{entry\+\_\+index}, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$context\+\_\+data)
+\item 
+int \hyperlink{ESP32-targz_8cpp_accbbe30121cc94e268e797bf4c555c34}{un\+Tar\+Stream\+Read\+Callback} (unsigned char $\ast$buff, size\+\_\+t buffsize)
+\item 
+int \hyperlink{ESP32-targz_8cpp_a9f9a546b557c0f1165a9050f54bec630}{un\+Tar\+Stream\+Write\+Callback} (\hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} \hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} $\ast$proper, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} int \hyperlink{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}{entry\+\_\+index}, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$context\+\_\+data, unsigned char $\ast$block, int length)
+\item 
+int \hyperlink{ESP32-targz_8cpp_a1267a7655631d8c67c92be45ab507dc2}{un\+Tar\+End\+Call\+Back} (\hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} \hyperlink{untar_8h_a9147d454aea305f52e7b97b50ed26918}{header\+\_\+translated\+\_\+t} $\ast$proper, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} int \hyperlink{untar_8c_a36e3b8f9d08679a7381caa6c15ea9888}{entry\+\_\+index}, \hyperlink{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$context\+\_\+data)
+\item 
+int \hyperlink{ESP32-targz_8cpp_abc36fcba0a0fca53fc824ab44df1afa1}{tar\+Expander} (fs\+::\+FS \&source\+FS, const char $\ast$file\+Name, fs\+::\+FS \&dest\+FS, const char $\ast$dest\+Folder)
+\item 
+int \hyperlink{ESP32-targz_8cpp_af9aeb1c3b8dd4061cfbe745605a14af1}{tar\+Gz\+Expander\+Setup} ()
+\item 
+int \hyperlink{ESP32-targz_8cpp_a76329eedbd8f7da45209d5fde943536b}{tar\+Gz\+Expander} (fs\+::\+FS source\+FS, const char $\ast$source\+File, fs\+::\+FS dest\+FS, const char $\ast$dest\+Folder)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+fs\+::\+File \hyperlink{ESP32-targz_8cpp_a27c6deb00092ef8dcbb8453d8d75118c}{untarred\+File}
+\item 
+fs\+::\+FS $\ast$ \hyperlink{ESP32-targz_8cpp_a3b84972f195ce18f9882623a6081c0ab}{tar\+FS} = nullptr
+\item 
+const char $\ast$ \hyperlink{ESP32-targz_8cpp_a8f75ed6166f2292a78695da999d4e899}{tar\+Dest\+Folder} = nullptr
+\item 
+\hyperlink{untar_8h_a374771851af07213954828f59117f68f}{entry\+\_\+callbacks\+\_\+t} \hyperlink{ESP32-targz_8cpp_ab606c7afa05f59753173480a0e48e52c}{tar\+Callbacks}
+\item 
+bool \hyperlink{ESP32-targz_8cpp_af138d603a671d34202e2087ade77f51c}{firstblock}
+\item 
+int \hyperlink{ESP32-targz_8cpp_ace8e3812bfd7f8ece336032b2b0883e2}{gz\+Tar\+Block\+Pos} = 0
+\item 
+byte \hyperlink{ESP32-targz_8cpp_a14b682b5d3d66207698676af37190879}{blockmod} = \hyperlink{ESP32-targz_8cpp_ab570e96e8879b39cfc62a83a131ac42c}{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE} / \hyperlink{untar_8h_ade324f8761934ace1ac409ee36bcb2aa}{T\+A\+R\+\_\+\+B\+L\+O\+C\+K\+\_\+\+S\+I\+ZE}
+\item 
+static uint32\+\_\+t \hyperlink{ESP32-targz_8cpp_a0243b6b9c976cd53260751c06a7567fc}{untarred\+Bytes\+Count} = 0
+\item 
+unsigned char $\ast$ \hyperlink{ESP32-targz_8cpp_ab5d8d8dd8d5eafad9f67fd554c2da7d0}{uzlib\+\_\+gzip\+\_\+dict} = nullptr
+\item 
+uint8\+\_\+t $\ast$ \hyperlink{ESP32-targz_8cpp_a1a011f634269f5246239595723245998}{uzlib\+\_\+buffer} = nullptr
+\item 
+int32\+\_\+t \hyperlink{ESP32-targz_8cpp_a88932439c8806442cd4db4594dbde1a1}{uzlib\+\_\+bytesleft} = 0
+\item 
+struct \hyperlink{structuzlib__uncomp}{uzlib\+\_\+uncomp} \hyperlink{ESP32-targz_8cpp_acf2784175a7cb1eeb42cb04759102d56}{uz\+Lib\+Decompressor}
+\item 
+\hyperlink{structTarGzStream}{Tar\+Gz\+Stream} \hyperlink{ESP32-targz_8cpp_a266d9da699ec01c8a4ebaa29ae3d5315}{tar\+Gz\+Stream}
+\item 
+void($\ast$ \hyperlink{ESP32-targz_8cpp_acc3af8a618d3c303aa31120f2eb40f3c}{gz\+Progress\+Callback} )(uint8\+\_\+t progress)
+\item 
+void($\ast$ \hyperlink{ESP32-targz_8cpp_a488bc5d9b48f2a9abdfcbbae2da28c16}{gz\+Write\+Callback} )(unsigned char $\ast$buff, size\+\_\+t buffsize)
+\end{DoxyCompactItemize}
+
+
+\subsection{Macro Definition Documentation}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!C\+C\+\_\+\+U\+N\+U\+S\+ED@{C\+C\+\_\+\+U\+N\+U\+S\+ED}}
+\index{C\+C\+\_\+\+U\+N\+U\+S\+ED@{C\+C\+\_\+\+U\+N\+U\+S\+ED}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{C\+C\+\_\+\+U\+N\+U\+S\+ED}{CC_UNUSED}}]{\setlength{\rightskip}{0pt plus 5cm}\#define C\+C\+\_\+\+U\+N\+U\+S\+ED~{\bf \+\_\+\+\_\+attribute\+\_\+\+\_\+}((unused))}\hypertarget{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}{}\label{ESP32-targz_8cpp_a88f6b33e1b3dd06a431809c0b41fccfa}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!F\+I\+L\+E\+\_\+\+R\+E\+AD@{F\+I\+L\+E\+\_\+\+R\+E\+AD}}
+\index{F\+I\+L\+E\+\_\+\+R\+E\+AD@{F\+I\+L\+E\+\_\+\+R\+E\+AD}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{F\+I\+L\+E\+\_\+\+R\+E\+AD}{FILE_READ}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+I\+L\+E\+\_\+\+R\+E\+AD~\char`\"{}r\char`\"{}}\hypertarget{ESP32-targz_8cpp_ad52d51659a75e25d96fb04d22ff718cb}{}\label{ESP32-targz_8cpp_ad52d51659a75e25d96fb04d22ff718cb}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!F\+I\+L\+E\+\_\+\+W\+R\+I\+TE@{F\+I\+L\+E\+\_\+\+W\+R\+I\+TE}}
+\index{F\+I\+L\+E\+\_\+\+W\+R\+I\+TE@{F\+I\+L\+E\+\_\+\+W\+R\+I\+TE}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{F\+I\+L\+E\+\_\+\+W\+R\+I\+TE}{FILE_WRITE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+I\+L\+E\+\_\+\+W\+R\+I\+TE~\char`\"{}w\char`\"{}}\hypertarget{ESP32-targz_8cpp_ace34e503254fa9004599ddf122264c8f}{}\label{ESP32-targz_8cpp_ace34e503254fa9004599ddf122264c8f}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR@{F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR}}
+\index{F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR@{F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR}{FOLDER_SEPARATOR}}]{\setlength{\rightskip}{0pt plus 5cm}\#define F\+O\+L\+D\+E\+R\+\_\+\+S\+E\+P\+A\+R\+A\+T\+OR~\char`\"{}/\char`\"{}}\hypertarget{ESP32-targz_8cpp_a6cddaf6595a84ce83082840a98ca51a8}{}\label{ESP32-targz_8cpp_a6cddaf6595a84ce83082840a98ca51a8}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE@{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE}}
+\index{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE@{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE}{GZIP_BUFF_SIZE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE~4096}\hypertarget{ESP32-targz_8cpp_ab570e96e8879b39cfc62a83a131ac42c}{}\label{ESP32-targz_8cpp_ab570e96e8879b39cfc62a83a131ac42c}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE@{G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE}}
+\index{G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE@{G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE}{GZIP_DICT_SIZE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define G\+Z\+I\+P\+\_\+\+D\+I\+C\+T\+\_\+\+S\+I\+ZE~32768}\hypertarget{ESP32-targz_8cpp_afeb89dc5dda4a163aebb2a0195941db3}{}\label{ESP32-targz_8cpp_afeb89dc5dda4a163aebb2a0195941db3}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE@{S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE}}
+\index{S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE@{S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE}{SPI_FLASH_SEC_SIZE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define S\+P\+I\+\_\+\+F\+L\+A\+S\+H\+\_\+\+S\+E\+C\+\_\+\+S\+I\+ZE~4096}\hypertarget{ESP32-targz_8cpp_a518257817c69fec25290c1bebad544b0}{}\label{ESP32-targz_8cpp_a518257817c69fec25290c1bebad544b0}
+
+
+\subsection{Typedef Documentation}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!generic\+Progress\+Callback@{generic\+Progress\+Callback}}
+\index{generic\+Progress\+Callback@{generic\+Progress\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{generic\+Progress\+Callback}{genericProgressCallback}}]{\setlength{\rightskip}{0pt plus 5cm}typedef void($\ast$ generic\+Progress\+Callback) (uint8\+\_\+t progress)}\hypertarget{ESP32-targz_8cpp_ac5ee8ab247efd1a402991d9cb253f501}{}\label{ESP32-targz_8cpp_ac5ee8ab247efd1a402991d9cb253f501}
+
+
+\subsection{Function Documentation}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!\+\_\+\+\_\+attribute\+\_\+\+\_\+@{\+\_\+\+\_\+attribute\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+attribute\+\_\+\+\_\+@{\+\_\+\+\_\+attribute\+\_\+\+\_\+}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{\+\_\+\+\_\+attribute\+\_\+\+\_\+((aligned(4))) uzlib\+\_\+read\+\_\+cb\+\_\+buff[G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE]}{__attribute__((aligned(4))) uzlib_read_cb_buff[GZIP_BUFF_SIZE]}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned char \+\_\+\+\_\+attribute\+\_\+\+\_\+ (
+\begin{DoxyParamCaption}
+\item[{(aligned(4))}]{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a12d54f14711605460bd2f058babeb57a}{}\label{ESP32-targz_8cpp_a12d54f14711605460bd2f058babeb57a}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!default\+Progress\+Callback@{default\+Progress\+Callback}}
+\index{default\+Progress\+Callback@{default\+Progress\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{default\+Progress\+Callback(uint8\+\_\+t progress)}{defaultProgressCallback(uint8_t progress)}}]{\setlength{\rightskip}{0pt plus 5cm}void default\+Progress\+Callback (
+\begin{DoxyParamCaption}
+\item[{uint8\+\_\+t}]{progress}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a140daab0ca33c2558bcc4f856c3dd1bd}{}\label{ESP32-targz_8cpp_a140daab0ca33c2558bcc4f856c3dd1bd}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!dirname@{dirname}}
+\index{dirname@{dirname}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{dirname(char $\ast$path)}{dirname(char *path)}}]{\setlength{\rightskip}{0pt plus 5cm}char$\ast$ dirname (
+\begin{DoxyParamCaption}
+\item[{char $\ast$}]{path}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_ab1b6028f4625caec30c1020e737216e2}{}\label{ESP32-targz_8cpp_ab1b6028f4625caec30c1020e737216e2}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Expander@{gz\+Expander}}
+\index{gz\+Expander@{gz\+Expander}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Expander(fs\+::\+F\+S source\+F\+S, const char $\ast$source\+File, fs\+::\+F\+S dest\+F\+S, const char $\ast$dest\+File)}{gzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFile)}}]{\setlength{\rightskip}{0pt plus 5cm}void gz\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS}]{source\+FS, }
+\item[{const char $\ast$}]{source\+File, }
+\item[{fs\+::\+FS}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+File}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_acddb3fa5de990d7b1c38b3a9e051c81a}{}\label{ESP32-targz_8cpp_acddb3fa5de990d7b1c38b3a9e051c81a}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Feed\+Tar\+Buffer@{gz\+Feed\+Tar\+Buffer}}
+\index{gz\+Feed\+Tar\+Buffer@{gz\+Feed\+Tar\+Buffer}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Feed\+Tar\+Buffer(unsigned char $\ast$buff, size\+\_\+t buffsize)}{gzFeedTarBuffer(unsigned char *buff, size_t buffsize)}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Feed\+Tar\+Buffer (
+\begin{DoxyParamCaption}
+\item[{unsigned char $\ast$}]{buff, }
+\item[{size\+\_\+t}]{buffsize}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a76a1b14c3542e7fadf15e7c08355534a}{}\label{ESP32-targz_8cpp_a76a1b14c3542e7fadf15e7c08355534a}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Process\+Block@{gz\+Process\+Block}}
+\index{gz\+Process\+Block@{gz\+Process\+Block}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Process\+Block()}{gzProcessBlock()}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Process\+Block (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a5e34d11e283ba6a157df28d23c2a0b44}{}\label{ESP32-targz_8cpp_a5e34d11e283ba6a157df28d23c2a0b44}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Process\+Tar\+Buffer@{gz\+Process\+Tar\+Buffer}}
+\index{gz\+Process\+Tar\+Buffer@{gz\+Process\+Tar\+Buffer}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Process\+Tar\+Buffer(\+C\+C\+\_\+\+U\+N\+U\+S\+E\+D unsigned char $\ast$buff, C\+C\+\_\+\+U\+N\+U\+S\+E\+D size\+\_\+t buffsize)}{gzProcessTarBuffer(CC_UNUSED unsigned char *buff, CC_UNUSED size_t buffsize)}}]{\setlength{\rightskip}{0pt plus 5cm}static void gz\+Process\+Tar\+Buffer (
+\begin{DoxyParamCaption}
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} unsigned char $\ast$}]{buff, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} size\+\_\+t}]{buffsize}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{ESP32-targz_8cpp_ab36b675cf70737c74f3a4ec541656933}{}\label{ESP32-targz_8cpp_ab36b675cf70737c74f3a4ec541656933}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Read\+Byte@{gz\+Read\+Byte}}
+\index{gz\+Read\+Byte@{gz\+Read\+Byte}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Read\+Byte(fs\+::\+File \&file, const uint32\+\_\+t addr)}{gzReadByte(fs::File &file, const uint32_t addr)}}]{\setlength{\rightskip}{0pt plus 5cm}uint8\+\_\+t gz\+Read\+Byte (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+File \&}]{file, }
+\item[{const uint32\+\_\+t}]{addr}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_ae2562ae5f7d7f41edd04ba586b0cfec9}{}\label{ESP32-targz_8cpp_ae2562ae5f7d7f41edd04ba586b0cfec9}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Stream\+Read\+Callback@{gz\+Stream\+Read\+Callback}}
+\index{gz\+Stream\+Read\+Callback@{gz\+Stream\+Read\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Stream\+Read\+Callback(struct uzlib\+\_\+uncomp $\ast$m)}{gzStreamReadCallback(struct uzlib_uncomp *m)}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Stream\+Read\+Callback (
+\begin{DoxyParamCaption}
+\item[{struct {\bf uzlib\+\_\+uncomp} $\ast$}]{m}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_af2f4baef1eb72f4aae11df0287c913af}{}\label{ESP32-targz_8cpp_af2f4baef1eb72f4aae11df0287c913af}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Stream\+Write\+Callback@{gz\+Stream\+Write\+Callback}}
+\index{gz\+Stream\+Write\+Callback@{gz\+Stream\+Write\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Stream\+Write\+Callback(unsigned char $\ast$buff, size\+\_\+t buffsize)}{gzStreamWriteCallback(unsigned char *buff, size_t buffsize)}}]{\setlength{\rightskip}{0pt plus 5cm}static void gz\+Stream\+Write\+Callback (
+\begin{DoxyParamCaption}
+\item[{unsigned char $\ast$}]{buff, }
+\item[{size\+\_\+t}]{buffsize}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{ESP32-targz_8cpp_ad38734ad3c99f03481d41c1636176674}{}\label{ESP32-targz_8cpp_ad38734ad3c99f03481d41c1636176674}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Uncompress@{gz\+Uncompress}}
+\index{gz\+Uncompress@{gz\+Uncompress}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Uncompress()}{gzUncompress()}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Uncompress (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a018f5c86f4f5d51609f85183e46f92d6}{}\label{ESP32-targz_8cpp_a018f5c86f4f5d51609f85183e46f92d6}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Updater@{gz\+Updater}}
+\index{gz\+Updater@{gz\+Updater}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Updater(fs\+::\+F\+S \&fs, const char $\ast$gz\+\_\+filename)}{gzUpdater(fs::FS &fs, const char *gz_filename)}}]{\setlength{\rightskip}{0pt plus 5cm}void gz\+Updater (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS \&}]{fs, }
+\item[{const char $\ast$}]{gz\+\_\+filename}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a950aaa5d8797a35db9aea94e2a669fc0}{}\label{ESP32-targz_8cpp_a950aaa5d8797a35db9aea94e2a669fc0}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Update\+Write\+Callback@{gz\+Update\+Write\+Callback}}
+\index{gz\+Update\+Write\+Callback@{gz\+Update\+Write\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Update\+Write\+Callback(unsigned char $\ast$buff, size\+\_\+t buffsize)}{gzUpdateWriteCallback(unsigned char *buff, size_t buffsize)}}]{\setlength{\rightskip}{0pt plus 5cm}static void gz\+Update\+Write\+Callback (
+\begin{DoxyParamCaption}
+\item[{unsigned char $\ast$}]{buff, }
+\item[{size\+\_\+t}]{buffsize}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{ESP32-targz_8cpp_ac282c18be6cf758f65db71e84a3ec1ba}{}\label{ESP32-targz_8cpp_ac282c18be6cf758f65db71e84a3ec1ba}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!read\+Gz\+Headers@{read\+Gz\+Headers}}
+\index{read\+Gz\+Headers@{read\+Gz\+Headers}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{read\+Gz\+Headers(fs\+::\+File \&gz\+File)}{readGzHeaders(fs::File &gzFile)}}]{\setlength{\rightskip}{0pt plus 5cm}bool read\+Gz\+Headers (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+File \&}]{gz\+File}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a05b8ccb59a181088df4b2f9d3242462b}{}\label{ESP32-targz_8cpp_a05b8ccb59a181088df4b2f9d3242462b}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!set\+Progress\+Callback@{set\+Progress\+Callback}}
+\index{set\+Progress\+Callback@{set\+Progress\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{set\+Progress\+Callback(generic\+Progress\+Callback cb)}{setProgressCallback(genericProgressCallback cb)}}]{\setlength{\rightskip}{0pt plus 5cm}void set\+Progress\+Callback (
+\begin{DoxyParamCaption}
+\item[{{\bf generic\+Progress\+Callback}}]{cb}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a24933a26ee91633c9b2b436839374476}{}\label{ESP32-targz_8cpp_a24933a26ee91633c9b2b436839374476}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Expander@{tar\+Expander}}
+\index{tar\+Expander@{tar\+Expander}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Expander(fs\+::\+F\+S \&source\+F\+S, const char $\ast$file\+Name, fs\+::\+F\+S \&dest\+F\+S, const char $\ast$dest\+Folder)}{tarExpander(fs::FS &sourceFS, const char *fileName, fs::FS &destFS, const char *destFolder)}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS \&}]{source\+FS, }
+\item[{const char $\ast$}]{file\+Name, }
+\item[{fs\+::\+FS \&}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+Folder}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_abc36fcba0a0fca53fc824ab44df1afa1}{}\label{ESP32-targz_8cpp_abc36fcba0a0fca53fc824ab44df1afa1}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Gz\+Expander@{tar\+Gz\+Expander}}
+\index{tar\+Gz\+Expander@{tar\+Gz\+Expander}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+Expander(fs\+::\+F\+S source\+F\+S, const char $\ast$source\+File, fs\+::\+F\+S dest\+F\+S, const char $\ast$dest\+Folder)}{tarGzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFolder)}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+Gz\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS}]{source\+FS, }
+\item[{const char $\ast$}]{source\+File, }
+\item[{fs\+::\+FS}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+Folder}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a76329eedbd8f7da45209d5fde943536b}{}\label{ESP32-targz_8cpp_a76329eedbd8f7da45209d5fde943536b}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Gz\+Expander\+Cleanup@{tar\+Gz\+Expander\+Cleanup}}
+\index{tar\+Gz\+Expander\+Cleanup@{tar\+Gz\+Expander\+Cleanup}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+Expander\+Cleanup()}{tarGzExpanderCleanup()}}]{\setlength{\rightskip}{0pt plus 5cm}void tar\+Gz\+Expander\+Cleanup (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_abdcef0bceec9696afa93203b2820be4d}{}\label{ESP32-targz_8cpp_abdcef0bceec9696afa93203b2820be4d}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Gz\+Expander\+Setup@{tar\+Gz\+Expander\+Setup}}
+\index{tar\+Gz\+Expander\+Setup@{tar\+Gz\+Expander\+Setup}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+Expander\+Setup()}{tarGzExpanderSetup()}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+Gz\+Expander\+Setup (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_af9aeb1c3b8dd4061cfbe745605a14af1}{}\label{ESP32-targz_8cpp_af9aeb1c3b8dd4061cfbe745605a14af1}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tgz\+Logger@{tgz\+Logger}}
+\index{tgz\+Logger@{tgz\+Logger}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tgz\+Logger(const char $\ast$format,...)}{tgzLogger(const char *format,...)}}]{\setlength{\rightskip}{0pt plus 5cm}void tgz\+Logger (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{format, }
+\item[{}]{...}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_ad32e306d98722d52047607bdaf5d0f70}{}\label{ESP32-targz_8cpp_ad32e306d98722d52047607bdaf5d0f70}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tgz\+Null\+Logger@{tgz\+Null\+Logger}}
+\index{tgz\+Null\+Logger@{tgz\+Null\+Logger}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tgz\+Null\+Logger(\+C\+C\+\_\+\+U\+N\+U\+S\+E\+D const char $\ast$format,...)}{tgzNullLogger(CC_UNUSED const char *format,...)}}]{\setlength{\rightskip}{0pt plus 5cm}void tgz\+Null\+Logger (
+\begin{DoxyParamCaption}
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} const char $\ast$}]{format, }
+\item[{}]{...}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a400945a5fabb73ac04f71adeb91ff2d0}{}\label{ESP32-targz_8cpp_a400945a5fabb73ac04f71adeb91ff2d0}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!un\+Tar\+End\+Call\+Back@{un\+Tar\+End\+Call\+Back}}
+\index{un\+Tar\+End\+Call\+Back@{un\+Tar\+End\+Call\+Back}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{un\+Tar\+End\+Call\+Back(\+C\+C\+\_\+\+U\+N\+U\+S\+E\+D header\+\_\+translated\+\_\+t $\ast$proper, C\+C\+\_\+\+U\+N\+U\+S\+E\+D int entry\+\_\+index, C\+C\+\_\+\+U\+N\+U\+S\+E\+D void $\ast$context\+\_\+data)}{unTarEndCallBack(CC_UNUSED header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data)}}]{\setlength{\rightskip}{0pt plus 5cm}int un\+Tar\+End\+Call\+Back (
+\begin{DoxyParamCaption}
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} {\bf header\+\_\+translated\+\_\+t} $\ast$}]{proper, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} int}]{entry\+\_\+index, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$}]{context\+\_\+data}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a1267a7655631d8c67c92be45ab507dc2}{}\label{ESP32-targz_8cpp_a1267a7655631d8c67c92be45ab507dc2}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!un\+Tar\+Header\+Call\+Back@{un\+Tar\+Header\+Call\+Back}}
+\index{un\+Tar\+Header\+Call\+Back@{un\+Tar\+Header\+Call\+Back}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{un\+Tar\+Header\+Call\+Back(header\+\_\+translated\+\_\+t $\ast$proper, C\+C\+\_\+\+U\+N\+U\+S\+E\+D int entry\+\_\+index, C\+C\+\_\+\+U\+N\+U\+S\+E\+D void $\ast$context\+\_\+data)}{unTarHeaderCallBack(header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data)}}]{\setlength{\rightskip}{0pt plus 5cm}int un\+Tar\+Header\+Call\+Back (
+\begin{DoxyParamCaption}
+\item[{{\bf header\+\_\+translated\+\_\+t} $\ast$}]{proper, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} int}]{entry\+\_\+index, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$}]{context\+\_\+data}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a902ca38dc2cff4f4893bd1dbd6fb301f}{}\label{ESP32-targz_8cpp_a902ca38dc2cff4f4893bd1dbd6fb301f}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!un\+Tar\+Stream\+Read\+Callback@{un\+Tar\+Stream\+Read\+Callback}}
+\index{un\+Tar\+Stream\+Read\+Callback@{un\+Tar\+Stream\+Read\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{un\+Tar\+Stream\+Read\+Callback(unsigned char $\ast$buff, size\+\_\+t buffsize)}{unTarStreamReadCallback(unsigned char *buff, size_t buffsize)}}]{\setlength{\rightskip}{0pt plus 5cm}int un\+Tar\+Stream\+Read\+Callback (
+\begin{DoxyParamCaption}
+\item[{unsigned char $\ast$}]{buff, }
+\item[{size\+\_\+t}]{buffsize}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_accbbe30121cc94e268e797bf4c555c34}{}\label{ESP32-targz_8cpp_accbbe30121cc94e268e797bf4c555c34}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!un\+Tar\+Stream\+Write\+Callback@{un\+Tar\+Stream\+Write\+Callback}}
+\index{un\+Tar\+Stream\+Write\+Callback@{un\+Tar\+Stream\+Write\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{un\+Tar\+Stream\+Write\+Callback(\+C\+C\+\_\+\+U\+N\+U\+S\+E\+D header\+\_\+translated\+\_\+t $\ast$proper, C\+C\+\_\+\+U\+N\+U\+S\+E\+D int entry\+\_\+index, C\+C\+\_\+\+U\+N\+U\+S\+E\+D void $\ast$context\+\_\+data, unsigned char $\ast$block, int length)}{unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data, unsigned char *block, int length)}}]{\setlength{\rightskip}{0pt plus 5cm}int un\+Tar\+Stream\+Write\+Callback (
+\begin{DoxyParamCaption}
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} {\bf header\+\_\+translated\+\_\+t} $\ast$}]{proper, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} int}]{entry\+\_\+index, }
+\item[{{\bf C\+C\+\_\+\+U\+N\+U\+S\+ED} void $\ast$}]{context\+\_\+data, }
+\item[{unsigned char $\ast$}]{block, }
+\item[{int}]{length}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8cpp_a9f9a546b557c0f1165a9050f54bec630}{}\label{ESP32-targz_8cpp_a9f9a546b557c0f1165a9050f54bec630}
+
+
+\subsection{Variable Documentation}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!blockmod@{blockmod}}
+\index{blockmod@{blockmod}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{blockmod}{blockmod}}]{\setlength{\rightskip}{0pt plus 5cm}byte blockmod = {\bf G\+Z\+I\+P\+\_\+\+B\+U\+F\+F\+\_\+\+S\+I\+ZE} / {\bf T\+A\+R\+\_\+\+B\+L\+O\+C\+K\+\_\+\+S\+I\+ZE}}\hypertarget{ESP32-targz_8cpp_a14b682b5d3d66207698676af37190879}{}\label{ESP32-targz_8cpp_a14b682b5d3d66207698676af37190879}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!firstblock@{firstblock}}
+\index{firstblock@{firstblock}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{firstblock}{firstblock}}]{\setlength{\rightskip}{0pt plus 5cm}bool firstblock}\hypertarget{ESP32-targz_8cpp_af138d603a671d34202e2087ade77f51c}{}\label{ESP32-targz_8cpp_af138d603a671d34202e2087ade77f51c}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Progress\+Callback@{gz\+Progress\+Callback}}
+\index{gz\+Progress\+Callback@{gz\+Progress\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Progress\+Callback}{gzProgressCallback}}]{\setlength{\rightskip}{0pt plus 5cm}void($\ast$ gz\+Progress\+Callback) (uint8\+\_\+t progress)}\hypertarget{ESP32-targz_8cpp_acc3af8a618d3c303aa31120f2eb40f3c}{}\label{ESP32-targz_8cpp_acc3af8a618d3c303aa31120f2eb40f3c}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Tar\+Block\+Pos@{gz\+Tar\+Block\+Pos}}
+\index{gz\+Tar\+Block\+Pos@{gz\+Tar\+Block\+Pos}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Tar\+Block\+Pos}{gzTarBlockPos}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Tar\+Block\+Pos = 0}\hypertarget{ESP32-targz_8cpp_ace8e3812bfd7f8ece336032b2b0883e2}{}\label{ESP32-targz_8cpp_ace8e3812bfd7f8ece336032b2b0883e2}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!gz\+Write\+Callback@{gz\+Write\+Callback}}
+\index{gz\+Write\+Callback@{gz\+Write\+Callback}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{gz\+Write\+Callback}{gzWriteCallback}}]{\setlength{\rightskip}{0pt plus 5cm}void($\ast$ gz\+Write\+Callback) (unsigned char $\ast$buff, size\+\_\+t buffsize)}\hypertarget{ESP32-targz_8cpp_a488bc5d9b48f2a9abdfcbbae2da28c16}{}\label{ESP32-targz_8cpp_a488bc5d9b48f2a9abdfcbbae2da28c16}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Callbacks@{tar\+Callbacks}}
+\index{tar\+Callbacks@{tar\+Callbacks}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Callbacks}{tarCallbacks}}]{\setlength{\rightskip}{0pt plus 5cm}{\bf entry\+\_\+callbacks\+\_\+t} tar\+Callbacks}\hypertarget{ESP32-targz_8cpp_ab606c7afa05f59753173480a0e48e52c}{}\label{ESP32-targz_8cpp_ab606c7afa05f59753173480a0e48e52c}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Dest\+Folder@{tar\+Dest\+Folder}}
+\index{tar\+Dest\+Folder@{tar\+Dest\+Folder}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Dest\+Folder}{tarDestFolder}}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ tar\+Dest\+Folder = nullptr}\hypertarget{ESP32-targz_8cpp_a8f75ed6166f2292a78695da999d4e899}{}\label{ESP32-targz_8cpp_a8f75ed6166f2292a78695da999d4e899}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+FS@{tar\+FS}}
+\index{tar\+FS@{tar\+FS}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+FS}{tarFS}}]{\setlength{\rightskip}{0pt plus 5cm}fs\+::\+FS$\ast$ tar\+FS = nullptr}\hypertarget{ESP32-targz_8cpp_a3b84972f195ce18f9882623a6081c0ab}{}\label{ESP32-targz_8cpp_a3b84972f195ce18f9882623a6081c0ab}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!tar\+Gz\+Stream@{tar\+Gz\+Stream}}
+\index{tar\+Gz\+Stream@{tar\+Gz\+Stream}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+Stream}{tarGzStream}}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Tar\+Gz\+Stream} tar\+Gz\+Stream}\hypertarget{ESP32-targz_8cpp_a266d9da699ec01c8a4ebaa29ae3d5315}{}\label{ESP32-targz_8cpp_a266d9da699ec01c8a4ebaa29ae3d5315}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!untarred\+Bytes\+Count@{untarred\+Bytes\+Count}}
+\index{untarred\+Bytes\+Count@{untarred\+Bytes\+Count}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{untarred\+Bytes\+Count}{untarredBytesCount}}]{\setlength{\rightskip}{0pt plus 5cm}uint32\+\_\+t untarred\+Bytes\+Count = 0\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{ESP32-targz_8cpp_a0243b6b9c976cd53260751c06a7567fc}{}\label{ESP32-targz_8cpp_a0243b6b9c976cd53260751c06a7567fc}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!untarred\+File@{untarred\+File}}
+\index{untarred\+File@{untarred\+File}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{untarred\+File}{untarredFile}}]{\setlength{\rightskip}{0pt plus 5cm}fs\+::\+File untarred\+File}\hypertarget{ESP32-targz_8cpp_a27c6deb00092ef8dcbb8453d8d75118c}{}\label{ESP32-targz_8cpp_a27c6deb00092ef8dcbb8453d8d75118c}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!uzlib\+\_\+buffer@{uzlib\+\_\+buffer}}
+\index{uzlib\+\_\+buffer@{uzlib\+\_\+buffer}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+buffer}{uzlib_buffer}}]{\setlength{\rightskip}{0pt plus 5cm}uint8\+\_\+t$\ast$ uzlib\+\_\+buffer = nullptr}\hypertarget{ESP32-targz_8cpp_a1a011f634269f5246239595723245998}{}\label{ESP32-targz_8cpp_a1a011f634269f5246239595723245998}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!uzlib\+\_\+bytesleft@{uzlib\+\_\+bytesleft}}
+\index{uzlib\+\_\+bytesleft@{uzlib\+\_\+bytesleft}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+bytesleft}{uzlib_bytesleft}}]{\setlength{\rightskip}{0pt plus 5cm}int32\+\_\+t uzlib\+\_\+bytesleft = 0}\hypertarget{ESP32-targz_8cpp_a88932439c8806442cd4db4594dbde1a1}{}\label{ESP32-targz_8cpp_a88932439c8806442cd4db4594dbde1a1}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!uzlib\+\_\+gzip\+\_\+dict@{uzlib\+\_\+gzip\+\_\+dict}}
+\index{uzlib\+\_\+gzip\+\_\+dict@{uzlib\+\_\+gzip\+\_\+dict}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+gzip\+\_\+dict}{uzlib_gzip_dict}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned char$\ast$ uzlib\+\_\+gzip\+\_\+dict = nullptr}\hypertarget{ESP32-targz_8cpp_ab5d8d8dd8d5eafad9f67fd554c2da7d0}{}\label{ESP32-targz_8cpp_ab5d8d8dd8d5eafad9f67fd554c2da7d0}
+\index{E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}!uz\+Lib\+Decompressor@{uz\+Lib\+Decompressor}}
+\index{uz\+Lib\+Decompressor@{uz\+Lib\+Decompressor}!E\+S\+P32-\/targz.\+cpp@{E\+S\+P32-\/targz.\+cpp}}
+\subsubsection[{\texorpdfstring{uz\+Lib\+Decompressor}{uzLibDecompressor}}]{\setlength{\rightskip}{0pt plus 5cm}struct {\bf uzlib\+\_\+uncomp} uz\+Lib\+Decompressor}\hypertarget{ESP32-targz_8cpp_acf2784175a7cb1eeb42cb04759102d56}{}\label{ESP32-targz_8cpp_acf2784175a7cb1eeb42cb04759102d56}

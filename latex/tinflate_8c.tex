@@ -1,0 +1,267 @@
+\hypertarget{tinflate_8c}{}\section{src/uzlib/tinflate.c File Reference}
+\label{tinflate_8c}\index{src/uzlib/tinflate.\+c@{src/uzlib/tinflate.\+c}}
+{\ttfamily \#include $<$assert.\+h$>$}\\*
+{\ttfamily \#include \char`\"{}tinf.\+h\char`\"{}}\\*
+Include dependency graph for tinflate.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{tinflate_8c__incl}
+\end{center}
+\end{figure}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{tinflate_8c_a2ed3d6eb019e0a701905647054b5bb22}{U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY}(heading,  arr,  size)
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+uint32\+\_\+t \hyperlink{tinflate_8c_acafd1e173852c49c903a32abaf7f3d95}{tinf\+\_\+get\+\_\+le\+\_\+uint32} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+uint32\+\_\+t \hyperlink{tinflate_8c_a07adbe3b8237dd820bb143cca6ea8230}{tinf\+\_\+get\+\_\+be\+\_\+uint32} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+static void \hyperlink{tinflate_8c_a2616e85d86de18da8fcd2ef7ecddb841}{tinf\+\_\+build\+\_\+fixed\+\_\+trees} (\hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$lt, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$dt)
+\item 
+static void \hyperlink{tinflate_8c_a26da373f43c044ccbca3df7adf6f64c5}{tinf\+\_\+build\+\_\+tree} (\hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$t, const unsigned char $\ast$lengths, unsigned int num)
+\item 
+unsigned char \hyperlink{tinflate_8c_ae823e2e87c9862aeaafc219c189fca2f}{uzlib\+\_\+get\+\_\+byte} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+static int \hyperlink{tinflate_8c_a999f8cd39752d95eeb64e7e3d435226c}{tinf\+\_\+getbit} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+static unsigned int \hyperlink{tinflate_8c_ad413093431fdade48d5463718689ffa1}{tinf\+\_\+read\+\_\+bits} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, int num, int base)
+\item 
+static int \hyperlink{tinflate_8c_a1fe738435f50b87e1865244f3ad1f845}{tinf\+\_\+decode\+\_\+symbol} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$t)
+\item 
+static int \hyperlink{tinflate_8c_ac32796da2aa7e7043652b650700f59f2}{tinf\+\_\+decode\+\_\+trees} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$lt, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$dt)
+\item 
+static int \hyperlink{tinflate_8c_ad1d31200df283ff9c5954ee37a2f7cbf}{tinf\+\_\+inflate\+\_\+block\+\_\+data} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$lt, \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$dt)
+\item 
+static int \hyperlink{tinflate_8c_abfce4e6800b51652460968cc37f15cf6}{tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+void \hyperlink{tinflate_8c_ab3147b66a30cf0fe99fb6a355e781eaf}{uzlib\+\_\+init} (void)
+\item 
+void \hyperlink{tinflate_8c_a12da7a8d8e57921c747d735bb45d80dc}{uzlib\+\_\+uncompress\+\_\+init} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, void $\ast$dict, unsigned int dict\+Len)
+\item 
+int \hyperlink{tinflate_8c_ac0a116da38894bd2e99109746fb0d816}{uzlib\+\_\+uncompress} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+int \hyperlink{tinflate_8c_a292e11aa00e3b0e3809ddae7b45bb8e6}{uzlib\+\_\+uncompress\+\_\+chksum} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+const unsigned char \hyperlink{tinflate_8c_a666c48d9654fce03f206de2319ad62aa}{length\+\_\+bits} \mbox{[}30\mbox{]}
+\item 
+const unsigned short \hyperlink{tinflate_8c_a2a0a2704089533fc11e9647f451176dc}{length\+\_\+base} \mbox{[}30\mbox{]}
+\item 
+const unsigned char \hyperlink{tinflate_8c_ae160b102dca4b47a90e4ad9c4e692921}{dist\+\_\+bits} \mbox{[}30\mbox{]}
+\item 
+const unsigned short \hyperlink{tinflate_8c_a1f71abed8b5b2392f99082e0d9083c5a}{dist\+\_\+base} \mbox{[}30\mbox{]}
+\item 
+const unsigned char \hyperlink{tinflate_8c_a26c58608926c32f65beccba16c5d554e}{clcidx} \mbox{[}$\,$\mbox{]}
+\end{DoxyCompactItemize}
+
+
+\subsection{Macro Definition Documentation}
+\index{tinflate.\+c@{tinflate.\+c}!U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY@{U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY}}
+\index{U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY@{U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY}{UZLIB_DUMP_ARRAY}}]{\setlength{\rightskip}{0pt plus 5cm}\#define U\+Z\+L\+I\+B\+\_\+\+D\+U\+M\+P\+\_\+\+A\+R\+R\+AY(
+\begin{DoxyParamCaption}
+\item[{}]{heading, }
+\item[{}]{arr, }
+\item[{}]{size}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_a2ed3d6eb019e0a701905647054b5bb22}{}\label{tinflate_8c_a2ed3d6eb019e0a701905647054b5bb22}
+{\bfseries Value\+:}
+\begin{DoxyCode}
+\{ \(\backslash\)
+        printf(\textcolor{stringliteral}{"%s"}, heading); \(\backslash\)
+        for (\textcolor{keywordtype}{int} i = 0; i < size; ++i) \{ \(\backslash\)
+            printf(\textcolor{stringliteral}{" %d"}, (arr)[i]); \(\backslash\)
+        \} \(\backslash\)
+        printf(\textcolor{stringliteral}{"\(\backslash\)n"}); \(\backslash\)
+    \}
+\end{DoxyCode}
+
+
+\subsection{Function Documentation}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+build\+\_\+fixed\+\_\+trees@{tinf\+\_\+build\+\_\+fixed\+\_\+trees}}
+\index{tinf\+\_\+build\+\_\+fixed\+\_\+trees@{tinf\+\_\+build\+\_\+fixed\+\_\+trees}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+build\+\_\+fixed\+\_\+trees(\+T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$lt, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$dt)}{tinf_build_fixed_trees(TINF_TREE *lt, TINF_TREE *dt)}}]{\setlength{\rightskip}{0pt plus 5cm}static void tinf\+\_\+build\+\_\+fixed\+\_\+trees (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{lt, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{dt}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_a2616e85d86de18da8fcd2ef7ecddb841}{}\label{tinflate_8c_a2616e85d86de18da8fcd2ef7ecddb841}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+build\+\_\+tree@{tinf\+\_\+build\+\_\+tree}}
+\index{tinf\+\_\+build\+\_\+tree@{tinf\+\_\+build\+\_\+tree}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+build\+\_\+tree(\+T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$t, const unsigned char $\ast$lengths, unsigned int num)}{tinf_build_tree(TINF_TREE *t, const unsigned char *lengths, unsigned int num)}}]{\setlength{\rightskip}{0pt plus 5cm}static void tinf\+\_\+build\+\_\+tree (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{t, }
+\item[{const unsigned char $\ast$}]{lengths, }
+\item[{unsigned int}]{num}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_a26da373f43c044ccbca3df7adf6f64c5}{}\label{tinflate_8c_a26da373f43c044ccbca3df7adf6f64c5}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+decode\+\_\+symbol@{tinf\+\_\+decode\+\_\+symbol}}
+\index{tinf\+\_\+decode\+\_\+symbol@{tinf\+\_\+decode\+\_\+symbol}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+decode\+\_\+symbol(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$t)}{tinf_decode_symbol(TINF_DATA *d, TINF_TREE *t)}}]{\setlength{\rightskip}{0pt plus 5cm}static int tinf\+\_\+decode\+\_\+symbol (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{t}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_a1fe738435f50b87e1865244f3ad1f845}{}\label{tinflate_8c_a1fe738435f50b87e1865244f3ad1f845}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+decode\+\_\+trees@{tinf\+\_\+decode\+\_\+trees}}
+\index{tinf\+\_\+decode\+\_\+trees@{tinf\+\_\+decode\+\_\+trees}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+decode\+\_\+trees(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$lt, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$dt)}{tinf_decode_trees(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)}}]{\setlength{\rightskip}{0pt plus 5cm}static int tinf\+\_\+decode\+\_\+trees (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{lt, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{dt}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_ac32796da2aa7e7043652b650700f59f2}{}\label{tinflate_8c_ac32796da2aa7e7043652b650700f59f2}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+get\+\_\+be\+\_\+uint32@{tinf\+\_\+get\+\_\+be\+\_\+uint32}}
+\index{tinf\+\_\+get\+\_\+be\+\_\+uint32@{tinf\+\_\+get\+\_\+be\+\_\+uint32}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+get\+\_\+be\+\_\+uint32(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{tinf_get_be_uint32(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}uint32\+\_\+t tinf\+\_\+get\+\_\+be\+\_\+uint32 (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_a07adbe3b8237dd820bb143cca6ea8230}{}\label{tinflate_8c_a07adbe3b8237dd820bb143cca6ea8230}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+get\+\_\+le\+\_\+uint32@{tinf\+\_\+get\+\_\+le\+\_\+uint32}}
+\index{tinf\+\_\+get\+\_\+le\+\_\+uint32@{tinf\+\_\+get\+\_\+le\+\_\+uint32}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+get\+\_\+le\+\_\+uint32(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{tinf_get_le_uint32(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}uint32\+\_\+t tinf\+\_\+get\+\_\+le\+\_\+uint32 (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_acafd1e173852c49c903a32abaf7f3d95}{}\label{tinflate_8c_acafd1e173852c49c903a32abaf7f3d95}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+getbit@{tinf\+\_\+getbit}}
+\index{tinf\+\_\+getbit@{tinf\+\_\+getbit}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+getbit(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{tinf_getbit(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}static int tinf\+\_\+getbit (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_a999f8cd39752d95eeb64e7e3d435226c}{}\label{tinflate_8c_a999f8cd39752d95eeb64e7e3d435226c}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+inflate\+\_\+block\+\_\+data@{tinf\+\_\+inflate\+\_\+block\+\_\+data}}
+\index{tinf\+\_\+inflate\+\_\+block\+\_\+data@{tinf\+\_\+inflate\+\_\+block\+\_\+data}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+inflate\+\_\+block\+\_\+data(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$lt, T\+I\+N\+F\+\_\+\+T\+R\+E\+E $\ast$dt)}{tinf_inflate_block_data(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)}}]{\setlength{\rightskip}{0pt plus 5cm}static int tinf\+\_\+inflate\+\_\+block\+\_\+data (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{lt, }
+\item[{{\bf T\+I\+N\+F\+\_\+\+T\+R\+EE} $\ast$}]{dt}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_ad1d31200df283ff9c5954ee37a2f7cbf}{}\label{tinflate_8c_ad1d31200df283ff9c5954ee37a2f7cbf}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block@{tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block}}
+\index{tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block@{tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{tinf_inflate_uncompressed_block(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}static int tinf\+\_\+inflate\+\_\+uncompressed\+\_\+block (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_abfce4e6800b51652460968cc37f15cf6}{}\label{tinflate_8c_abfce4e6800b51652460968cc37f15cf6}
+\index{tinflate.\+c@{tinflate.\+c}!tinf\+\_\+read\+\_\+bits@{tinf\+\_\+read\+\_\+bits}}
+\index{tinf\+\_\+read\+\_\+bits@{tinf\+\_\+read\+\_\+bits}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{tinf\+\_\+read\+\_\+bits(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, int num, int base)}{tinf_read_bits(TINF_DATA *d, int num, int base)}}]{\setlength{\rightskip}{0pt plus 5cm}static unsigned int tinf\+\_\+read\+\_\+bits (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{int}]{num, }
+\item[{int}]{base}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}\hypertarget{tinflate_8c_ad413093431fdade48d5463718689ffa1}{}\label{tinflate_8c_ad413093431fdade48d5463718689ffa1}
+\index{tinflate.\+c@{tinflate.\+c}!uzlib\+\_\+get\+\_\+byte@{uzlib\+\_\+get\+\_\+byte}}
+\index{uzlib\+\_\+get\+\_\+byte@{uzlib\+\_\+get\+\_\+byte}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+get\+\_\+byte(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_get_byte(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned char uzlib\+\_\+get\+\_\+byte (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_ae823e2e87c9862aeaafc219c189fca2f}{}\label{tinflate_8c_ae823e2e87c9862aeaafc219c189fca2f}
+\index{tinflate.\+c@{tinflate.\+c}!uzlib\+\_\+init@{uzlib\+\_\+init}}
+\index{uzlib\+\_\+init@{uzlib\+\_\+init}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+init(void)}{uzlib_init(void)}}]{\setlength{\rightskip}{0pt plus 5cm}void uzlib\+\_\+init (
+\begin{DoxyParamCaption}
+\item[{void}]{}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_ab3147b66a30cf0fe99fb6a355e781eaf}{}\label{tinflate_8c_ab3147b66a30cf0fe99fb6a355e781eaf}
+\index{tinflate.\+c@{tinflate.\+c}!uzlib\+\_\+uncompress@{uzlib\+\_\+uncompress}}
+\index{uzlib\+\_\+uncompress@{uzlib\+\_\+uncompress}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_uncompress(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int uzlib\+\_\+uncompress (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_ac0a116da38894bd2e99109746fb0d816}{}\label{tinflate_8c_ac0a116da38894bd2e99109746fb0d816}
+\index{tinflate.\+c@{tinflate.\+c}!uzlib\+\_\+uncompress\+\_\+chksum@{uzlib\+\_\+uncompress\+\_\+chksum}}
+\index{uzlib\+\_\+uncompress\+\_\+chksum@{uzlib\+\_\+uncompress\+\_\+chksum}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress\+\_\+chksum(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_uncompress_chksum(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int uzlib\+\_\+uncompress\+\_\+chksum (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_a292e11aa00e3b0e3809ddae7b45bb8e6}{}\label{tinflate_8c_a292e11aa00e3b0e3809ddae7b45bb8e6}
+\index{tinflate.\+c@{tinflate.\+c}!uzlib\+\_\+uncompress\+\_\+init@{uzlib\+\_\+uncompress\+\_\+init}}
+\index{uzlib\+\_\+uncompress\+\_\+init@{uzlib\+\_\+uncompress\+\_\+init}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress\+\_\+init(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, void $\ast$dict, unsigned int dict\+Len)}{uzlib_uncompress_init(TINF_DATA *d, void *dict, unsigned int dictLen)}}]{\setlength{\rightskip}{0pt plus 5cm}void uzlib\+\_\+uncompress\+\_\+init (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{void $\ast$}]{dict, }
+\item[{unsigned int}]{dict\+Len}
+\end{DoxyParamCaption}
+)}\hypertarget{tinflate_8c_a12da7a8d8e57921c747d735bb45d80dc}{}\label{tinflate_8c_a12da7a8d8e57921c747d735bb45d80dc}
+
+
+\subsection{Variable Documentation}
+\index{tinflate.\+c@{tinflate.\+c}!clcidx@{clcidx}}
+\index{clcidx@{clcidx}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{clcidx}{clcidx}}]{\setlength{\rightskip}{0pt plus 5cm}const unsigned char clcidx\mbox{[}$\,$\mbox{]}}\hypertarget{tinflate_8c_a26c58608926c32f65beccba16c5d554e}{}\label{tinflate_8c_a26c58608926c32f65beccba16c5d554e}
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+= \{
+   16, 17, 18, 0, 8, 7, 9, 6,
+   10, 5, 11, 4, 12, 3, 13, 2,
+   14, 1, 15
+\}
+\end{DoxyCode}
+\index{tinflate.\+c@{tinflate.\+c}!dist\+\_\+base@{dist\+\_\+base}}
+\index{dist\+\_\+base@{dist\+\_\+base}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{dist\+\_\+base}{dist_base}}]{\setlength{\rightskip}{0pt plus 5cm}const unsigned short dist\+\_\+base\mbox{[}30\mbox{]}}\hypertarget{tinflate_8c_a1f71abed8b5b2392f99082e0d9083c5a}{}\label{tinflate_8c_a1f71abed8b5b2392f99082e0d9083c5a}
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+= \{
+   1, 2, 3, 4, 5, 7, 9, 13,
+   17, 25, 33, 49, 65, 97, 129, 193,
+   257, 385, 513, 769, 1025, 1537, 2049, 3073,
+   4097, 6145, 8193, 12289, 16385, 24577
+\}
+\end{DoxyCode}
+\index{tinflate.\+c@{tinflate.\+c}!dist\+\_\+bits@{dist\+\_\+bits}}
+\index{dist\+\_\+bits@{dist\+\_\+bits}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{dist\+\_\+bits}{dist_bits}}]{\setlength{\rightskip}{0pt plus 5cm}const unsigned char dist\+\_\+bits\mbox{[}30\mbox{]}}\hypertarget{tinflate_8c_ae160b102dca4b47a90e4ad9c4e692921}{}\label{tinflate_8c_ae160b102dca4b47a90e4ad9c4e692921}
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+= \{
+   0, 0, 0, 0, 1, 1, 2, 2,
+   3, 3, 4, 4, 5, 5, 6, 6,
+   7, 7, 8, 8, 9, 9, 10, 10,
+   11, 11, 12, 12, 13, 13
+\}
+\end{DoxyCode}
+\index{tinflate.\+c@{tinflate.\+c}!length\+\_\+base@{length\+\_\+base}}
+\index{length\+\_\+base@{length\+\_\+base}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{length\+\_\+base}{length_base}}]{\setlength{\rightskip}{0pt plus 5cm}const unsigned short length\+\_\+base\mbox{[}30\mbox{]}}\hypertarget{tinflate_8c_a2a0a2704089533fc11e9647f451176dc}{}\label{tinflate_8c_a2a0a2704089533fc11e9647f451176dc}
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+= \{
+   3, 4, 5, 6, 7, 8, 9, 10,
+   11, 13, 15, 17, 19, 23, 27, 31,
+   35, 43, 51, 59, 67, 83, 99, 115,
+   131, 163, 195, 227, 258
+\}
+\end{DoxyCode}
+\index{tinflate.\+c@{tinflate.\+c}!length\+\_\+bits@{length\+\_\+bits}}
+\index{length\+\_\+bits@{length\+\_\+bits}!tinflate.\+c@{tinflate.\+c}}
+\subsubsection[{\texorpdfstring{length\+\_\+bits}{length_bits}}]{\setlength{\rightskip}{0pt plus 5cm}const unsigned char length\+\_\+bits\mbox{[}30\mbox{]}}\hypertarget{tinflate_8c_a666c48d9654fce03f206de2319ad62aa}{}\label{tinflate_8c_a666c48d9654fce03f206de2319ad62aa}
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+= \{
+   0, 0, 0, 0, 0, 0, 0, 0,
+   1, 1, 1, 1, 2, 2, 2, 2,
+   3, 3, 3, 3, 4, 4, 4, 4,
+   5, 5, 5, 5
+\}
+\end{DoxyCode}

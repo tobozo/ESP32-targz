@@ -1,0 +1,109 @@
+\hypertarget{ESP32-targz_8h}{}\section{src/\+E\+S\+P32-\/targz.h File Reference}
+\label{ESP32-targz_8h}\index{src/\+E\+S\+P32-\/targz.\+h@{src/\+E\+S\+P32-\/targz.\+h}}
+{\ttfamily \#include $<$F\+S.\+h$>$}\\*
+Include dependency graph for E\+S\+P32-\/targz.h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=177pt]{ESP32-targz_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=187pt]{ESP32-targz_8h__dep__incl}
+\end{center}
+\end{figure}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int \hyperlink{ESP32-targz_8h_a0169a661e11a9d1318c8dc0020bd10c1}{tar\+Gz\+Expander} (fs\+::\+FS source\+FS, const char $\ast$source\+File, fs\+::\+FS dest\+FS, const char $\ast$dest\+Folder=\char`\"{}/tmp\char`\"{})
+\item 
+int \hyperlink{ESP32-targz_8h_abc36fcba0a0fca53fc824ab44df1afa1}{tar\+Expander} (fs\+::\+FS \&source\+FS, const char $\ast$file\+Name, fs\+::\+FS \&dest\+FS, const char $\ast$dest\+Folder)
+\item 
+bool \hyperlink{ESP32-targz_8h_a05b8ccb59a181088df4b2f9d3242462b}{read\+Gz\+Headers} (fs\+::\+File \&gz\+File)
+\item 
+int \hyperlink{ESP32-targz_8h_a5e34d11e283ba6a157df28d23c2a0b44}{gz\+Process\+Block} ()
+\item 
+void \hyperlink{ESP32-targz_8h_acddb3fa5de990d7b1c38b3a9e051c81a}{gz\+Expander} (fs\+::\+FS source\+FS, const char $\ast$source\+File, fs\+::\+FS dest\+FS, const char $\ast$dest\+File)
+\item 
+void \hyperlink{ESP32-targz_8h_a950aaa5d8797a35db9aea94e2a669fc0}{gz\+Updater} (fs\+::\+FS \&fs, const char $\ast$gz\+\_\+filename)
+\item 
+void \hyperlink{ESP32-targz_8h_a34e5fbd8b3883fb529196695fb2937bf}{tar\+Gz\+List\+Dir} (fs\+::\+FS \&fs, const char $\ast$dir\+Name, uint8\+\_\+t levels=1)
+\item 
+char $\ast$ \hyperlink{ESP32-targz_8h_ab1b6028f4625caec30c1020e737216e2}{dirname} (char $\ast$path)
+\end{DoxyCompactItemize}
+
+
+\subsection{Function Documentation}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!dirname@{dirname}}
+\index{dirname@{dirname}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{dirname(char $\ast$path)}{dirname(char *path)}}]{\setlength{\rightskip}{0pt plus 5cm}char$\ast$ dirname (
+\begin{DoxyParamCaption}
+\item[{char $\ast$}]{path}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_ab1b6028f4625caec30c1020e737216e2}{}\label{ESP32-targz_8h_ab1b6028f4625caec30c1020e737216e2}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!gz\+Expander@{gz\+Expander}}
+\index{gz\+Expander@{gz\+Expander}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{gz\+Expander(fs\+::\+F\+S source\+F\+S, const char $\ast$source\+File, fs\+::\+F\+S dest\+F\+S, const char $\ast$dest\+File)}{gzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFile)}}]{\setlength{\rightskip}{0pt plus 5cm}void gz\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS}]{source\+FS, }
+\item[{const char $\ast$}]{source\+File, }
+\item[{fs\+::\+FS}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+File}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_acddb3fa5de990d7b1c38b3a9e051c81a}{}\label{ESP32-targz_8h_acddb3fa5de990d7b1c38b3a9e051c81a}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!gz\+Process\+Block@{gz\+Process\+Block}}
+\index{gz\+Process\+Block@{gz\+Process\+Block}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{gz\+Process\+Block()}{gzProcessBlock()}}]{\setlength{\rightskip}{0pt plus 5cm}int gz\+Process\+Block (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_a5e34d11e283ba6a157df28d23c2a0b44}{}\label{ESP32-targz_8h_a5e34d11e283ba6a157df28d23c2a0b44}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!gz\+Updater@{gz\+Updater}}
+\index{gz\+Updater@{gz\+Updater}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{gz\+Updater(fs\+::\+F\+S \&fs, const char $\ast$gz\+\_\+filename)}{gzUpdater(fs::FS &fs, const char *gz_filename)}}]{\setlength{\rightskip}{0pt plus 5cm}void gz\+Updater (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS \&}]{fs, }
+\item[{const char $\ast$}]{gz\+\_\+filename}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_a950aaa5d8797a35db9aea94e2a669fc0}{}\label{ESP32-targz_8h_a950aaa5d8797a35db9aea94e2a669fc0}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!read\+Gz\+Headers@{read\+Gz\+Headers}}
+\index{read\+Gz\+Headers@{read\+Gz\+Headers}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{read\+Gz\+Headers(fs\+::\+File \&gz\+File)}{readGzHeaders(fs::File &gzFile)}}]{\setlength{\rightskip}{0pt plus 5cm}bool read\+Gz\+Headers (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+File \&}]{gz\+File}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_a05b8ccb59a181088df4b2f9d3242462b}{}\label{ESP32-targz_8h_a05b8ccb59a181088df4b2f9d3242462b}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!tar\+Expander@{tar\+Expander}}
+\index{tar\+Expander@{tar\+Expander}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{tar\+Expander(fs\+::\+F\+S \&source\+F\+S, const char $\ast$file\+Name, fs\+::\+F\+S \&dest\+F\+S, const char $\ast$dest\+Folder)}{tarExpander(fs::FS &sourceFS, const char *fileName, fs::FS &destFS, const char *destFolder)}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS \&}]{source\+FS, }
+\item[{const char $\ast$}]{file\+Name, }
+\item[{fs\+::\+FS \&}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+Folder}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_abc36fcba0a0fca53fc824ab44df1afa1}{}\label{ESP32-targz_8h_abc36fcba0a0fca53fc824ab44df1afa1}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!tar\+Gz\+Expander@{tar\+Gz\+Expander}}
+\index{tar\+Gz\+Expander@{tar\+Gz\+Expander}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+Expander(fs\+::\+F\+S source\+F\+S, const char $\ast$source\+File, fs\+::\+F\+S dest\+F\+S, const char $\ast$dest\+Folder=""/tmp"")}{tarGzExpander(fs::FS sourceFS, const char *sourceFile, fs::FS destFS, const char *destFolder="/tmp")}}]{\setlength{\rightskip}{0pt plus 5cm}int tar\+Gz\+Expander (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS}]{source\+FS, }
+\item[{const char $\ast$}]{source\+File, }
+\item[{fs\+::\+FS}]{dest\+FS, }
+\item[{const char $\ast$}]{dest\+Folder = {\ttfamily \char`\"{}/tmp\char`\"{}}}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_a0169a661e11a9d1318c8dc0020bd10c1}{}\label{ESP32-targz_8h_a0169a661e11a9d1318c8dc0020bd10c1}
+\index{E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}!tar\+Gz\+List\+Dir@{tar\+Gz\+List\+Dir}}
+\index{tar\+Gz\+List\+Dir@{tar\+Gz\+List\+Dir}!E\+S\+P32-\/targz.\+h@{E\+S\+P32-\/targz.\+h}}
+\subsubsection[{\texorpdfstring{tar\+Gz\+List\+Dir(fs\+::\+F\+S \&fs, const char $\ast$dir\+Name, uint8\+\_\+t levels=1)}{tarGzListDir(fs::FS &fs, const char *dirName, uint8_t levels=1)}}]{\setlength{\rightskip}{0pt plus 5cm}void tar\+Gz\+List\+Dir (
+\begin{DoxyParamCaption}
+\item[{fs\+::\+FS \&}]{fs, }
+\item[{const char $\ast$}]{dir\+Name, }
+\item[{uint8\+\_\+t}]{levels = {\ttfamily 1}}
+\end{DoxyParamCaption}
+)}\hypertarget{ESP32-targz_8h_a34e5fbd8b3883fb529196695fb2937bf}{}\label{ESP32-targz_8h_a34e5fbd8b3883fb529196695fb2937bf}

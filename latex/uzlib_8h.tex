@@ -1,0 +1,226 @@
+\hypertarget{uzlib_8h}{}\section{src/uzlib/uzlib.h File Reference}
+\label{uzlib_8h}\index{src/uzlib/uzlib.\+h@{src/uzlib/uzlib.\+h}}
+{\ttfamily \#include $<$stdlib.\+h$>$}\\*
+{\ttfamily \#include $<$stdint.\+h$>$}\\*
+{\ttfamily \#include $<$stdbool.\+h$>$}\\*
+{\ttfamily \#include \char`\"{}defl\+\_\+static.\+h\char`\"{}}\\*
+{\ttfamily \#include \char`\"{}uzlib\+\_\+conf.\+h\char`\"{}}\\*
+{\ttfamily \#include \char`\"{}tinf\+\_\+compat.\+h\char`\"{}}\\*
+Include dependency graph for uzlib.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{uzlib_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{uzlib_8h__dep__incl}
+\end{center}
+\end{figure}
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \hyperlink{structTINF__TREE}{T\+I\+N\+F\+\_\+\+T\+R\+EE}
+\item 
+struct \hyperlink{structuzlib__uncomp}{uzlib\+\_\+uncomp}
+\item 
+struct \hyperlink{structuzlib__comp}{uzlib\+\_\+comp}
+\end{DoxyCompactItemize}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC}
+\item 
+\#define \hyperlink{uzlib_8h_a88a0fc571191c779caee20fe474c57a4}{T\+I\+N\+F\+\_\+\+OK}~0
+\item 
+\#define \hyperlink{uzlib_8h_a792f154ded3f10141fa779ab5c5a1305}{T\+I\+N\+F\+\_\+\+D\+O\+NE}~1
+\item 
+\#define \hyperlink{uzlib_8h_ab3d8e54bfb56bfd21d5b312ec7618db4}{T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR}~(-\/3)
+\item 
+\#define \hyperlink{uzlib_8h_ac7eaa97f57a3a1482c04a02cc782375a}{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR}~(-\/4)
+\item 
+\#define \hyperlink{uzlib_8h_ad218956985b69f9f9ff18acdd509d50f}{T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR}~(-\/5)
+\item 
+\#define \hyperlink{uzlib_8h_a14402b37cb14a19450e6418b4218b4e9}{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE}~0
+\item 
+\#define \hyperlink{uzlib_8h_a209a63f3f7b9aff2e50b2a34f2c951f4}{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER}~1
+\item 
+\#define \hyperlink{uzlib_8h_a0db9b25ac3328e3db4ab24614186f86b}{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC}~2
+\item 
+\#define \hyperlink{uzlib_8h_ab8ad371fe692ded4863cb2eae35d1523}{T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE}(arr)~(sizeof(arr) / sizeof($\ast$(arr)))
+\item 
+\#define \hyperlink{uzlib_8h_a678c25e95b52b9023297fb2ec005788b}{T\+I\+N\+F\+\_\+\+P\+UT}(d,  c)
+\end{DoxyCompactItemize}
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef const uint8\+\_\+t $\ast$ \hyperlink{uzlib_8h_af9caddd163536256592f41ef7ce89473}{uzlib\+\_\+hash\+\_\+entry\+\_\+t}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+unsigned char \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_aa83685348ca873af76a58956b967ea48}{uzlib\+\_\+get\+\_\+byte} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+void \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a6c9e6be9d288b20ee61e4741e02729de}{uzlib\+\_\+init} (void)
+\item 
+void \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_ae9f9bad8e0fbaac4c8c0236341293929}{uzlib\+\_\+uncompress\+\_\+init} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d, void $\ast$dict, unsigned int dict\+Len)
+\item 
+int \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a92432ef0b00f028f8115f2d238629614}{uzlib\+\_\+uncompress} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+int \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_ab47a74a54b71fa00ce1ed54496174a5c}{uzlib\+\_\+uncompress\+\_\+chksum} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+int \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a705ec82d201d7ea7f829f1ebed5ba020}{uzlib\+\_\+zlib\+\_\+parse\+\_\+header} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+int \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a8a8e8094c2a7374382660b90305ba782}{uzlib\+\_\+gzip\+\_\+parse\+\_\+header} (\hyperlink{tinf__compat_8h_a8a21a0c54e41be5640213ad04adf1d02}{T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$d)
+\item 
+void \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a51c0bd22023695faaf177777732aa370}{uzlib\+\_\+compress} (struct \hyperlink{structuzlib__comp}{uzlib\+\_\+comp} $\ast$c, const uint8\+\_\+t $\ast$src, unsigned slen)
+\item 
+uint32\+\_\+t \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a41d4d42168397ce479201665a69708c0}{uzlib\+\_\+adler32} (const void $\ast$data, unsigned int length, uint32\+\_\+t prev\+\_\+sum)
+\item 
+uint32\+\_\+t \hyperlink{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{T\+I\+N\+F\+CC} \hyperlink{uzlib_8h_a59f907d001ac509ab7ca5bc22a1f1b2e}{uzlib\+\_\+crc32} (const void $\ast$data, unsigned int length, uint32\+\_\+t crc)
+\end{DoxyCompactItemize}
+
+
+\subsection{Macro Definition Documentation}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE@{T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE}}
+\index{T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE@{T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE}{TINF_ARRAY_SIZE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+A\+R\+R\+A\+Y\+\_\+\+S\+I\+ZE(
+\begin{DoxyParamCaption}
+\item[{}]{arr}
+\end{DoxyParamCaption}
+)~(sizeof(arr) / sizeof($\ast$(arr)))}\hypertarget{uzlib_8h_ab8ad371fe692ded4863cb2eae35d1523}{}\label{uzlib_8h_ab8ad371fe692ded4863cb2eae35d1523}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER}}
+\index{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER}{TINF_CHKSUM_ADLER}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+A\+D\+L\+ER~1}\hypertarget{uzlib_8h_a209a63f3f7b9aff2e50b2a34f2c951f4}{}\label{uzlib_8h_a209a63f3f7b9aff2e50b2a34f2c951f4}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC}}
+\index{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC}{TINF_CHKSUM_CRC}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+C\+RC~2}\hypertarget{uzlib_8h_a0db9b25ac3328e3db4ab24614186f86b}{}\label{uzlib_8h_a0db9b25ac3328e3db4ab24614186f86b}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR}}
+\index{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR}{TINF_CHKSUM_ERROR}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+E\+R\+R\+OR~(-\/4)}\hypertarget{uzlib_8h_ac7eaa97f57a3a1482c04a02cc782375a}{}\label{uzlib_8h_ac7eaa97f57a3a1482c04a02cc782375a}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE}}
+\index{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE@{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE}{TINF_CHKSUM_NONE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+C\+H\+K\+S\+U\+M\+\_\+\+N\+O\+NE~0}\hypertarget{uzlib_8h_a14402b37cb14a19450e6418b4218b4e9}{}\label{uzlib_8h_a14402b37cb14a19450e6418b4218b4e9}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR}}
+\index{T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR}{TINF_DATA_ERROR}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+D\+A\+T\+A\+\_\+\+E\+R\+R\+OR~(-\/3)}\hypertarget{uzlib_8h_ab3d8e54bfb56bfd21d5b312ec7618db4}{}\label{uzlib_8h_ab3d8e54bfb56bfd21d5b312ec7618db4}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR}}
+\index{T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR@{T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR}{TINF_DICT_ERROR}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+D\+I\+C\+T\+\_\+\+E\+R\+R\+OR~(-\/5)}\hypertarget{uzlib_8h_ad218956985b69f9f9ff18acdd509d50f}{}\label{uzlib_8h_ad218956985b69f9f9ff18acdd509d50f}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+D\+O\+NE@{T\+I\+N\+F\+\_\+\+D\+O\+NE}}
+\index{T\+I\+N\+F\+\_\+\+D\+O\+NE@{T\+I\+N\+F\+\_\+\+D\+O\+NE}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+D\+O\+NE}{TINF_DONE}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+D\+O\+NE~1}\hypertarget{uzlib_8h_a792f154ded3f10141fa779ab5c5a1305}{}\label{uzlib_8h_a792f154ded3f10141fa779ab5c5a1305}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+OK@{T\+I\+N\+F\+\_\+\+OK}}
+\index{T\+I\+N\+F\+\_\+\+OK@{T\+I\+N\+F\+\_\+\+OK}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+OK}{TINF_OK}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+OK~0}\hypertarget{uzlib_8h_a88a0fc571191c779caee20fe474c57a4}{}\label{uzlib_8h_a88a0fc571191c779caee20fe474c57a4}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+\_\+\+P\+UT@{T\+I\+N\+F\+\_\+\+P\+UT}}
+\index{T\+I\+N\+F\+\_\+\+P\+UT@{T\+I\+N\+F\+\_\+\+P\+UT}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+\_\+\+P\+UT}{TINF_PUT}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+\_\+\+P\+UT(
+\begin{DoxyParamCaption}
+\item[{}]{d, }
+\item[{}]{c}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a678c25e95b52b9023297fb2ec005788b}{}\label{uzlib_8h_a678c25e95b52b9023297fb2ec005788b}
+{\bfseries Value\+:}
+\begin{DoxyCode}
+\{ \(\backslash\)
+        *d->dest++ = c; \(\backslash\)
+        if (d->dict\_ring) \{ d->dict\_ring[d->dict\_idx++] = c; \textcolor{keywordflow}{if} (d->dict\_idx == d->dict\_size) d->dict\_idx =
+       0; \} \(\backslash\)
+    \}
+\end{DoxyCode}
+\index{uzlib.\+h@{uzlib.\+h}!T\+I\+N\+F\+CC@{T\+I\+N\+F\+CC}}
+\index{T\+I\+N\+F\+CC@{T\+I\+N\+F\+CC}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{T\+I\+N\+F\+CC}{TINFCC}}]{\setlength{\rightskip}{0pt plus 5cm}\#define T\+I\+N\+F\+CC}\hypertarget{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}{}\label{uzlib_8h_ab3d00c93d53e93405599db46e4bdb44b}
+
+
+\subsection{Typedef Documentation}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+hash\+\_\+entry\+\_\+t@{uzlib\+\_\+hash\+\_\+entry\+\_\+t}}
+\index{uzlib\+\_\+hash\+\_\+entry\+\_\+t@{uzlib\+\_\+hash\+\_\+entry\+\_\+t}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+hash\+\_\+entry\+\_\+t}{uzlib_hash_entry_t}}]{\setlength{\rightskip}{0pt plus 5cm}typedef const uint8\+\_\+t$\ast$ {\bf uzlib\+\_\+hash\+\_\+entry\+\_\+t}}\hypertarget{uzlib_8h_af9caddd163536256592f41ef7ce89473}{}\label{uzlib_8h_af9caddd163536256592f41ef7ce89473}
+
+
+\subsection{Function Documentation}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+adler32@{uzlib\+\_\+adler32}}
+\index{uzlib\+\_\+adler32@{uzlib\+\_\+adler32}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+adler32(const void $\ast$data, unsigned int length, uint32\+\_\+t prev\+\_\+sum)}{uzlib_adler32(const void *data, unsigned int length, uint32_t prev_sum)}}]{\setlength{\rightskip}{0pt plus 5cm}uint32\+\_\+t {\bf T\+I\+N\+F\+CC} uzlib\+\_\+adler32 (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$}]{data, }
+\item[{unsigned int}]{length, }
+\item[{uint32\+\_\+t}]{prev\+\_\+sum}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a41d4d42168397ce479201665a69708c0}{}\label{uzlib_8h_a41d4d42168397ce479201665a69708c0}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+compress@{uzlib\+\_\+compress}}
+\index{uzlib\+\_\+compress@{uzlib\+\_\+compress}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+compress(struct uzlib\+\_\+comp $\ast$c, const uint8\+\_\+t $\ast$src, unsigned slen)}{uzlib_compress(struct uzlib_comp *c, const uint8_t *src, unsigned slen)}}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf T\+I\+N\+F\+CC} uzlib\+\_\+compress (
+\begin{DoxyParamCaption}
+\item[{struct {\bf uzlib\+\_\+comp} $\ast$}]{c, }
+\item[{const uint8\+\_\+t $\ast$}]{src, }
+\item[{unsigned}]{slen}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a51c0bd22023695faaf177777732aa370}{}\label{uzlib_8h_a51c0bd22023695faaf177777732aa370}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+crc32@{uzlib\+\_\+crc32}}
+\index{uzlib\+\_\+crc32@{uzlib\+\_\+crc32}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+crc32(const void $\ast$data, unsigned int length, uint32\+\_\+t crc)}{uzlib_crc32(const void *data, unsigned int length, uint32_t crc)}}]{\setlength{\rightskip}{0pt plus 5cm}uint32\+\_\+t {\bf T\+I\+N\+F\+CC} uzlib\+\_\+crc32 (
+\begin{DoxyParamCaption}
+\item[{const void $\ast$}]{data, }
+\item[{unsigned int}]{length, }
+\item[{uint32\+\_\+t}]{crc}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a59f907d001ac509ab7ca5bc22a1f1b2e}{}\label{uzlib_8h_a59f907d001ac509ab7ca5bc22a1f1b2e}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+get\+\_\+byte@{uzlib\+\_\+get\+\_\+byte}}
+\index{uzlib\+\_\+get\+\_\+byte@{uzlib\+\_\+get\+\_\+byte}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+get\+\_\+byte(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_get_byte(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}unsigned char {\bf T\+I\+N\+F\+CC} uzlib\+\_\+get\+\_\+byte (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_aa83685348ca873af76a58956b967ea48}{}\label{uzlib_8h_aa83685348ca873af76a58956b967ea48}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+gzip\+\_\+parse\+\_\+header@{uzlib\+\_\+gzip\+\_\+parse\+\_\+header}}
+\index{uzlib\+\_\+gzip\+\_\+parse\+\_\+header@{uzlib\+\_\+gzip\+\_\+parse\+\_\+header}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+gzip\+\_\+parse\+\_\+header(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_gzip_parse_header(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int {\bf T\+I\+N\+F\+CC} uzlib\+\_\+gzip\+\_\+parse\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a8a8e8094c2a7374382660b90305ba782}{}\label{uzlib_8h_a8a8e8094c2a7374382660b90305ba782}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+init@{uzlib\+\_\+init}}
+\index{uzlib\+\_\+init@{uzlib\+\_\+init}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+init(void)}{uzlib_init(void)}}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf T\+I\+N\+F\+CC} uzlib\+\_\+init (
+\begin{DoxyParamCaption}
+\item[{void}]{}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a6c9e6be9d288b20ee61e4741e02729de}{}\label{uzlib_8h_a6c9e6be9d288b20ee61e4741e02729de}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+uncompress@{uzlib\+\_\+uncompress}}
+\index{uzlib\+\_\+uncompress@{uzlib\+\_\+uncompress}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_uncompress(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int {\bf T\+I\+N\+F\+CC} uzlib\+\_\+uncompress (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a92432ef0b00f028f8115f2d238629614}{}\label{uzlib_8h_a92432ef0b00f028f8115f2d238629614}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+uncompress\+\_\+chksum@{uzlib\+\_\+uncompress\+\_\+chksum}}
+\index{uzlib\+\_\+uncompress\+\_\+chksum@{uzlib\+\_\+uncompress\+\_\+chksum}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress\+\_\+chksum(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_uncompress_chksum(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int {\bf T\+I\+N\+F\+CC} uzlib\+\_\+uncompress\+\_\+chksum (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_ab47a74a54b71fa00ce1ed54496174a5c}{}\label{uzlib_8h_ab47a74a54b71fa00ce1ed54496174a5c}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+uncompress\+\_\+init@{uzlib\+\_\+uncompress\+\_\+init}}
+\index{uzlib\+\_\+uncompress\+\_\+init@{uzlib\+\_\+uncompress\+\_\+init}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+uncompress\+\_\+init(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d, void $\ast$dict, unsigned int dict\+Len)}{uzlib_uncompress_init(TINF_DATA *d, void *dict, unsigned int dictLen)}}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf T\+I\+N\+F\+CC} uzlib\+\_\+uncompress\+\_\+init (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d, }
+\item[{void $\ast$}]{dict, }
+\item[{unsigned int}]{dict\+Len}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_ae9f9bad8e0fbaac4c8c0236341293929}{}\label{uzlib_8h_ae9f9bad8e0fbaac4c8c0236341293929}
+\index{uzlib.\+h@{uzlib.\+h}!uzlib\+\_\+zlib\+\_\+parse\+\_\+header@{uzlib\+\_\+zlib\+\_\+parse\+\_\+header}}
+\index{uzlib\+\_\+zlib\+\_\+parse\+\_\+header@{uzlib\+\_\+zlib\+\_\+parse\+\_\+header}!uzlib.\+h@{uzlib.\+h}}
+\subsubsection[{\texorpdfstring{uzlib\+\_\+zlib\+\_\+parse\+\_\+header(\+T\+I\+N\+F\+\_\+\+D\+A\+T\+A $\ast$d)}{uzlib_zlib_parse_header(TINF_DATA *d)}}]{\setlength{\rightskip}{0pt plus 5cm}int {\bf T\+I\+N\+F\+CC} uzlib\+\_\+zlib\+\_\+parse\+\_\+header (
+\begin{DoxyParamCaption}
+\item[{{\bf T\+I\+N\+F\+\_\+\+D\+A\+TA} $\ast$}]{d}
+\end{DoxyParamCaption}
+)}\hypertarget{uzlib_8h_a705ec82d201d7ea7f829f1ebed5ba020}{}\label{uzlib_8h_a705ec82d201d7ea7f829f1ebed5ba020}
