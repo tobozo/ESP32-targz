@@ -1,7 +1,0 @@
-<map id="src/uzlib/tinf.h" name="src/uzlib/tinf.h">
-<area shape="rect" id="node2" href="$adler32_8c.html" title="src/uzlib/adler32.c" alt="" coords="5,80,133,107"/>
-<area shape="rect" id="node3" href="$crc32_8c.html" title="src/uzlib/crc32.c" alt="" coords="158,80,277,107"/>
-<area shape="rect" id="node4" href="$tinfgzip_8c.html" title="src/uzlib/tinfgzip.c" alt="" coords="301,80,429,107"/>
-<area shape="rect" id="node5" href="$tinflate_8c.html" title="src/uzlib/tinflate.c" alt="" coords="453,80,579,107"/>
-<area shape="rect" id="node6" href="$tinfzlib_8c.html" title="src/uzlib/tinfzlib.c" alt="" coords="603,80,727,107"/>
-</map>
