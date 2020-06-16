@@ -350,6 +350,10 @@ int unTarHeaderCallBack(header_translated_t *proper,  CC_UNUSED int entry_index,
   dump_header(proper);
   if(proper->type == T_NORMAL) {
     char *file_path = new char[256];// = ""; // TODO: normalize this for fs::FS, limit is 32, not 256
+    // whoopsie :-)
+    // https://www.reddit.com/r/esp32/comments/etzqdr/esp32targz_and_arduino_library_to/fuzl8oi/
+    // https://github.com/tobozo/ESP32-targz/issues/3
+    file_path[0] = '\0';
     // avoid double slashing root path
     if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
       strcat(file_path, tarDestFolder);
