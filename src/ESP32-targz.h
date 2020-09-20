@@ -70,6 +70,8 @@ void gzUpdater( fs::FS &fs, const char* gz_filename );
 void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1 );
 // fs helper
 char *dirname(char *path);
+// useful to share the buffer so it's not totally wasted memory outside targz scope
+uint8_t *getGzBufferUint8();
 
 
 

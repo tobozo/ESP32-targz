@@ -17,18 +17,18 @@ int indatablock;
 void (*tar_error_logger)(const char* subject, ...);
 void (*tar_debug_logger)(const char* subject, ...);
 
-int parse_header(const unsigned char buffer[512], header_t *header) {
-  memcpy(header, buffer, sizeof(header_t));
-
-  return 0;
-}
-
 static void log_error(const char *message) {
   if(tar_error_logger) tar_error_logger("[ERROR]: %s\n", message);
 }
 
 static void log_debug(const char *message) {
   if(tar_debug_logger) tar_debug_logger("[DEBUG]: %s\n", message);
+}
+
+int parse_header(const unsigned char buffer[TAR_BLOCK_SIZE], header_t *header) {
+  log_debug("Copying tar header");
+  memcpy(header, buffer, sizeof(header_t));
+  return 0;
 }
 
 unsigned long long decode_base256( __attribute__((unused)) const unsigned char *buffer) {

@@ -37,6 +37,10 @@ int32_t uzlib_bytesleft = 0;
 //int8_t uzLibLastProgress = -1;
 unsigned char __attribute__((aligned(4))) uzlib_read_cb_buff[GZIP_BUFF_SIZE];
 
+uint8_t *getGzBufferUint8() {
+  return (uint8_t *)uzlib_read_cb_buff;
+}
+
 struct uzlib_uncomp uzLibDecompressor;
 
 struct TarGzStream {
@@ -149,8 +153,9 @@ static void gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t 
     firstblock = false;
   }
   for( byte i=0;i<blockmod;i++) {
-    if(read_tar_step() != 0) {
-      log_d("Failed reading %d bytes in gzip block #%d", TAR_BLOCK_SIZE, blockmod);
+    int response = read_tar_step();
+    if( response != 0) {
+      log_d("Failed reading %d bytes in gzip block #%d, got response %d", TAR_BLOCK_SIZE, blockmod, response);
       break;
     }
   }
@@ -242,12 +247,13 @@ int gzProcessBlock() {
   } else {
     gzProgressCallback( 100*(tarGzStream.output_size-uzlib_bytesleft)/tarGzStream.output_size );
   }
-  // Fill any remaining with 0xff
+  /*
+  // Fill any remaining with 0x00
   for (int i = to_read; i < SPI_FLASH_SEC_SIZE; i++) {
-      uzlib_buffer[i] = 0xff;
-  }
-  gzWriteCallback( uzlib_buffer, SPI_FLASH_SEC_SIZE );
-  uzlib_bytesleft -= SPI_FLASH_SEC_SIZE;
+      uzlib_buffer[i] = 0x00;
+  }*/
+  gzWriteCallback( uzlib_buffer, to_read );
+  uzlib_bytesleft -= to_read;
   return 0;
 }
 
