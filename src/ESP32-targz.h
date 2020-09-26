@@ -38,8 +38,8 @@
 
 #if defined( ESP32 )
   #include <SPIFFS.h>
-  #include <SD.h>
-  #include <SD_MMC.h>
+  //#include <SD.h>
+  //#include <SD_MMC.h>
   #include <Update.h>
 #elif defined( ESP8266 )
   #include "spiffs/spiffs.h"

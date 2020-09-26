@@ -1,3 +1,4 @@
+#include <SPIFFS.h>
 #include <ESP32-targz.h>
 
 void setup() {
