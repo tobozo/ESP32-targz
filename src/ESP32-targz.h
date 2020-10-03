@@ -42,8 +42,11 @@
   //#include <SD_MMC.h>
   #include <Update.h>
 #elif defined( ESP8266 )
-  #include "spiffs/spiffs.h"
-  #include <LittleFS.h>
+  #ifdef USE_LittleFS
+    #include <FS.h>
+    #define SPIFFS LittleFS
+    #include <LittleFS.h>
+  #endif
   #include <Updater.h>
   #define log_e tgzLogger
   #define log_w tgzLogger
