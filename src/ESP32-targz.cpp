@@ -234,7 +234,7 @@ bool readGzHeaders(fs::File &gzFile) {
 }
 
 
-int gzProcessBlock() {
+int gzProcessBlock( bool isupdate ) {
   uzLibDecompressor.dest_start = uzlib_buffer;
   uzLibDecompressor.dest = uzlib_buffer;
   int to_read = (uzlib_bytesleft > SPI_FLASH_SEC_SIZE) ? SPI_FLASH_SEC_SIZE : uzlib_bytesleft;
@@ -252,13 +252,18 @@ int gzProcessBlock() {
   for (int i = to_read; i < SPI_FLASH_SEC_SIZE; i++) {
       uzlib_buffer[i] = 0x00;
   }*/
-  gzWriteCallback( uzlib_buffer, SPI_FLASH_SEC_SIZE );
-  uzlib_bytesleft -= SPI_FLASH_SEC_SIZE;
+  if( !isupdate ) {
+    gzWriteCallback( uzlib_buffer, to_read );
+    uzlib_bytesleft -= to_read;
+  } else {
+    gzWriteCallback( uzlib_buffer, SPI_FLASH_SEC_SIZE );
+    uzlib_bytesleft -= SPI_FLASH_SEC_SIZE;
+  }
   return 0;
 }
 
 
-int gzUncompress() {
+int gzUncompress( bool isupdate = false ) {
   if( !tarGzStream.gz->available() ) {
     log_e("gz resource doesn't exist!");
     return 1;
@@ -279,7 +284,7 @@ int gzUncompress() {
   }
   gzProgressCallback( 0 );
   while( uzlib_bytesleft>0 ) {
-    int res = gzProcessBlock();
+    int res = gzProcessBlock( isupdate );
     if (res!=0) {
       tarGzExpanderCleanup();
       return res;
@@ -335,7 +340,7 @@ void gzUpdater( fs::FS &fs, const char* gz_filename ) {
   tarGzStream.gz = &gz;
   gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
   Update.begin( ( ( tarGzStream.output_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ) );
-  int ret = gzUncompress();
+  int ret = gzUncompress( true );
   if( ret!=0 ) tgzLogger("gzUncompress returned error code %d\n", ret);
   gz.close();
 
@@ -393,7 +398,12 @@ int unTarHeaderCallBack(header_translated_t *proper,  CC_UNUSED int entry_index,
       delete tmp_path;
     }
 
-    tgzLogger("Creating %s\n", file_path);
+    if( strlen( file_path ) > 32 ) {
+      // WARNING: SPIFFS LIMIT
+      tgzLogger("WARNING: file path is longer than 32 chars (SPIFFS limit) and may fail: %s\n", file_path);
+    } else {
+      tgzLogger("Creating %s\n", file_path);
+    }
 
     untarredFile = tarFS->open(file_path, FILE_WRITE);
     if(!untarredFile) {
@@ -518,6 +528,14 @@ int tarGzExpanderSetup() {
 
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
 int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder ) {
+
+  // tarGzStream is broken so use an intermediate file until this is fixed
+  gzExpander(sourceFS, sourceFile, destFS, "/tmp/data.tar");
+  tarExpander(destFS, "/tmp/data.tar", destFS, destFolder);
+  destFS.remove( "/tmp/data.tar" );
+  return 0;
+
+  /*
   tgzLogger("targz expander start!\n");
   fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   tarGzStream.gz = &gz;
@@ -556,13 +574,54 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
   gz.close();
   tgzLogger("success!\n");
   return 0;
+  */
 }
 
+
+// show the contents of a given file as a hex dump
+void hexDumpFile( fs::FS &fs, const char* filename ) {
+  File binFile = fs.open(filename);
+  log_w("File size : %d", binFile.size() );
+  if( binFile.size() > 0 ) {
+    size_t output_size = 32;
+    char* buff = new char[output_size];
+    uint8_t bytes_read = binFile.readBytes( buff, output_size );
+    String bytesStr  = "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
+    String binaryStr = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+    String addrStr = "[0x0000 - 0x0000] ";
+    char byteToStr[32];
+    size_t totalBytes = 0;
+    while( bytes_read > 0 ) {
+      bytesStr = "";
+      binaryStr = "";
+      for( int i=0; i<bytes_read; i++ ) {
+        sprintf( byteToStr, "%02X", buff[i] );
+        bytesStr  += String( byteToStr ) + String(" ");
+        if( isprint( buff[i] ) ) {
+          binaryStr += String( buff[i] );
+        } else {
+          binaryStr += " ";
+        }
+      }
+      sprintf( byteToStr, "[0x%04X - 0x%04X] ",  totalBytes, totalBytes+bytes_read);
+      totalBytes += bytes_read;
+      if( bytes_read < output_size ) {
+        for( int i=0; i<output_size-bytes_read; i++ ) {
+          bytesStr  += "00 ";
+          binaryStr += " ";
+        }
+      }
+      Serial.println( byteToStr + bytesStr + " " + binaryStr );
+      bytes_read = binFile.readBytes( buff, output_size );
+    }
+  }
+  binFile.close();
+}
 
 // get a directory listing of a given filesystem
 #if defined( ESP32 )
 
-  void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels ) {
+  void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump ) {
     File root = fs.open( dirName, FILE_READ );
     if( !root ){
       log_e( "Can't open %s dir", dirName );
@@ -581,6 +640,9 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
         }
       } else {
         tgzLogger( "%-32s %8d bytes\n", file.name(), file.size() );
+        if( hexDump ) {
+          hexDumpFile( fs, file.name() );
+        }
       }
       file = root.openNextFile();
     }
@@ -588,7 +650,7 @@ int tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const
 
 #elif defined( ESP8266 )
 
-  void tarGzListDir(fs::FS &fs, const char * dirname, uint8_t levels) {
+  void tarGzListDir(fs::FS &fs, const char * dirname, uint8_t levels, bool hexDump) {
     Serial.printf("Listing directory %s with level %d\n", dirname, levels);
 
     Dir root = fs.openDir(dirname);

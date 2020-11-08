@@ -289,12 +289,12 @@ int tar_step() {
   }
 
   if(empty_count >= 2) {
-    tar_abort("tar expanding done!", 1);
+    tar_abort("tar expanding done!", 0);
     return -1;
   }
 
   if(read_block( read_buffer ) != 0) {
-    tar_abort("tar expanding done!", 1);
+    tar_abort("tar expanding done!", 0);
     return -1;
   }
   // If we haven't yet determined what format to support, read the
@@ -323,7 +323,7 @@ int tar_step() {
     indatablock = 0;
 
     int res = tar_datablock_step();
-    if( res < 0 ) {
+    if( num_blocks > 0 && res < 0 ) {
       char message[200];
       snprintf(message, 200, "tar_datablock_step return code (%d)", res );
       log_error(message);
