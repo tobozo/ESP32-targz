@@ -43,7 +43,6 @@
   #include <Update.h>
 #elif defined( ESP8266 )
   #ifdef USE_LittleFS
-    #include <FS.h>
     #define SPIFFS LittleFS
     #include <LittleFS.h>
   #endif

@@ -252,8 +252,8 @@ int gzProcessBlock() {
   for (int i = to_read; i < SPI_FLASH_SEC_SIZE; i++) {
       uzlib_buffer[i] = 0x00;
   }*/
-  gzWriteCallback( uzlib_buffer, to_read );
-  uzlib_bytesleft -= to_read;
+  gzWriteCallback( uzlib_buffer, SPI_FLASH_SEC_SIZE );
+  uzlib_bytesleft -= SPI_FLASH_SEC_SIZE;
   return 0;
 }
 
@@ -328,6 +328,9 @@ void gzUpdater( fs::FS &fs, const char* gz_filename ) {
     log_e("Not a valid gzip file");
     gz.close();
     return;
+  }
+  if( !gzProgressCallback ) {
+    setProgressCallback( defaultProgressCallback );
   }
   tarGzStream.gz = &gz;
   gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
