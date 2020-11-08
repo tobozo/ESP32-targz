@@ -53,17 +53,16 @@ struct TarGzStream {
 
 TarGzStream tarGzStream;
 
-typedef void (*genericProgressCallback)( uint8_t progress );
-
 // show progress
 void (*gzProgressCallback)( uint8_t progress );
 void (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
+void (*tgzLogger)( const char* format, ...);
 
 void tgzNullLogger(CC_UNUSED const char* format, ...) {
   //
 }
 
-void tgzLogger(const char* format, ...) {
+void tgzPrintLogger(const char* format, ...) {
   va_list args;
   va_start(args, format);
   vprintf(format, args);
@@ -136,6 +135,9 @@ void setProgressCallback( genericProgressCallback cb ) {
   gzProgressCallback = cb;
 }
 
+void setLoggerCallback( genericLoggerCallback cb ) {
+  tgzLogger = cb;
+}
 
 static void gzUpdateWriteCallback( unsigned char* buff, size_t buffsize ) {
   Update.write( buff, buffsize );
@@ -299,6 +301,9 @@ int gzUncompress( bool isupdate = false ) {
 
 // uncompress gz sourceFile to destFile
 void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile ) {
+  if (!tgzLogger ) {
+    setLoggerCallback( tgzPrintLogger );
+  }
   tgzLogger("uzLib expander start!\n");
   fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   if( !gzProgressCallback ) {
@@ -327,6 +332,9 @@ void gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
 
 // uncompress gz to flash (expected to be a valid Arduino compiled binary sketch)
 void gzUpdater( fs::FS &fs, const char* gz_filename ) {
+  if (!tgzLogger ) {
+    setLoggerCallback( tgzPrintLogger );
+  }
   tgzLogger("uzLib SPIFFS Updater start!\n");
   fs::File gz = fs.open( gz_filename, FILE_READ );
   if( !readGzHeaders( gz ) ) {
@@ -345,16 +353,16 @@ void gzUpdater( fs::FS &fs, const char* gz_filename ) {
   gz.close();
 
   if ( Update.end() ) {
-    Serial.println( "OTA done!" );
+    tgzLogger( "OTA done!\n" );
     if ( Update.isFinished() ) {
       // yay
       tgzLogger("Update finished !\n");
       ESP.restart();
     } else {
-      Serial.println( "Update not finished? Something went wrong!" );
+      tgzLogger( "Update not finished? Something went wrong!\n" );
     }
   } else {
-    Serial.println( "Update Error Occurred. Error #: " + String( Update.getError() ) );
+    tgzLogger( "Update Error Occurred. Error #: %u\n", Update.getError() );
   }
   tgzLogger("uzLib filesystem Updater finished!\n");
 }
@@ -446,9 +454,9 @@ int unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED in
     log_v("Wrote %d bytes", length);
     if( gzProgressCallback == nullptr ) {
       if( untarredBytesCount%(length*80) == 0 ) {
-        Serial.println();
+        tgzLogger("\n");
       } else {
-        Serial.print("T");
+        tgzLogger("T");
       }
     }
   }
@@ -458,7 +466,7 @@ int unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED in
 
 int unTarEndCallBack( CC_UNUSED header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data) {
   if(untarredFile) {
-    Serial.println();
+    tgzLogger("\n");
     //log_d("Final size: %d", untarredFile.size() );
     untarredFile.close();
   }
@@ -472,6 +480,9 @@ int tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const c
   tarDestFolder = destFolder;
   if( gzProgressCallback ) {
     setProgressCallback( nullptr );
+  }
+  if (!tgzLogger ) {
+    setLoggerCallback( tgzPrintLogger );
   }
   if( !sourceFS.exists( fileName ) ) {
     tgzLogger("Error: file %s does not exist or is not reachable\n", fileName);
@@ -498,6 +509,9 @@ int tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const c
 
 
 int tarGzExpanderSetup() {
+  if (!tgzLogger ) {
+    setLoggerCallback( tgzPrintLogger );
+  }
   tgzLogger("setup begin\n");
   untarredBytesCount = 0;
   gzTarBlockPos = 0;
@@ -506,8 +520,8 @@ int tarGzExpanderSetup() {
     unTarStreamWriteCallback,
     unTarEndCallBack
   };
-  tar_error_logger      = &tgzLogger;
-  tar_debug_logger      = &tgzLogger; // comment this out if too verbose
+  tar_error_logger      = tgzLogger;
+  tar_debug_logger      = tgzLogger; // comment this out if too verbose
   tinyUntarReadCallback = &gzFeedTarBuffer;
   gzWriteCallback    = &gzProcessTarBuffer;
   if( !gzProgressCallback ) {
@@ -634,12 +648,12 @@ void hexDumpFile( fs::FS &fs, const char* filename ) {
     File file = root.openNextFile();
     while( file ){
       if( file.isDirectory() ){
-        tgzLogger( "[DIR] %s\n", file.name() );
+        Serial.printf( "[DIR] %s\n", file.name() );
         if( levels && levels > 0  ){
           tarGzListDir( fs, file.name(), levels -1 );
         }
       } else {
-        tgzLogger( "%-32s %8d bytes\n", file.name(), file.size() );
+        Serial.printf( "%-32s %8d bytes\n", file.name(), file.size() );
         if( hexDump ) {
           hexDumpFile( fs, file.name() );
         }
@@ -663,12 +677,12 @@ void hexDumpFile( fs::FS &fs, const char* filename ) {
       File file = root.openFile("r");
       /*
       if( root.isDirectory() ){
-        tgzLogger( "[DIR] %s\n", root.fileName().c_str() );
+        Serial.printf( "[DIR] %s\n", root.fileName().c_str() );
         if( levels && levels > 0 ){
           tarGzListDir( fs, root.fileName().c_str(), levels -1 );
         }
       } else {*/
-        tgzLogger( "%-32s %8d bytes\n", root.fileName().c_str(), file.size() );
+        Serial.printf( "%-32s %8d bytes\n", root.fileName().c_str(), file.size() );
       /*}*/
       file.close();
     }

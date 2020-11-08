@@ -75,6 +75,10 @@ char *dirname(char *path);
 // useful to share the buffer so it's not totally wasted memory outside targz scope
 uint8_t *getGzBufferUint8();
 void hexDumpFile( fs::FS &fs, const char* filename);
-
+// callbacks for progress and misc output messages
+typedef void (*genericProgressCallback)( uint8_t progress );
+typedef void (*genericLoggerCallback)( const char* format, ... );
+void setProgressCallback( genericProgressCallback cb );
+void setLoggerCallback( genericLoggerCallback cb );
 
 #endif // #ifdef _ESP_TGZ_H
