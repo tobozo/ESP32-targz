@@ -13,6 +13,7 @@ int entry_index;
 int empty_count;
 int received_bytes;
 int indatablock;
+int tar_error = TAR_OK;
 
 void (*tar_error_logger)(const char* subject, ...);
 void (*tar_debug_logger)(const char* subject, ...);
@@ -28,11 +29,11 @@ static void log_debug(const char *message) {
 int parse_header(const unsigned char buffer[TAR_BLOCK_SIZE], header_t *header) {
   log_debug("Copying tar header");
   memcpy(header, buffer, sizeof(header_t));
-  return 0;
+  return TAR_OK;
 }
 
 unsigned long long decode_base256( __attribute__((unused)) const unsigned char *buffer) {
-  return 0;
+  return TAR_OK;
 }
 
 __attribute__((unused)) static void dump_hex(const char *ptr, int length) {
@@ -188,7 +189,7 @@ int translate_header(header_t *raw_header, header_translated_t *parsed) {
     parsed->device_major = 0;
     parsed->device_minor = 0;
   }
-  return 0;
+  return TAR_OK;
 }
 
 static int read_block(unsigned char *buffer) {
@@ -204,10 +205,11 @@ static int read_block(unsigned char *buffer) {
       "rather than (%d). Quitting under error.",
       num_read, TAR_BLOCK_SIZE
     );
+    tar_error = TAR_ERR_READBLOCK_FAIL;
     log_error(message);
-    return -1;
+    return TAR_ERROR;
   }
-  return 0;
+  return TAR_OK;
 }
 
 
@@ -222,12 +224,12 @@ int expand_tar_data_block() {
 
   if(read_tar_callbacks->data_cb(&header_translated, entry_index, read_context_data, read_buffer, current_data_size) != 0) {
     //log_error("Data callback failed.");
-    return -7;
+    return TAR_ERR_DATACB_FAIL;
   }
   num_blocks_iterator++;
   received_bytes += current_data_size;
 
-  return 0;
+  return TAR_OK;
 
 }
 
@@ -249,6 +251,7 @@ void tar_abort( const char* msgstr, int iserror ) {
 
 void tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
   //log_debug("entering tar setup");
+  tar_error = TAR_OK;
   read_tar_callbacks = callbacks;
   read_context_data = context_data;
   read_buffer = (unsigned char*)malloc(TAR_BLOCK_SIZE + 1);
@@ -263,26 +266,33 @@ int tar_datablock_step() {
   if(num_blocks_iterator < num_blocks) {
     if(read_block( read_buffer ) != 0) {
       tar_abort("Could not read block. File too short.", 1);
-      return -6;
+      tar_error = TAR_ERR_READBLOCK_FAIL;
+      return tar_error;
     }
     int res = expand_tar_data_block();
     if( res != 0 ) {
       tar_abort("Data callback failed", 1);
       return res;
     }
-    return 1;
+    return TAR_CONTINUE;
   } else {
     indatablock = -1;
     if(read_tar_callbacks->end_cb(&header_translated, entry_index, read_context_data) != 0) {
       tar_abort("End callback failed.", 1);
-      return -5;
+      tar_error = TAR_ERR_FOOTERCB_FAIL;
+      return tar_error;
     }
-    return -1;
+    return TAR_ERROR;
   }
 }
 
 
 int tar_step() {
+
+  if( tar_error != TAR_OK ) {
+    tar_abort("tar expanding interrupted!", 1);
+    return tar_error;
+  }
 
   if( indatablock == 0 ) {
     return tar_datablock_step();
@@ -290,32 +300,35 @@ int tar_step() {
 
   if(empty_count >= 2) {
     tar_abort("tar expanding done!", 0);
-    return -1;
+    return TAR_ERROR;
   }
 
   if(read_block( read_buffer ) != 0) {
     tar_abort("tar expanding done!", 0);
-    return -1;
+    return TAR_ERROR;
   }
   // If we haven't yet determined what format to support, read the
   // header of the next entry, now. This should be done only at the
   // top of the archive.
   if( parse_header(read_buffer, &header) != 0) {
       tar_abort("Could not understand the header of the first entry in the TAR.", 1);
-      return -3;
+      tar_error = TAR_ERR_HEADERPARSE_FAIL;
+      return tar_error;
   } else if(strlen(header.filename) == 0) {
       empty_count++;
       entry_index++;
-      return 0;
+      return TAR_OK;
   } else {
     if(translate_header(&header, &header_translated) != 0) {
       tar_abort("Could not translate header.", 1);
-      return -4;
+      tar_error = TAR_ERR_HEADERTRANS_FAIL;
+      return tar_error;
     }
 
     if(read_tar_callbacks->header_cb(&header_translated, entry_index, read_context_data) != 0) {
       tar_abort("Header callback failed.", 1);
-      return -5;
+      tar_error = TAR_ERR_HEADERCB_FAIL;
+      return tar_error;
     }
     num_blocks_iterator = 0;
     received_bytes = 0;
@@ -329,7 +342,7 @@ int tar_step() {
       log_error(message);
       return res;
     }
-    return 0;
+    return TAR_OK;
   }
 
 }
@@ -338,22 +351,22 @@ int tar_step() {
 int read_tar_step() {
   if( read_tar_callbacks == NULL ) {
     //tar_abort("No callbacks defined!", 1);
-    return -1;
+    return TAR_ERROR;
   }
   int res = tar_step();
 
   if( res < 0 ) {
     char message[200];
-    if( res != -1 ) {
+    if( res != TAR_ERROR ) {
       snprintf(message, 200, "read_tar return code (%d)", res );
       tar_abort(message, 1);
       return res;
     } else {
       //tar_abort("Unpacking success!", 0);
-      return 0;
+      return TAR_OK;
     }
   } else {
-    return 0;
+    return TAR_OK;
   }
 }
 
@@ -384,17 +397,20 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
 
     if(parse_header(read_buffer, &header) != 0) {
       tar_abort("Could not understand the header of the first entry in the TAR.", 1);
-      return -3;
+      tar_error = TAR_ERR_HEADERPARSE_FAIL;
+      return tar_error;
     } else if(strlen(header.filename) == 0) {
       empty_count++;
     } else {
       if(translate_header(&header, &header_translated) != 0) {
         tar_abort("Could not translate header.", 1);
-        return -4;
+        tar_error = TAR_ERR_HEADERTRANS_FAIL;
+        return tar_error;
       }
       if(callbacks->header_cb(&header_translated, entry_index, context_data) != 0) {
         tar_abort("Header callback failed.", 1);
-        return -5;
+        tar_error = TAR_ERR_HEADERCB_FAIL;
+        return tar_error;
       }
       int i = 0;
       int received_bytes = 0;
@@ -402,7 +418,8 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
       while(i < num_blocks) {
         if(read_block( read_buffer ) != 0) {
           tar_abort("Could not read block. File too short.", 1);
-          return -6;
+          tar_error = TAR_ERR_READBLOCK_FAIL;
+          return tar_error;
         }
 
         if(i >= num_blocks - 1)
@@ -414,21 +431,23 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
 
         if(callbacks->data_cb(&header_translated, entry_index, context_data, read_buffer, current_data_size) != 0) {
           tar_abort("Data callback failed.", 1);
-          return -7;
+          tar_error = TAR_ERR_DATACB_FAIL;
+          return tar_error;
         }
         i++;
         received_bytes += current_data_size;
       }
       if(callbacks->end_cb(&header_translated, entry_index, context_data) != 0) {
         tar_abort("End callback failed.", 1);
-        return -5;
+        tar_error = TAR_ERR_FOOTERCB_FAIL;
+        return tar_error;
       }
     }
     entry_index++;
   }
 
   tar_abort("tar expanding done!", 0);
-  return 0;
+  return TAR_OK;
 }
 
 

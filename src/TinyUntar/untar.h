@@ -35,6 +35,17 @@ inline int get_last_block_portion_size(int filesize);
 #define TAR_T_GLOBALEXTENDED 'g'
 #define TAR_T_EXTENDED 'x'
 
+#define TAR_CONTINUE              1
+#define TAR_OK                    0
+#define TAR_ERROR                -1
+
+#define TAR_ERR_DATACB_FAIL      -2
+#define TAR_ERR_HEADERCB_FAIL    -3
+#define TAR_ERR_FOOTERCB_FAIL    -4
+#define TAR_ERR_READBLOCK_FAIL   -5
+#define TAR_ERR_HEADERTRANS_FAIL -6
+#define TAR_ERR_HEADERPARSE_FAIL -7
+
 #define TAR_BLOCK_SIZE 512
 
 #define TAR_HT_PRE11988 1
