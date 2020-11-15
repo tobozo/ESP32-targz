@@ -57,9 +57,9 @@
 
 
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
-bool     tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
+bool    tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-bool     tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
+bool    tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
 // uncompresses *gzipped* sourceFile to destFile, filesystems may differ
 bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
 // flashes the ESP with the content of a *gzipped* file
@@ -70,6 +70,7 @@ void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool h
 char    *dirname(char *path);
 // useful to share the buffer so it's not totally wasted memory outside targz scope
 uint8_t *getGzBufferUint8();
+// file-based hexViewer for debug
 void    hexDumpFile( fs::FS &fs, const char* filename);
 
 // callbacks for progress and misc output messages
@@ -86,7 +87,8 @@ bool    tarGzHasError();
 // this is only to centralize error codes and spare the
 // hassle of looking up in three different library folders
 
-typedef enum tarGzErrorCode {
+typedef enum tarGzErrorCode
+{
   ESP32_TARGZ_OK                         =   0,  // yay
   ESP32_TARGZ_FS_ERROR                   =  -1,  // Filesystem error
   // keeping error values from uzlib.h
