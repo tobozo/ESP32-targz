@@ -91,12 +91,56 @@ Flash the ESP with contents from `.gz` file
 
 ```C
   // mount spiffs (or any other filesystem)
-    SPIFFS.begin(true);
+  SPIFFS.begin(true);
 
   gzUpdater(SPIFFS, "/menu_bin.gz");
 
 
 ```
+
+
+
+Callbacks
+---------
+
+```C
+
+  // Progress callback, leave empty for less console output
+  void myNullProgressCallback( uint8_t progress )
+  {
+    // printf("Progress: %d", progress );
+  }
+
+  // Error/Warning/Info logger, leave empty for less console output
+  void myNullLogger(const char* format, ...)
+  {
+    //va_list args;
+    //va_start(args, format);
+    //vprintf(format, args);
+    //va_end(args);
+  }
+
+  void setup()
+  {
+    // (...)
+    SPIFFS.begin(true);
+    setProgressCallback( myNullProgressCallback );
+    setLoggerCallback( myNullLogger );
+    // (...)
+
+    if( gzUpdater(SPIFFS, "/menu_bin.gz") ) {
+      Serial.println("Yay!");
+    } else {
+      Serial.printf("gzUpdater failed with return code #%d\n", tarGzGetError() );
+    }
+
+  }
+
+
+```
+
+
+
 
 Known bugs
 ----------
@@ -116,5 +160,6 @@ Credits:
   - [dsoprea](https://github.com/dsoprea/TinyUntar) (TinyUntar maintainer)
   - [me-no-dev](https://github.com/me-no-dev) (inspiration and support)
   - [atanisoft](https://github.com/atanisoft) (motivation and support)
-  
+  - [scubachristopher](https://github.com/scubachristopher) (inspiration and support)
+
 
