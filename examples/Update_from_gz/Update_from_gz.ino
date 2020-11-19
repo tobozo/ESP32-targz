@@ -1,37 +1,40 @@
-#include <SPIFFS.h>
-#include <ESP32-targz.h>
+/*\
+ *
+ * Update_from_gz_file.ino
+ * Example code for ESP32-targz
+ * https://github.com/tobozo/ESP32-targz
+ *
+\*/
 
-// progress callback, leave empty for less console output
-void myNullProgressCallback( uint8_t progress ) {
-  // printf("Progress: %d", progress );
-}
-// error/warning/info logger, leave empty for less console output
-void myNullLogger(const char* format, ...) {
-  //va_list args;
-  //va_start(args, format);
-  //vprintf(format, args);
-  //va_end(args);
-}
+// Set **destination** filesystem by uncommenting one of these:
+#define DEST_FS_USES_SPIFFS
+//#define DEST_FS_USES_FFAT
+//#define DEST_FS_USES_SD
+//#define DEST_FS_USES_SD_MMC
+//#define DEST_FS_USES_LITTLEFS
+#include <ESP32-targz.h>
 
 // 1) Find your firmware and gzip it:
 //     gzip -c /tmp/arduino/firmware.bin > /tmp/firmware.gz
 //
-// 2) Copy the gz file in the /data folder and upload it using Arduino sketch data uploader for SPIFFS
+// 2) Copy the gz file in the /data folder and upload it using Arduino sketch data uploader for FFat
 //
 // 3) Edit the value of "firmwareFile" to match the gz file name:
 //
 const char* firmwareFile = "/M5Rotatey_Cube.gz";
 
 void setup() {
-  Serial.begin( 115200 );
-  Serial.printf("Initializing SPIFFS...\n");
 
-  if (!SPIFFS.begin(false)) {
-     Serial.printf("SPIFFS Mount Failed\n");
+  Serial.begin( 115200 );
+  Serial.println("Initializing Filesystem...");
+
+  if (!tarGzFS.begin()) {
+    Serial.println("Filesystem Mount Failed");
+    while(1);
+  } else {
+    Serial.println("Filesystem Mount Successful");
   }
-  else {
-    Serial.printf("SPIFFS Mount Successful\n");
-  }
+
 }
 
 
@@ -40,20 +43,21 @@ void loop() {
 
   while (!done) {
     delay(1000);
-    if (SPIFFS.exists( firmwareFile )) { // <<< gzipped firmware update
+    if (tarGzFS.exists( firmwareFile )) { // <<< gzipped firmware update
       Serial.printf("Found file, about to update...\n");
       delay(1000);
-      //setProgressCallback( myNullProgressCallback );
-      //setLoggerCallback( myNullLogger );
+      // attach empty callbacks to silent the output (zombie mode)
+      // setProgressCallback( targzNullProgressCallback );
+      // setLoggerCallback( targzNullLoggerCallback );
+
       // flash the ESP with gz's contents (gzip the bin yourself and use the spiffs uploader)
-      if( ! gzUpdater(SPIFFS, firmwareFile ) ) {
+      if( ! gzUpdater(tarGzFS, firmwareFile ) ) {
         Serial.printf("gzUpdater failed with return code #%d", tarGzGetError() );
       }
       done = true;
-    }
-    else {
-      Serial.printf("firmware not found\n");
-      break;
+    } else {
+      Serial.println("Firmware not found");
+      while(1);
     }
   }
 }

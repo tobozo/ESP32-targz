@@ -19,11 +19,11 @@ void (*tar_error_logger)(const char* subject, ...);
 void (*tar_debug_logger)(const char* subject, ...);
 
 static void log_error(const char *message) {
-  if(tar_error_logger) tar_error_logger("[ERROR]: %s\n", message);
+  if(tar_error_logger) tar_error_logger("[TAR ERROR]: %s\n", message);
 }
 
 static void log_debug(const char *message) {
-  if(tar_debug_logger) tar_debug_logger("[DEBUG]: %s\n", message);
+  if(tar_debug_logger) tar_debug_logger("[TAR DEBUG]: %s\n", message);
 }
 
 int parse_header(const unsigned char buffer[TAR_BLOCK_SIZE], header_t *header) {
@@ -326,7 +326,7 @@ int tar_step() {
     }
 
     if(read_tar_callbacks->header_cb(&header_translated, entry_index, read_context_data) != 0) {
-      tar_abort("Header callback failed.", 1);
+      tar_abort("An error occured during Header callback.", 1);
       tar_error = TAR_ERR_HEADERCB_FAIL;
       return tar_error;
     }
@@ -408,7 +408,7 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
         return tar_error;
       }
       if(callbacks->header_cb(&header_translated, entry_index, context_data) != 0) {
-        tar_abort("Header callback failed.", 1);
+        tar_abort("An error occured during Header callback.", 1);
         tar_error = TAR_ERR_HEADERCB_FAIL;
         return tar_error;
       }
