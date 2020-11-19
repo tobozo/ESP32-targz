@@ -26,7 +26,7 @@ Scope
 -----
 
   - This library is only for unpacking / decompressing, no compression support is provided whatsoever
-  - Although the examples use SPIFFS, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS)
+  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS, FFat, LittleFS)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
 
@@ -35,7 +35,14 @@ Usage
 -----
 
 ```C
+    // Set **destination** filesystem by uncommenting one of these:
+    #define DEST_FS_USES_SPIFFS
+    //#define DEST_FS_USES_FFAT
+    //#define DEST_FS_USES_SD
+    //#define DEST_FS_USES_SD_MMC
+    //#define DEST_FS_USES_LITTLEFS
     #include <ESP32-targz.h>
+    // filesystem object will be available as "tarGzFs"
 ```
 
 
@@ -45,14 +52,21 @@ Extract content from `.gz` file
 
 ```C
 
-  // mount spiffs (or any other filesystem)
-  SPIFFS.begin(true);
+    // mount spiffs (or any other filesystem)
+    tarGzFs.begin();
 
-  // expand one file
-  gzExpander(SPIFFS, "/index_html.gz", SPIFFS, "/index.html");
+    // attach FS callbacks to prevent the partition from exploding during decompression
+    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
 
-  // expand another file
-  gzExpander(SPIFFS, "/tbz.gz", SPIFFS, "/tbz.jpg");
+    // expand one file
+    if( ! gzExpander(tarGzFs, "/index_html.gz", tarGzFs, "/index.html") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
+
+    // expand another file
+    if( ! gzExpander(tarGzFs, "/tbz.gz", tarGzFs, "/tbz.jpg") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
 
 
 ```
@@ -63,10 +77,15 @@ Expand contents from `.tar` file to `/tmp` folder
 
 ```C
 
-  // mount spiffs (or any other filesystem)
-  SPIFFS.begin(true);
+    // mount spiffs (or any other filesystem)
+    tarGzFs.begin();
 
-  tarExpander(SPIFFS, "/tobozo.tar", SPIFFS, "/tmp");
+    // attach FS callbacks to prevent the partition from exploding during decompression
+    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+
+    if( ! tarExpander(tarGzFs, "/tobozo.tar", tarGzFs, "/tmp") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
 
 
 ```
@@ -78,10 +97,16 @@ Expand contents from `.tar.gz`  to `/tmp` folder
 
 ```C
 
-  // mount spiffs (or any other filesystem)
-  SPIFFS.begin(true);
+    // mount spiffs (or any other filesystem)
+    tarGzFs.begin();
 
-  tarGzExpander(SPIFFS, "/tbz.tar.gz", SPIFFS, "/tmp");
+    // attach FS callbacks to prevent the partition from exploding during decompression
+    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+
+    if( ! tarGzExpander(tarGzFs, "/tbz.tar.gz", tarGzFs, "/tmp") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
+
 
 ```
 
@@ -90,13 +115,18 @@ Flash the ESP with contents from `.gz` file
 -------------------------------------------
 
 ```C
-  // mount spiffs (or any other filesystem)
-  SPIFFS.begin(true);
 
-  gzUpdater(SPIFFS, "/menu_bin.gz");
+    // mount spiffs (or any other filesystem)
+    tarGzFs.begin();
+
+    if( ! zUpdater(tarGzFs, "/menu_bin.gz") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
 
 
 ```
+
+
 
 
 
@@ -105,40 +135,103 @@ Callbacks
 
 ```C
 
-  // Progress callback, leave empty for less console output
-  void myNullProgressCallback( uint8_t progress )
-  {
-    // printf("Progress: %d", progress );
-  }
+    #define DEST_FS_USES_SPIFFS
+    //#define DEST_FS_USES_FFAT
+    //#define DEST_FS_USES_SD
+    //#define DEST_FS_USES_SD_MMC
+    //#define DEST_FS_USES_LITTLEFS
+    #include <ESP32-targz.h>
 
-  // Error/Warning/Info logger, leave empty for less console output
-  void myNullLogger(const char* format, ...)
-  {
-    //va_list args;
-    //va_start(args, format);
-    //vprintf(format, args);
-    //va_end(args);
-  }
-
-  void setup()
-  {
-    // (...)
-    SPIFFS.begin(true);
-    setProgressCallback( myNullProgressCallback );
-    setLoggerCallback( myNullLogger );
-    // (...)
-
-    if( gzUpdater(SPIFFS, "/menu_bin.gz") ) {
-      Serial.println("Yay!");
-    } else {
-      Serial.printf("gzUpdater failed with return code #%d\n", tarGzGetError() );
+    // Progress callback, leave empty for less console output
+    void myProgressCallback( uint8_t progress )
+    {
+      Serial.printf("Progress: %d\n", progress );
     }
 
-  }
+    // Error/Warning/Info logger, leave empty for less console output
+    void myLogger(const char* format, ...)
+    {
+      va_list args;
+      va_start(args, format);
+      vprintf(format, args);
+      va_end(args);
+    }
+
+    void setup()
+    {
+      // (...)
+
+      tarGzFs.begin(true);
+
+      // attach progress/log callbacks
+      setProgressCallback( myProgressCallback );
+      setLoggerCallback( myLogger );
+
+      // .... or attach empty callbacks to silent the output (zombie mode)
+      // setProgressCallback( targzNullProgressCallback );
+      // setLoggerCallback( targzNullLoggerCallback );
+
+      // (...)
+
+      if( gzUpdater(tarGzFs, "/menu_bin.gz") ) {
+        Serial.println("Yay!");
+      } else {
+        Serial.printf("gzUpdater failed with return code #%d\n", tarGzGetError() );
+      }
+
+    }
 
 
 ```
 
+Return Codes
+------------
+
+`tarGzGetError()` returns a value when a problem occured:
+
+  - General library error codes
+
+    - `0`    : Yay no error!
+    - `-1`   : Filesystem error
+    - `-6`   : Same a Filesystem error
+    - `-7`   : Update not finished? Something went wrong
+    - `-38`  : Logic error during deflating
+    - `-39`  : Logic error during gzip read
+    - `-40`  : Logic error during file creation
+    - `-100` : No space left on device
+    - `-101` : No space left on device
+    - `-102` : No space left on device
+
+  - UZLIB: forwarding error values from uzlib.h as is (no offset)
+
+    - `-2`   : Not a valid gzip file
+    - `-3`   : Gz Error TINF_DATA_ERROR
+    - `-4`   : Gz Error TINF_CHKSUM_ERROR
+    - `-5`   : Gz Error TINF_DICT_ERROR
+
+  - UPDATE: applying -20 offset to forwarded error values from Update.h
+
+    - `-8`   : Updater Error UPDATE_ERROR_ABORT
+    - `-9`   : Updater Error UPDATE_ERROR_BAD_ARGUMENT
+    - `-10`  : Updater Error UPDATE_ERROR_NO_PARTITION
+    - `-11`  : Updater Error UPDATE_ERROR_ACTIVATE
+    - `-12`  : Updater Error UPDATE_ERROR_MAGIC_BYTE
+    - `-13`  : Updater Error UPDATE_ERROR_MD5
+    - `-14`  : Updater Error UPDATE_ERROR_STREAM
+    - `-15`  : Updater Error UPDATE_ERROR_SIZE
+    - `-16`  : Updater Error UPDATE_ERROR_SPACE
+    - `-17`  : Updater Error UPDATE_ERROR_READ
+    - `-18`  : Updater Error UPDATE_ERROR_ERASE
+    - `-19`  : Updater Error UPDATE_ERROR_WRITE
+
+  - TAR: applying -30 offset to forwarded error values from untar.h
+
+    - `32`  : Tar Error TAR_ERR_DATACB_FAIL
+    - `33`  : Tar Error TAR_ERR_HEADERCB_FAIL
+    - `34`  : Tar Error TAR_ERR_FOOTERCB_FAIL
+    - `35`  : Tar Error TAR_ERR_READBLOCK_FAIL
+    - `36`  : Tar Error TAR_ERR_HEADERTRANS_FAIL
+    - `37`  : Tar Error TAR_ERR_HEADERPARSE_FAIL
 
 
 
