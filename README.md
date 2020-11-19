@@ -14,7 +14,7 @@
   - uzlib https://github.com/pfalcon/uzlib
   - TinyUntar https://github.com/dsoprea/TinyUntar
 
-This library enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data without using an intermediate file.
+This library enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data ~~without using an intermediate file~~ (bug: see [#4](https://github.com/tobozo/ESP32-targz/issues/4)).
 
 In order to reach this goal, TinyUntar was heavily modified to allow data streaming, however uzlib is used *as is*.
 
