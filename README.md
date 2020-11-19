@@ -234,7 +234,6 @@ Return Codes
     - `37`  : Tar Error TAR_ERR_HEADERPARSE_FAIL
 
 
-
 Known bugs
 ----------
 
@@ -245,14 +244,24 @@ Known bugs
   - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
   - ~~reading/writing simultaneously on SPIFFS may induce errors~~
 
+Resources
+-----------
+  - [ESP32 Skecth Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
+  
+  ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
+  
+  - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
+  
 
 Credits:
 --------
 
   - [pfalcon](https://github.com/pfalcon/uzlib) (uzlib maintainer)
   - [dsoprea](https://github.com/dsoprea/TinyUntar) (TinyUntar maintainer)
+  - [lorol](https://github.com/lorol) (LittleFS-ESP32 + fs plugin)
   - [me-no-dev](https://github.com/me-no-dev) (inspiration and support)
   - [atanisoft](https://github.com/atanisoft) (motivation and support)
-  - [scubachristopher](https://github.com/scubachristopher) (inspiration and support)
+  - [lbernstone](https://github.com/lbernstone) (motivation and support)
+  - [scubachristopher](https://github.com/scubachristopher) (contribution and support)
 
 
