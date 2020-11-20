@@ -87,10 +87,12 @@ void (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 
 
 // progress callback, leave empty for less console output
+__attribute__((unused))
 void targzNullProgressCallback( uint8_t progress ) {
   // printf("Progress: %d", progress );
 }
 // error/warning/info NULL logger, for less console output
+__attribute__((unused))
 void targzNullLoggerCallback(const char* format, ...) {
   //va_list args;
   //va_start(args, format);
@@ -98,6 +100,7 @@ void targzNullLoggerCallback(const char* format, ...) {
   //va_end(args);
 }
 // error/warning/info FULL logger, for more console output
+__attribute__((unused))
 void targzPrintLoggerCallback(const char* format, ...)
 {
   va_list args;
@@ -385,7 +388,7 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
   }
   tgzLogger("uzLib expander finished!\n");
 
-  outfile = destFS.open( destFile );
+  outfile = destFS.open( destFile, FILE_READ );
   size_t outSize = outfile.size();
   outfile.close();
 
@@ -748,7 +751,7 @@ bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, cons
 // show the contents of a given file as a hex dump
 void hexDumpFile( fs::FS &fs, const char* filename )
 {
-  File binFile = fs.open(filename);
+  File binFile = fs.open( filename, FILE_READ );
   log_w("File size : %d", binFile.size() );
   if( binFile.size() > 0 ) {
     size_t output_size = 32;
@@ -821,6 +824,7 @@ void hexDumpFile( fs::FS &fs, const char* filename )
 
   void tarGzListDir(fs::FS &fs, const char * dirname, uint8_t levels, bool hexDump)
   {
+    //void( hexDump ); // not used (yet?) with ESP82
     Serial.printf("Listing directory %s with level %d\n", dirname, levels);
 
     Dir root = fs.openDir(dirname);
@@ -839,6 +843,9 @@ void hexDumpFile( fs::FS &fs, const char* filename )
         }
       } else {*/
         Serial.printf( "%-32s %8d bytes\n", root.fileName().c_str(), file.size() );
+        if( hexDump ) {
+          hexDumpFile( fs, file.name() );
+        }
       /*}*/
       file.close();
     }

@@ -39,10 +39,10 @@
 #if defined( ESP32 )
   #include <Update.h>
 #elif defined( ESP8266 )
-  #ifdef USE_LittleFS
-    #define SPIFFS LittleFS
-    #include <LittleFS.h>
-  #endif
+  //#ifdef USE_LittleFS
+  //  #define SPIFFS LittleFS
+  //  #include <LittleFS.h>
+  //#endif
   #include <Updater.h>
   // some ESP32 => ESP8266 syntax shim
   #define log_e tgzLogger

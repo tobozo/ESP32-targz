@@ -8,17 +8,17 @@
 
 // Set **destination** filesystem by uncommenting one of these:
 #define DEST_FS_USES_SPIFFS
-//#define DEST_FS_USES_FFAT
-//#define DEST_FS_USES_SD
-//#define DEST_FS_USES_SD_MMC
 //#define DEST_FS_USES_LITTLEFS
+//#define DEST_FS_USES_SD
+//#define DEST_FS_USES_FFAT   // ESP32 only
+//#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
 
 // small partitions crash-test !!
 // contains 1 big file that will make the extraction fail on partitions <= 1.5MB
 const char *fileTooBigForSPIFFS = "/zombocrash.tar.gz";
 
-// regular test
+// regular test, should work even after a crash-test
 // same archive without the big file
 const char *fileJustBigEnoughForSPIFFS = "/zombocom.tar.gz";
 
@@ -28,13 +28,6 @@ void setup() {
   Serial.println("Initializing Filesystem...");
 
   if (!tarGzFS.begin()) {
-    Serial.println("Filesystem Mount Failed");
-    while(1);
-  } else {
-    Serial.println("Filesystem Mount Successful");
-  }
-
-  if (!tarGzFS.begin( beginBool )) {
     Serial.println("Filesystem Mount Failed :(");
   } else {
     Serial.println("Filesystem Mount Successful :)");

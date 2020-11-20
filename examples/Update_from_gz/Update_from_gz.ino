@@ -8,19 +8,24 @@
 
 // Set **destination** filesystem by uncommenting one of these:
 #define DEST_FS_USES_SPIFFS
-//#define DEST_FS_USES_FFAT
-//#define DEST_FS_USES_SD
-//#define DEST_FS_USES_SD_MMC
 //#define DEST_FS_USES_LITTLEFS
+//#define DEST_FS_USES_SD
+//#define DEST_FS_USES_FFAT   // ESP32 only
+//#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
 
-// 1) Find your firmware and gzip it:
-//     gzip -c /tmp/arduino/firmware.bin > /tmp/firmware.gz
+// 1) gzip the other firmware you need to flash:
 //
-// 2) Copy the gz file in the /data folder and upload it using Arduino sketch data uploader for FFat
+//    #> gzip -c /tmp/arduino/firmware.bin > /tmp/firmware.gz
 //
-// 3) Edit the value of "firmwareFile" to match the gz file name:
+// 2) Copy the firmware.gz file in the /data folder
 //
+// 3) Upload the firmware.gz file using Arduino sketch data uploader
+//
+// 4) Edit the value of "const char* firmwareFile" in this sketch to match the gz file name:
+//
+// 5) Flash this sketch
+
 const char* firmwareFile = "/M5Rotatey_Cube.gz";
 
 void setup() {
