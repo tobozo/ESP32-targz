@@ -117,6 +117,7 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_FS_FULL_ERROR              =  -100, // no space left on device
   ESP32_TARGZ_FS_WRITE_ERROR             =  -101, // no space left on device
   ESP32_TARGZ_FS_READSIZE_ERROR          =  -102, // no space left on device
+  ESP32_TARGZ_HEAP_TOO_LOW               =  -103, // not enough heap
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file

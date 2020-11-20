@@ -358,6 +358,15 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
   if (!tgzLogger ) {
     setLoggerCallback( targzPrintLoggerCallback );
   }
+
+  if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE*2 ) {
+    tgzLogger("Insufficient heap to decompress (available:%d, needed:%d), aborting\n", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE*2 );
+    _error = ESP32_TARGZ_HEAP_TOO_LOW;
+    return false;
+  } else {
+    tgzLogger("Current heap budget (available:%d, needed:%d)\n", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE*2 );
+  }
+
   tgzLogger("uzLib expander start!\n");
   fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   if( !gzProgressCallback ) {
@@ -405,11 +414,19 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
 // uncompress gz to flash (expected to be a valid Arduino compiled binary sketch)
 bool gzUpdater( fs::FS &fs, const char* gz_filename )
 {
+
   tarGzClearError();
   setupFSCallbacks();
   if (!tgzLogger ) {
     setLoggerCallback( targzPrintLoggerCallback );
   }
+
+  if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE*2 ) {
+    tgzLogger("Insufficient heap to decompress (available:%d, needed:%d), aborting\n", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE*2 );
+    _error = ESP32_TARGZ_HEAP_TOO_LOW;
+    return false;
+  }
+
   tgzLogger("uzLib SPIFFS Updater start!\n");
   fs::File gz = fs.open( gz_filename, FILE_READ );
   if( !readGzHeaders( gz ) ) {
