@@ -18,7 +18,7 @@
 void setup() {
 
   Serial.begin( 115200 );
-  Serial.println("Initializing Filesystem...");
+  Serial.printf("Initializing Filesystem with free heap: %d\n", ESP.getFreeHeap() );
 
   if (!tarGzFS.begin()) {
     Serial.println("Filesystem Mount Failed");
