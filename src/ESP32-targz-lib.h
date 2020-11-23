@@ -29,6 +29,12 @@
   - uzlib: https://github.com/pfalcon/uzlib
   - untar: https://github.com/dsoprea/TinyUntar
 
+
+  Tradeoffs :
+    - speed: fast decompression needs 32Kb memory
+    - memory: reducing memory use by dropping the gz_dictionary is VERY slow and prevents tar->gz->filesystem direct streaming
+    - space: limited filesystems (<512KB spiffs) need tar->gz->filesystem direct streaming
+
 \*/
 
 #ifndef _ESP_TGZ_H
@@ -73,7 +79,7 @@ char    *dirname( char *path );
 // useful to share the buffer so it's not totally wasted memory outside targz scope
 uint8_t *getGzBufferUint8();
 // file-based hexViewer for debug
-void    hexDumpFile( fs::FS &fs, const char* filename );
+void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
 
 
 // Callbacks for getting free/total space left on *destination* device.

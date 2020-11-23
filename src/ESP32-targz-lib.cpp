@@ -20,7 +20,7 @@ extern "C" {
   #define FILE_READ "r"
 #endif
 #ifndef FILE_WRITE
-  #define FILE_WRITE "w"
+  #define FILE_WRITE "w+"
 #endif
 #ifndef SPI_FLASH_SEC_SIZE
   #define SPI_FLASH_SEC_SIZE 4096
@@ -210,7 +210,12 @@ void defaultProgressCallback( uint8_t progress )
     } else if( progress == 100 ) {
       Serial.println("100%]");
     } else {
-      Serial.print("Z"); // assert the lack of precision by using a decimal sign :-)
+      switch( progress ) {
+        case 25: Serial.print(" 25% ");break;
+        case 50: Serial.print(" 50% ");break;
+        case 75: Serial.print(" 75% ");break;
+        default: Serial.print("Z"); break; // assert the lack of precision by using a decimal sign :-)
+      }
     }
   }
 }
@@ -279,12 +284,142 @@ bool readGzHeaders(fs::File &gzFile)
 }
 
 
+
+#define OUTPUT_BUFFER_SIZE (4)
+int output_position;  //position in output_buffer
+unsigned char output_buffer[OUTPUT_BUFFER_SIZE];
+
+
+//readDest - read a byte from the decompressed destination file, at 'offset' from the current position.
+//offset will be the negative offset back into the written output stream.
+//note: this does not ever write to the output stream; it simply reads from it.
+static unsigned int readDestByte(int offset, unsigned char *out)
+{
+  unsigned char data;
+  //delta between our position in output_buffer, and the desired offset in the output stream
+  int delta = output_position + offset;
+  if (delta >= 0) {
+    //we haven't written output_buffer to persistent storage yet; we need to read from output_buffer
+    data = output_buffer[delta];
+  } else {
+    fs::File *f = (fs::File*)tarGzStream.output;
+    //we need to read from persistent storage
+    //save where we are in the file
+    long last_pos = f->position();
+    data = gzReadByte(*f, delta, fs::SeekCur);
+    f->seek( last_pos, fs::SeekSet );
+  }
+  *out = data;
+  Serial.println( String(data));
+  return 0;
+}
+/*
+ * readSourceByte - consume and return a byte from the source stream into the argument 'out'.
+ *                  returns 0 on success, or -1 on error.
+ */
+static unsigned int readSourceByte(struct TINF_DATA *data, unsigned char *out)
+{
+  if (tarGzStream.gz->readBytes( out, 1 ) != 1) {
+    tgzLogger("readSourceByte read error\n");
+    return -1;
+  } else {
+    //Serial.printf("readSourceByte: %s\n", out );
+  }
+  return 0;
+}
+
+
+
+#define GZ_USE_RAM true
+
+int gzUncompressNoRam( bool isupdate = false )
+{
+  if( !tarGzStream.gz->available() ) {
+    tgzLogger("[ERROR] in gzUncompress: gz resource doesn't exist!\n");
+    return ESP32_TARGZ_STREAM_ERROR;
+  }
+
+  unsigned int len, dlen, outlen;
+  const unsigned char *source;
+  int res;
+  int uzlib_dict_size = 0;
+
+  if ( GZ_USE_RAM == true ) {
+    tgzLogger("[INFO] gzUncompress tradeoff: faster uses %d bytes of ram\n", GZIP_DICT_SIZE);
+    uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
+    uzlib_dict_size = GZIP_DICT_SIZE;
+  } else {
+    tgzLogger("[INFO] gzUncompress tradeoff: slower uses 0 bytes of ram\n");
+    uzlib_gzip_dict = NULL;
+  }
+  uzlib_init();
+
+  TINF_DATA d;
+  outlen           = 0;
+  d.source         = nullptr;
+  d.readSourceByte = readSourceByte;
+  d.readDestByte   = readDestByte;
+  d.destSize       = 1;
+  d.log            = tgzLogger;
+
+  res = uzlib_gzip_parse_header(&d);
+  if (res != TINF_OK) {
+    tgzLogger("[ERROR] in gzUncompressNoRam: uzlib_gzip_parse_header failed (response code %d!\n", res);
+    tarGzExpanderCleanup();
+    return res; // Error uncompress header read
+  }
+  //uzlib_uncompress_init(&d, NULL, 0);
+  uzlib_uncompress_init(&d, uzlib_gzip_dict, uzlib_dict_size);
+
+  /* decompress a single byte at a time */
+  output_position = 0;
+
+  gzProgressCallback( 0 );
+  do {
+    d.dest = &output_buffer[output_position];
+    res = uzlib_uncompress_chksum(&d);
+    if (res != TINF_OK) break;
+    output_position++;
+    // TODO: handle progress
+    //if the destination has been written to, write it out to disk
+    if (output_position == OUTPUT_BUFFER_SIZE) {
+
+      //fwrite(output_buffer, 1, OUTPUT_BUFFER_SIZE, fout);
+      gzWriteCallback( output_buffer, OUTPUT_BUFFER_SIZE );
+      outlen += OUTPUT_BUFFER_SIZE;
+      output_position = 0;
+    }
+    uzlib_bytesleft = tarGzStream.output_size - outlen;
+    gzProgressCallback( 100*(tarGzStream.output_size-uzlib_bytesleft)/tarGzStream.output_size );
+  } while (res == TINF_OK);
+
+  if (res != TINF_DONE) {
+    tgzLogger("Error during decompression: %d\n", res);
+  }
+  if( output_position > 0 ) {
+    gzWriteCallback( output_buffer, output_position );
+    output_position = 0;
+  }
+
+  gzProgressCallback( 100 );
+  tarGzExpanderCleanup();
+  tgzLogger("decompressed %d bytes\n", outlen + output_position);
+
+
+
+  return ESP32_TARGZ_OK;
+
+}
+
+
 int gzProcessBlock( bool isupdate )
 {
   uzLibDecompressor.destStart = uzlib_buffer;
   uzLibDecompressor.dest = uzlib_buffer;
   int to_read = (uzlib_bytesleft > SPI_FLASH_SEC_SIZE) ? SPI_FLASH_SEC_SIZE : uzlib_bytesleft;
   //uzLibDecompressor.dest_limit = uzlib_buffer + to_read;
+  uzLibDecompressor.destSize = to_read;
+  //tgzLogger("[INFO] destSize: %d\n", uzLibDecompressor.destSize );
   int res = uzlib_uncompress(&uzLibDecompressor);
   if ((res != TINF_DONE) && (res != TINF_OK)) {
     tgzLogger("[ERROR] in gzProcessBlock while uncompressing data\n");
@@ -315,165 +450,6 @@ int gzProcessBlock( bool isupdate )
 }
 
 
-
-#define OUTPUT_BUFFER_SIZE (4)
-int output_position;  //position in output_buffer
-unsigned char output_buffer[OUTPUT_BUFFER_SIZE];
-
-
-//readDest - read a byte from the decompressed destination file, at 'offset' from the current position.
-//offset will be the negative offset back into the written output stream.
-//note: this does not ever write to the output stream; it simply reads from it.
-static unsigned int readDestByte(int offset, unsigned char *out)
-{
-  unsigned char data;
-  fs::File *f = (fs::File*)tarGzStream.output;
-
-  //delta between our position in output_buffer, and the desired offset in the output stream
-  int delta = output_position + offset;
-
-  if (delta >= 0) {
-
-    //we haven't written output_buffer to persistent storage yet; we need to read from output_buffer
-    data = output_buffer[delta];
-
-  } else {
-    //we need to read from persistent storage
-
-    //save where we are in the file
-    //long last_pos = ftell(fout);
-    long last_pos = f->position();
-    data = gzReadByte(*f, delta, fs::SeekCur);
-    f->seek( last_pos, fs::SeekSet );
-    //continue;
-/*
-    //go back to the delta (desired offset from the current position)
-    //int retval = fseek(fout, delta, SEEK_CUR);
-    int retval = f->seek( delta, fs::SeekCur );
-    //int retval = f->read();
-    //int retval = gzReadByte(tarGzStream.output, delta);
-
-    if (retval == -1) {
-      tgzLogger("fseek pre error\n");
-      //exit_error("fseek pre");
-      return -1;
-    }
-
-    //int bytes_read = f->readBytes(&data, 1);
-    data = f->read();
-    //f->read((uint8_t*)data, 1);
-    */
-    /*
-    if ( bytes_read != 1 ) {
-      //error if we don't read a byte and it's not the end of file
-      tgzLogger("readBytes error at pos:%d, read() resp:%d\n", f->position(), bytes_read);
-      //exit_error("read");
-      return -1;
-    }*/
-/*
-    //go back to where we were, so we can write the next word to the proper position in the stream
-    retval = f->seek( last_pos, fs::SeekSet );
-    //retval = f->read();
-    //retval = fseek(fout, last_pos, SEEK_SET);
-    if (retval == -1) {
-      tgzLogger("fseek post error\n");
-      //exit_error("fseek post");
-      return -1;
-    }*/
-  }
-  *out = data;
-  return 0;
-}
-/*
- * readSourceByte - consume and return a byte from the source stream into the argument 'out'.
- *                  returns 0 on success, or -1 on error.
- */
-static unsigned int readSourceByte(struct TINF_DATA *data, unsigned char *out)
-{
-  if (tarGzStream.gz->readBytes( out, 1 ) != 1) {
-    tgzLogger("readSourceByte read error\n");
-    return -1;
-  } else {
-    //Serial.printf("readSourceByte: %s\n", out );
-  }
-  return 0;
-}
-
-
-
-int gzUncompressNoRam( bool isupdate = false )
-{
-  if( !tarGzStream.gz->available() ) {
-    tgzLogger("[ERROR] in gzUncompress: gz resource doesn't exist!\n");
-    return ESP32_TARGZ_STREAM_ERROR;
-  }
-
-  unsigned int len, dlen, outlen;
-  const unsigned char *source;
-  int res;
-
-  uzlib_init();
-
-  TINF_DATA d;
-  outlen           = 0;
-  d.source         = nullptr;
-  d.readSourceByte = readSourceByte;
-  d.readDestByte   = readDestByte;
-  d.destSize       = 1;
-  d.log            = tgzLogger;
-
-  res = uzlib_gzip_parse_header(&d);
-  if (res != TINF_OK) {
-    tgzLogger("[ERROR] in gzUncompressNoRam: uzlib_gzip_parse_header failed (response code %d!\n", res);
-    tarGzExpanderCleanup();
-    return res; // Error uncompress header read
-  }
-  uzlib_uncompress_init(&d, NULL, 0);
-
-  /* decompress a single byte at a time */
-  output_position = 0;
-
-  gzProgressCallback( 0 );
-  do {
-    d.dest = &output_buffer[output_position];
-    res = uzlib_uncompress_chksum(&d);
-    if (res != TINF_OK) break;
-    output_position++;
-    // TODO: handle progress
-    //if the destination has been written to, write it out to disk
-    if (output_position == OUTPUT_BUFFER_SIZE) {
-
-      //fwrite(output_buffer, 1, OUTPUT_BUFFER_SIZE, fout);
-      gzWriteCallback( output_buffer, OUTPUT_BUFFER_SIZE );
-      outlen += OUTPUT_BUFFER_SIZE;
-      output_position = 0;
-    }
-
-    uzlib_bytesleft = tarGzStream.output_size - outlen;
-    gzProgressCallback( 100*(tarGzStream.output_size-uzlib_bytesleft)/tarGzStream.output_size );
-
-
-  } while (res == TINF_OK);
-
-  /*
-  if (res != TINF_DONE) {
-    tgzLogger("Error during decompression: %d\n", res);
-  }*/
-  if( output_position > 0 ) {
-    gzWriteCallback( output_buffer, output_position );
-  }
-
-  gzProgressCallback( 100 );
-  tarGzExpanderCleanup();
-  tgzLogger("decompressed %d bytes\n", outlen + output_position);
-
-  return ESP32_TARGZ_OK;
-
-}
-
-
-
-
 int gzUncompress( bool isupdate = false )
 {
   if( !tarGzStream.gz->available() ) {
@@ -484,13 +460,21 @@ int gzUncompress( bool isupdate = false )
   uzlib_bytesleft  = tarGzStream.output_size;
   uzlib_buffer = new uint8_t [SPI_FLASH_SEC_SIZE];
   uzlib_init();
+  /*
   uzLibDecompressor.source = NULL;
   uzLibDecompressor.source_limit = NULL;
   // TODO: malloc() uzlib_read_cb_buff
-  uzLibDecompressor.source_read_cb = gzStreamReadCallback;
+  uzLibDecompressor.source_read_cb = gzStreamReadCallback;*/
+  uzLibDecompressor.source = NULL;
+  uzLibDecompressor.source_limit = NULL;
+  uzLibDecompressor.readSourceByte = readSourceByte;
+  uzLibDecompressor.readDestByte   = NULL;
+  uzLibDecompressor.destSize       = 1;
+  int res = uzlib_gzip_parse_header(&uzLibDecompressor);
+
   uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, GZIP_DICT_SIZE);
   //uzlib_uncompress_init(&uzLibDecompressor, NULL, 0);
-  int res = uzlib_gzip_parse_header(&uzLibDecompressor);
+
   if (res != TINF_OK) {
     tgzLogger("[ERROR] in gzUncompress: uzlib_gzip_parse_header failed!\n");
     tarGzExpanderCleanup();
@@ -553,6 +537,9 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
   int ret = gzUncompressNoRam();
   outfile.close();
   gz.close();
+
+  // hexDumpFile( destFS, destFile );
+
   if( ret!=0 ) {
     tgzLogger("gzUncompress returned error code %d\n", ret);
     _error = (tarGzErrorCode)ret;
@@ -929,12 +916,12 @@ bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, cons
 
 
 // show the contents of a given file as a hex dump
-void hexDumpFile( fs::FS &fs, const char* filename )
+void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
 {
   File binFile = fs.open( filename, FILE_READ );
   log_w("File size : %d", binFile.size() );
   if( binFile.size() > 0 ) {
-    size_t output_size = 32;
+    //size_t output_size = 32;
     char* buff = new char[output_size];
     uint8_t bytes_read = binFile.readBytes( buff, output_size );
     String bytesStr  = "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
@@ -951,7 +938,7 @@ void hexDumpFile( fs::FS &fs, const char* filename )
         if( isprint( buff[i] ) ) {
           binaryStr += String( buff[i] );
         } else {
-          binaryStr += " ";
+          binaryStr += ".";
         }
       }
       sprintf( byteToStr, "[0x%04X - 0x%04X] ",  totalBytes, totalBytes+bytes_read);
@@ -959,7 +946,7 @@ void hexDumpFile( fs::FS &fs, const char* filename )
       if( bytes_read < output_size ) {
         for( int i=0; i<output_size-bytes_read; i++ ) {
           bytesStr  += "00 ";
-          binaryStr += " ";
+          binaryStr += ".";
         }
       }
       Serial.println( byteToStr + bytesStr + " " + binaryStr );
