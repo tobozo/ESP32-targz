@@ -9,7 +9,7 @@
 
 #ifndef UZLIB_CONF_DEBUG_LOG
 /* Debug logging level 0, 1, 2, etc. */
-#define UZLIB_CONF_DEBUG_LOG 2
+#define UZLIB_CONF_DEBUG_LOG 0
 #endif
 
 #ifndef UZLIB_CONF_PARANOID_CHECKS

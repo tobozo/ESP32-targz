@@ -282,6 +282,7 @@ int tar_datablock_step() {
       tar_error = TAR_ERR_FOOTERCB_FAIL;
       return tar_error;
     }
+    entry_index++;
     return TAR_ERROR;
   }
 }
@@ -316,7 +317,7 @@ int tar_step() {
       return tar_error;
   } else if(strlen(header.filename) == 0) {
       empty_count++;
-      entry_index++;
+      //entry_index++;
       return TAR_OK;
   } else {
     if(translate_header(&header, &header_translated) != 0) {
@@ -413,7 +414,7 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
         return tar_error;
       }
       int i = 0;
-      int received_bytes = 0;
+      received_bytes = 0;
       num_blocks = GET_NUM_BLOCKS(header_translated.filesize);
       while(i < num_blocks) {
         if(read_block( read_buffer ) != 0) {
@@ -453,6 +454,7 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
 
 void dump_header(header_translated_t *header) {
   if( !tar_debug_logger ) return;
+  if( header->type == T_DIRECTORY ) return;
   tar_debug_logger("===========================================\n");
   tar_debug_logger("      filename: %s\n", header->filename);
   tar_debug_logger("      filemode: 0%o (%llu)\n", (unsigned int)header->filemode, header->filemode);
@@ -463,7 +465,7 @@ void dump_header(header_translated_t *header) {
   tar_debug_logger("      checksum: 0%o (%llu)\n", (unsigned int)header->checksum, header->checksum);
   tar_debug_logger("          type: %d\n", header->type);
   tar_debug_logger("   link_target: %s\n", header->link_target);
-  tar_debug_logger("\n");
+  //tar_debug_logger("\n");
 
   tar_debug_logger("     ustar ind: %s\n", header->ustar_indicator);
   tar_debug_logger("     ustar ver: %s\n", header->ustar_version);
@@ -471,12 +473,12 @@ void dump_header(header_translated_t *header) {
   tar_debug_logger("    group name: %s\n", header->group_name);
   tar_debug_logger("device (major): %llu\n", header->device_major);
   tar_debug_logger("device (minor): %llu\n", header->device_minor);
-  tar_debug_logger("\n");
+  //tar_debug_logger("\n");
 
   tar_debug_logger("  data blocks = %d\n", GET_NUM_BLOCKS(header->filesize));
   tar_debug_logger("  last block portion = %d\n", get_last_block_portion_size(header->filesize));
   tar_debug_logger("===========================================\n");
-  tar_debug_logger("\n");
+  //tar_debug_logger("\n");
 }
 
 enum entry_type_e get_type_from_char(char raw_type) {

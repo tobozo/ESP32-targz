@@ -1,4 +1,5 @@
-
+#ifndef _ESP32_TARGZ_PATHTOOLS_
+#define _ESP32_TARGZ_PATHTOOLS_
 
 /* dirname - return directory part of PATH.
    Copyright (C) 1996-2014 Free Software Foundation, Inc.
@@ -18,7 +19,7 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
-char *dirname(char *path)
+static char *dirname(char *path)
 {
   static const char dot[] = ".";
   char *last_slash;
@@ -63,7 +64,7 @@ char *dirname(char *path)
 
 #define strdupa(a) strcpy((char*)alloca(strlen(a) + 1), a)
 // create traversing directories from a path
-int mkpath(fs::FS *fs, char *dir)
+static int mkpath(fs::FS *fs, char *dir)
 {
   if (!dir) {
     //errno = EINVAL;
@@ -80,7 +81,7 @@ int mkpath(fs::FS *fs, char *dir)
 
 
 // create traversing directories from a file name
-void mkdirp( fs::FS *fs, const char* tempFile )
+static void mkdirp( fs::FS *fs, const char* tempFile )
 {
   if( fs->exists( tempFile ) ) {
     log_v("Destination file already exists, no need to create subfolders");
@@ -101,3 +102,4 @@ void mkdirp( fs::FS *fs, const char* tempFile )
   delete tmp_path;
 }
 
+#endif
