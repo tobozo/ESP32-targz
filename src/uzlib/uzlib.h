@@ -58,7 +58,8 @@ typedef struct {
    unsigned short trans[288]; /* code -> symbol translation table */
 } TINF_TREE;
 
-struct uzlib_uncomp {
+struct TINF_DATA;
+typedef struct TINF_DATA  {
     /* Pointer to the next byte in the input buffer */
     const unsigned char *source;
     /* Pointer to the next byte past the input buffer (source_limit = source + len) */
@@ -68,17 +69,39 @@ struct uzlib_uncomp {
        also return -1 in case of EOF (or irrecoverable error). Note that
        besides returning the next byte, it may also update source and
        source_limit fields, thus allowing for buffered operation. */
-    int (*source_read_cb)(struct uzlib_uncomp *uncomp);
+    int (*source_read_cb)(struct TINF_DATA *uncomp);
+    unsigned int (*readSourceByte)(struct TINF_DATA *data, unsigned char *out);
+
+    void (*log)( const char* format, ... );
 
     unsigned int tag;
     unsigned int bitcount;
 
     /* Destination (output) buffer start */
-    unsigned char *dest_start;
+    //unsigned char *dest_start;
     /* Current pointer in dest buffer */
-    unsigned char *dest;
+    //unsigned char *dest;
     /* Pointer past the end of the dest buffer, similar to source_limit */
-    unsigned char *dest_limit;
+    //unsigned char *dest_limit;
+
+    /* Buffer start */
+    unsigned char *destStart;
+    /* Buffer total size */
+    unsigned int destSize;
+    /* Current pointer in buffer */
+    unsigned char *dest;
+    /* Remaining bytes in buffer */
+    unsigned int destRemaining;
+
+    /* if readDest is provided, it will use this function for
+       reading from the output stream, rather than assuming
+       'dest' contains the entire output stream in memory
+    */
+   unsigned int (*readDestByte)(int offset, unsigned char *out);
+   unsigned int (*writeDestWord)(unsigned long data);
+
+
+
 
     /* Accumulating checksum */
     unsigned int checksum;
@@ -95,7 +118,7 @@ struct uzlib_uncomp {
 
     TINF_TREE ltree; /* dynamic length/symbol tree */
     TINF_TREE dtree; /* dynamic distance tree */
-};
+} TINF_DATA;
 
 #include "tinf_compat.h"
 

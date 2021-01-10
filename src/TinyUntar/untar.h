@@ -128,7 +128,7 @@ void (*tar_error_logger)(const char* subject, ...);
 void (*tar_debug_logger)(const char* subject, ...);
 void tar_setup(  entry_callbacks_t *callbacks, void *context_data );
 void tar_abort( const char* msgstr, int iserror);
-int read_tar_data_block();
+//int read_tar_data_block();
 int read_tar( entry_callbacks_t *callbacks, void *context_data);
 int read_tar_step();
 void dump_header(header_translated_t *header);

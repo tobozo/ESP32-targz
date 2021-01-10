@@ -63,16 +63,25 @@ int uzlib_gzip_parse_header(TINF_DATA *d)
     /* -- check format -- */
 
     /* check id bytes */
-    if (uzlib_get_byte(d) != 0x1f || uzlib_get_byte(d) != 0x8b) return TINF_DATA_ERROR;
+    if (uzlib_get_byte(d) != 0x1f || uzlib_get_byte(d) != 0x8b) {
+      d->log("bad id bytes\n");
+      return TINF_DATA_ERROR;
+    }
 
     /* check method is deflate */
-    if (uzlib_get_byte(d) != 8) return TINF_DATA_ERROR;
+    if (uzlib_get_byte(d) != 8) {
+      d->log("bad method\n");
+      return TINF_DATA_ERROR;
+    }
 
     /* get flag byte */
     flg = uzlib_get_byte(d);
 
     /* check that reserved bits are zero */
-    if (flg & 0xe0) return TINF_DATA_ERROR;
+    if (flg & 0xe0) {
+      d->log("bad reserved bytes\n");
+      return TINF_DATA_ERROR;
+    }
 
     /* -- find start of compressed data -- */
 

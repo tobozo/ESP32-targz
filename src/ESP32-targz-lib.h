@@ -29,12 +29,20 @@
   - uzlib: https://github.com/pfalcon/uzlib
   - untar: https://github.com/dsoprea/TinyUntar
 
+
+  Tradeoffs :
+    - speed: fast decompression needs 32Kb memory
+    - memory: reducing memory use by dropping the gz_dictionary is VERY slow and prevents tar->gz->filesystem direct streaming
+    - space: limited filesystems (<512KB spiffs) need tar->gz->filesystem direct streaming
+
 \*/
 
 #ifndef _ESP_TGZ_H
 #define _ESP_TGZ_H
 
 #include <FS.h>
+#include "helpers/md5_sum.h"
+#include "helpers/path_tools.h"
 
 #if defined( ESP32 )
   #include <Update.h>
@@ -69,11 +77,11 @@ void    targzNullLoggerCallback( const char* format, ... );
 // naive ls
 void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool hexDump = false );
 // fs helper
-char    *dirname( char *path );
+//char    *dirname( char *path );
 // useful to share the buffer so it's not totally wasted memory outside targz scope
 uint8_t *getGzBufferUint8();
 // file-based hexViewer for debug
-void    hexDumpFile( fs::FS &fs, const char* filename );
+void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
 
 
 // Callbacks for getting free/total space left on *destination* device.
@@ -92,8 +100,12 @@ void    setupFSCallbacks(  fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
 typedef void (*genericLoggerCallback)( const char* format, ... );
-void    setProgressCallback( genericProgressCallback cb );
+void    setProgressCallback( genericProgressCallback cb ); // for gzip
+void    setTarProgressCallback( genericProgressCallback cb ); // for tar
+void    setTarMessageCallback( genericLoggerCallback cb ); // for tar
 void    setLoggerCallback( genericLoggerCallback cb );
+void    setTarVerify( bool verify ); // enables health checks but does slower writes
+
 
 // Error handling
 int8_t  tarGzGetError();
@@ -118,6 +130,7 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_FS_WRITE_ERROR             =  -101, // no space left on device
   ESP32_TARGZ_FS_READSIZE_ERROR          =  -102, // no space left on device
   ESP32_TARGZ_HEAP_TOO_LOW               =  -103, // not enough heap
+  ESP32_TARGZ_NEEDS_DICT                 =  -104, // gzip dictionnary needs to be enabled
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file
