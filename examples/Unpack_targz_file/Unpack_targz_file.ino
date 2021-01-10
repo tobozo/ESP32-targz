@@ -18,7 +18,7 @@
 
 // small partitions crash-test !!
 // contains 1 big file that will make the extraction fail on partitions <= 1.5MB
-const char *fileTooBigForSPIFFS = "/zombocrash.tar.gz";
+// const char *fileTooBigForSPIFFS = "/zombocrash.tar.gz";
 
 // regular test, should work even after a crash-test
 // same archive without the big file
@@ -32,37 +32,10 @@ void setup() {
   delay(1000);
   Serial.printf("Initializing Filesystem with free heap: %d\n", ESP.getFreeHeap() );
 
-/*
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  int n = WiFi.scanNetworks();
-  Serial.println("scan done");
-  if (n == 0) {
-    Serial.println("no networks found");
-  } else {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i) {
-      // Print SSID and RSSI for each network found
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
-      delay(10);
-    }
-  }
-  Serial.println("");
-
-  Serial.printf("Free heap after wifi scan: %d\n", ESP.getFreeHeap() );
-*/
-
   if (!tarGzFS.begin()) {
     Serial.println("Filesystem Mount Failed :(");
   } else {
-    Serial.println("Filesystem Mount Successful :)");
+    Serial.println("Source filesystem Mount Successful :)");
 
     // attach FS callbacks to prevent the partition from exploding during decompression
     setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
@@ -70,10 +43,23 @@ void setup() {
     // setProgressCallback( targzNullProgressCallback );
     // setLoggerCallback( targzNullLoggerCallback );
 
+    // targz files can be extracted with or without an intermediate file
+
+    Serial.println("Decompressing using an intermediate file: this is slower and requires more filesystem space, but uses less memory");
     if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp") ) {
       Serial.println("Yay!");
       Serial.println("Filesystem contents:");
-      tarGzListDir( tarGzFS, "/", 3 );
+    } else {
+      Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
+    }
+
+    Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
+
+    // using no intermediate file is faster but requires more memory
+    Serial.println("Decompressing using no intermediate file is faster and generates much less i/o, but consumes more memory (~32kb)");
+    if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp", nullptr ) ) {
+      Serial.println("Yay!");
+      Serial.println("Filesystem contents:");
     } else {
       Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
     }
@@ -81,6 +67,8 @@ void setup() {
     Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
 
   }
+
+  tarGzListDir( tarGzFS, "/", 3 );
 
 }
 

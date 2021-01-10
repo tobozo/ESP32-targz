@@ -1,0 +1,114 @@
+<html>
+  <head>
+    <title></title>
+    <meta content="">
+    <style>
+    header {
+      width: auto;
+      display: block;
+      margin: auto;
+    }
+    header > img {
+      display: block;
+      margin: auto;
+      max-width: 100%;
+    }
+    
+    main {
+      width: 50%;
+      display: block;
+      margin: auto;
+      position: relative;
+      animation: blink 1.7s infinite ease-in;
+    }
+    
+    main > .sizer {
+      width: 100%;
+      padding-bottom: 100%;
+      visibility: hidden;
+      display: block;
+      margin: auto;
+    }
+    main > .spinner {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top:0;
+      left:0;
+      background-image: url(spinner.png);
+      background-size: 200%;
+      background-position: center center;
+      border-radius: 50%;
+      overflow: hidden;
+      transform: rotate(0deg);
+      animation: spin 1s infinite linear;
+    }
+    
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    @keyframes blink {
+      0% {
+        opacity: 0.2;
+      }
+      10% {
+        opacity: 1;
+      }
+      15% {
+        opacity: 0;
+      }
+      20% {
+        opacity: 0.2;
+      }
+      30$ {
+        opacity: 0.8;
+      }
+      40% {
+        opacity: 0;
+      }
+      50% {
+        opacity: 0;
+      }
+      60% {
+        opacity: 0.2;
+      }
+      70% {
+        opacity: 0.8;
+      }
+      80$ {
+        opacity: 0.2;
+      }
+      90% {
+        opacity: 0.4;
+      }
+      100% {
+        opacity: 0.2;
+      }
+    }
+    
+    /*audio {
+      width:1px;
+      height:1px;
+      overflow: hidden;
+      opacity: 0.1;
+    }*/
+    
+    </style>
+  </head>
+  <body>
+  <header><img src="zombo.com.logo.png" /></header>
+  <main>
+    <div class="sizer"></div>
+    <div class="spinner"></div>
+  </main>
+  <audio id="bgSound" loop autostart nocontrols>
+        <source src="welcomeclip.mp3" type="audio/mp3" />
+        <source src="welcomeclip.ogg" type="audio/ogg" />        
+   </audio>
+  </body>
+</html>

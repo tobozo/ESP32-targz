@@ -26,7 +26,7 @@
 //
 // 5) Flash this sketch
 
-const char* firmwareFile = "/M5Rotatey_Cube.gz";
+const char* firmwareFile = "/example_firmware.gz";
 
 void setup() {
 
@@ -58,6 +58,7 @@ void loop() {
       // flash the ESP with gz's contents (gzip the bin yourself and use the spiffs uploader)
       if( ! gzUpdater(tarGzFS, firmwareFile ) ) {
         Serial.printf("gzUpdater failed with return code #%d", tarGzGetError() );
+        while(1); // prevent bad loop
       }
       done = true;
     } else {
