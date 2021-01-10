@@ -483,6 +483,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
 
   /* decompress a single byte at a time */
   output_position = 0;
+  unsigned int outlen = 0;
 
   gzProgressCallback( 0 );
 
@@ -495,7 +496,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
 
   } else {
     // gz will fill a buffer and trigger a write callback
-    unsigned int outlen = 0;
+
     do {
       // link to gz internals
       uzLibDecompressor.dest = &output_buffer[output_position];
@@ -507,7 +508,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
       output_position++;
       // when destination buffer is filled, write/stream it
       if (output_position == output_buffer_size) {
-        tgzLogger("[INFO] Buffer full, now writing callback\n");
+        //tgzLogger("[INFO] Buffer full, now writing callback\n");
         gzWriteCallback( output_buffer, output_buffer_size );
         outlen += output_buffer_size;
         output_position = 0;
@@ -528,11 +529,22 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
       outlen += output_position;
       output_position = 0;
     }
-    tgzLogger("decompressed %d bytes\n", outlen + output_position);
+
+    if( isupdate ) {
+      size_t updatable_size = ( tarGzStream.output_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 );
+      size_t zerofill_size  = updatable_size - tarGzStream.output_size;
+      if( zerofill_size <= SPI_FLASH_SEC_SIZE ) {
+        memset( output_buffer, 0, zerofill_size );
+        // zero-fill to fit update.h required binary size
+        gzWriteCallback( output_buffer, zerofill_size );
+      }
+    }
 
   }
 
   gzProgressCallback( 100 );
+
+  tgzLogger("decompressed %d bytes\n", outlen + output_position);
 
   free( output_buffer );
   tarGzExpanderCleanup();
@@ -593,10 +605,8 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
   tgzLogger("uzLib expander finished!\n");
 
   outfile = destFS.open( destFile, FILE_READ );
-  size_t outSize = outfile.size();
+  log_d("Expanded %s to %s (%d bytes)", sourceFile, destFile, outfile.size() );
   outfile.close();
-
-  log_d("Expanded %s to %s (%d bytes)", sourceFile, destFile, outSize );
 
   if( fstotalBytes &&  fsfreeBytes ) {
     tgzLogger("[GZ Info] FreeBytes after expansion=%d\n", fsfreeBytes() );
