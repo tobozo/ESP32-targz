@@ -119,7 +119,7 @@ Flash the ESP with contents from `.gz` file
     // mount spiffs (or any other filesystem)
     tarGzFs.begin();
 
-    if( ! zUpdater(tarGzFs, "/menu_bin.gz") ) {
+    if( ! gzUpdater(tarGzFs, "/menu_bin.gz") ) {
       Serial.printf("operation failed with return code #%d", tarGzGetError() );
     }
 
@@ -171,6 +171,9 @@ Callbacks
       // setProgressCallback( targzNullProgressCallback );
       // setLoggerCallback( targzNullLoggerCallback );
 
+      // optional but recommended, to check for available space before writing
+      setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+
       // (...)
 
       if( gzUpdater(tarGzFs, "/menu_bin.gz") ) {
@@ -201,6 +204,8 @@ Return Codes
     - `-100` : No space left on device
     - `-101` : No space left on device
     - `-102` : No space left on device
+    - `-103` : Not enough heap
+    - `-104` : Gzip dictionnary needs to be enabled
 
   - UZLIB: forwarding error values from uzlib.h as is (no offset)
 
@@ -237,21 +242,22 @@ Return Codes
 Known bugs
 ----------
 
-  - tarGzExpander: files smaller than 4K aren't processed
-  - tarGzExpander/tarExpander: some formats aren't supported (e.g contains symlinks or long filename/path)
+
+  - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
+  ~~- tarGzExpander: files smaller than 4K aren't processed~~
   - ~~error detection isn't deferred efficiently, debugging may be painful~~
   - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
   - ~~reading/writing simultaneously on SPIFFS may induce errors~~
 
 Resources
 -----------
-  - [ESP32 Skecth Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
-  
+  - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
+
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
-  
+
   - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
-  
+
 
 Credits:
 --------
