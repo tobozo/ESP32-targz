@@ -98,7 +98,7 @@ void (*gzProgressCallback)( uint8_t progress );
 void (*tarProgressCallback)( uint8_t progress );
 void (*tarMessageCallback)( const char* format, ...);
 bool (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
-void (*tgzLogger)( const char* format, ...);
+
 size_t (*fstotalBytes)();
 size_t (*fsfreeBytes)();
 void (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );

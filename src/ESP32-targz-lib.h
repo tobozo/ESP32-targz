@@ -41,8 +41,7 @@
 #define _ESP_TGZ_H
 
 #include <FS.h>
-#include "helpers/md5_sum.h"
-#include "helpers/path_tools.h"
+
 
 #if defined( ESP32 )
   #include <Update.h>
@@ -60,7 +59,6 @@
 #else
   #error Unsupported architecture
 #endif
-
 
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
 bool    tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
@@ -82,6 +80,8 @@ void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool h
 uint8_t *getGzBufferUint8();
 // file-based hexViewer for debug
 void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+
+static void (*tgzLogger)( const char* format, ...);
 
 
 // Callbacks for getting free/total space left on *destination* device.
@@ -162,6 +162,9 @@ typedef enum tarGzErrorCode /* int8_t */
 
 } ErrorCodes ;
 
+
+#include "helpers/md5_sum.h"
+#include "helpers/path_tools.h"
 
 
 #endif // #ifdef _ESP_TGZ_H
