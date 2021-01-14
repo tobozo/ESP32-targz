@@ -127,6 +127,28 @@ Flash the ESP with contents from `.gz` file
 ```
 
 
+ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
+------------------------------------------------------------------------------
+
+```C
+
+    // mount spiffs (or any other filesystem)
+    tarGzFS.begin();
+    fs::File file = tarGzFS.open( "/example_firmware.gz", "r" );
+    size_t streamsize = file.size();
+    if (!file) {
+      Serial.println("Can't open file");
+      return;
+    }
+    if( !gzStreamUpdater( (Stream *)&file, streamsize ) ) {
+      Serial.printf("gzHTTPUpdater failed with return code #%d", tarGzGetError() );
+    } else {
+      Serial.println("Yay!"); // however the ESP has restarted so this code is unreachable
+    }
+
+
+```
+
 
 
 
