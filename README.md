@@ -188,10 +188,12 @@ Callbacks
       // attach progress/log callbacks
       setProgressCallback( myProgressCallback );
       setLoggerCallback( myLogger );
+      setTarMessageCallback( myLogger );
 
       // .... or attach empty callbacks to silent the output (zombie mode)
       // setProgressCallback( targzNullProgressCallback );
       // setLoggerCallback( targzNullLoggerCallback );
+      // setTarMessageCallback( targzNullLoggerCallback );
 
       // optional but recommended, to check for available space before writing
       setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
