@@ -55,7 +55,8 @@ void setup() {
 
     Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
 
-    // using no intermediate file is faster but requires more memory
+    #ifdef ESP32
+    // ESP32 has enough ram to uncompress without intermediate file
     Serial.println("Decompressing using no intermediate file is faster and generates much less i/o, but consumes more memory (~32kb)");
     if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp", nullptr ) ) {
       Serial.println("Yay!");
@@ -65,6 +66,8 @@ void setup() {
     }
 
     Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
+    #endif
+
 
   }
 

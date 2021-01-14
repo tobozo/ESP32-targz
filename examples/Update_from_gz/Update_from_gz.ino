@@ -6,7 +6,7 @@
  *
 \*/
 
-// Set **destination** filesystem by uncommenting one of these:
+// Set **source** filesystem by uncommenting one of these:
 #define DEST_FS_USES_SPIFFS
 //#define DEST_FS_USES_LITTLEFS
 //#define DEST_FS_USES_SD
@@ -26,11 +26,19 @@
 //
 // 5) Flash this sketch
 
-const char* firmwareFile = "/example_firmware.gz";
+#ifdef ESP8266
+  const char* firmwareFile = "/esp8266_example_firmware.gz";
+#elif defined ESP32
+  const char* firmwareFile = "/esp32_example_firmware.gz";
+#else
+  #error "This sketch if for ESP32 or ESP8266 only"
+#endif
+
 
 void setup() {
 
   Serial.begin( 115200 );
+
   Serial.println("Initializing Filesystem...");
 
   if (!tarGzFS.begin()) {
@@ -54,7 +62,6 @@ void loop() {
       // attach empty callbacks to silent the output (zombie mode)
       // setProgressCallback( targzNullProgressCallback );
       // setLoggerCallback( targzNullLoggerCallback );
-
       // flash the ESP with gz's contents (gzip the bin yourself and use the spiffs uploader)
       if( ! gzUpdater(tarGzFS, firmwareFile ) ) {
         Serial.printf("gzUpdater failed with return code #%d", tarGzGetError() );

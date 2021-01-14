@@ -34,7 +34,7 @@ void setup() {
   // setLoggerCallback( targzNullLoggerCallback );
 
   // expand tar contents to /tmp folder
-  if(  tarExpander(tarGzFS, "/tobozo.tar", tarGzFS, "/") ) {
+  if(  tarExpander(tarGzFS, "/tar_expander_example.tar", tarGzFS, "/") ) {
     tarGzListDir( tarGzFS, "/", 3 );
   } else {
     Serial.printf("tarExpander failed with return code #%d\n", tarGzGetError() );
