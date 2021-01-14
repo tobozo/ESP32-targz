@@ -19,6 +19,7 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
+__attribute__((unused))
 static char *dirname(char *path)
 {
   static const char dot[] = ".";
@@ -64,6 +65,7 @@ static char *dirname(char *path)
 
 #define strdupa(a) strcpy((char*)alloca(strlen(a) + 1), a)
 // create traversing directories from a path
+__attribute__((unused))
 static int mkpath(fs::FS *fs, char *dir)
 {
   if (!dir) {
@@ -81,6 +83,7 @@ static int mkpath(fs::FS *fs, char *dir)
 
 
 // create traversing directories from a file name
+__attribute__((unused))
 static void mkdirp( fs::FS *fs, const char* tempFile )
 {
   if( fs->exists( tempFile ) ) {

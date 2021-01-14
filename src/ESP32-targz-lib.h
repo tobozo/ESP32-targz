@@ -51,11 +51,6 @@
   //  #include <LittleFS.h>
   //#endif
   #include <Updater.h>
-  // some ESP32 => ESP8266 syntax shim
-  #define log_e tgzLogger
-  #define log_w tgzLogger
-  #define log_d targzNullLoggerCallback
-  #define log_v targzNullLoggerCallback
 #else
   #error Unsupported architecture
 #endif
@@ -68,6 +63,10 @@ bool    tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, con
 bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
 // flashes the ESP with the content of a *gzipped* file
 bool    gzUpdater( fs::FS &fs, const char* gz_filename );
+#if defined ESP32
+// flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
+bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 );
+#endif
 // null progress callback, use with setProgressCallback() to silent output
 void    targzNullProgressCallback( uint8_t progress );
 // error/warning/info null logger, use with setLoggerCallback() to silent output
@@ -80,9 +79,6 @@ void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool h
 uint8_t *getGzBufferUint8();
 // file-based hexViewer for debug
 void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
-
-static void (*tgzLogger)( const char* format, ...);
-
 
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
@@ -108,6 +104,8 @@ void    setTarVerify( bool verify ); // enables health checks but does slower wr
 
 
 // Error handling
+__attribute__((unused))
+static void (*tgzLogger)( const char* format, ...);
 int8_t  tarGzGetError();
 void    tarGzClearError();
 bool    tarGzHasError();

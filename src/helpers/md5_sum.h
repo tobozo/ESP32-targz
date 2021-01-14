@@ -33,7 +33,7 @@ class MD5Sum {
       mbedtls_md5_init(&_ctx);
       mbedtls_md5_starts(&_ctx);
 
-      size_t bufSize = len > 4096 ? 4096 : len;
+      int bufSize = len > 4096 ? 4096 : len;
       uint8_t *fbuf = (uint8_t*)malloc(bufSize+1);
       size_t bytes_read = file.read( fbuf, bufSize );
 
@@ -65,6 +65,14 @@ class MD5Sum {
 #elif defined ESP8266
 
 
+//#include <ESP32-targz.h>
+// some ESP32 => ESP8266 syntax shim
+#define log_e tgzLogger
+#define log_w tgzLogger
+#define log_i tgzLogger
+#define log_d targzNullLoggerCallback
+#define log_v targzNullLoggerCallback
+extern void (*tgzLogger)( const char* format, ...);
 #include <MD5Builder.h>
 
 static MD5Builder _md5;
@@ -77,7 +85,6 @@ class MD5Sum {
     static char* fromFile(fs::File &file ) {
 
       static char md5result[33];
-      uint8_t i;
       uint8_t * _buf = (uint8_t*)malloc(16);
 
       if(_buf == NULL) {
@@ -90,14 +97,13 @@ class MD5Sum {
 
       _md5.begin();
 
-      size_t bufSize = len > 4096 ? 4096 : len;
+      int bufSize = len > 4096 ? 4096 : len;
       uint8_t *fbuf = (uint8_t*)malloc(bufSize+1);
       size_t bytes_read = file.read( fbuf, bufSize );
 
       do {
         len -= bytes_read;
         if( bufSize > len ) bufSize = len;
-        //mbedtls_md5_update(&_ctx, (const uint8_t *)fbuf, bytes_read );
         _md5.add( fbuf, bytes_read );
         if( len == 0 ) break;
         bytes_read = file.read( fbuf, bufSize );

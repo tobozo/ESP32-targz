@@ -79,7 +79,6 @@
   #define WARN_LIMITED_FS
 #endif
 
-
 // required filesystem helpers are declared outside the main library
 // because ESP32/ESP8266 <FS.h> use different abstraction flavours :)
 size_t targzFreeBytesFn() {
