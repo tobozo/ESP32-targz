@@ -35,6 +35,7 @@ inline int get_last_block_portion_size(int filesize);
 #define TAR_T_GLOBALEXTENDED 'g'
 #define TAR_T_EXTENDED 'x'
 
+#define TAR_EXPANDING_DONE        2
 #define TAR_CONTINUE              1
 #define TAR_OK                    0
 #define TAR_ERROR                -1

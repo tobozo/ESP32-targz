@@ -7,7 +7,7 @@ extern "C" {
   #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
 }
 
-
+#define ALPHA_COLOR 0xABCDEFu
 
 // some compiler sweetener
 #define CC_UNUSED __attribute__((unused))
@@ -31,6 +31,9 @@ fs::FS *tarFS = nullptr;
 const char* tarDestFolder = nullptr;
 entry_callbacks_t tarCallbacks;
 static bool firstblock;
+static bool lastblock;
+static size_t tarCurrentFileSize = 0;
+static size_t tarCurrentFileSizeProgress = 0;
 static uint16_t gzTarBlockPos = 0;
 static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static int32_t untarredBytesCount = 0;
@@ -58,6 +61,20 @@ static unsigned char *output_buffer = nullptr;
 unsigned char __attribute__((aligned(4))) uzlib_read_cb_buff[GZIP_BUFF_SIZE];
 
 tarGzErrorCode _error = ESP32_TARGZ_OK;
+
+static bool targz_halt_on_error = false;
+
+void tarGzHaltOnError( bool halt )
+{
+  targz_halt_on_error = halt;
+}
+
+void targz_system_halt()
+{
+  printf("System halted");
+  while(1) { yield(); }
+}
+
 
 int8_t tarGzGetError()
 {
@@ -94,16 +111,45 @@ struct TarGzStream
 static TarGzStream tarGzStream;
 
 // show progress
-void (*gzProgressCallback)( uint8_t progress );
-void (*tarProgressCallback)( uint8_t progress );
-void (*tarMessageCallback)( const char* format, ...);
-bool (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
+static void (*gzProgressCallback)( uint8_t progress );
+static void (*tarProgressCallback)( uint8_t progress );
+static void (*tarMessageCallback)( const char* format, ...);
+static bool (*gzWriteCallback)( unsigned char* buff, size_t buffsize );
+static void (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked );
 
-size_t (*fstotalBytes)();
-size_t (*fsfreeBytes)();
-void (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
+static size_t (*fstotalBytes)();
+static size_t (*fsfreeBytes)();
+static void (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 
 
+__attribute__((unused))
+void defaultTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked )
+{
+  Serial.printf("[TAR] %-64s %8d bytes - %8d Total bytes\n", name, size, total_unpacked );
+}
+
+
+// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
+__attribute__((unused))
+void defaultProgressCallback( uint8_t progress )
+{
+  static int8_t uzLibLastProgress = -1;
+  if( uzLibLastProgress != progress ) {
+    uzLibLastProgress = progress;
+    if( progress == 0 ) {
+      Serial.print("Progress: [0% ");
+    } else if( progress == 100 ) {
+      Serial.println(" 100%]\n");
+    } else {
+      switch( progress ) {
+        case 25: Serial.print(" 25% ");break;
+        case 50: Serial.print(" 50% ");break;
+        case 75: Serial.print(" 75% ");break;
+        default: Serial.print("Z"); break;
+      }
+    }
+  }
+}
 
 
 // progress callback for TAR, leave empty for less console output
@@ -138,6 +184,13 @@ void targzPrintLoggerCallback(const char* format, ...)
   va_end(args);
 }
 
+
+void setTarStatusProgressCallback( tarStatusProgressCb cb )
+{
+  tarStatusProgressCallback = cb;
+}
+
+
 // set totalBytes() function callback
 void setFsTotalBytesCb( fsTotalBytesCb cb )
 {
@@ -164,6 +217,7 @@ void setLoggerCallback( genericLoggerCallback cb )
 {
   tgzLogger = cb;
 }
+
 
 // set tar unpacker message callback
 void setTarMessageCallback( genericLoggerCallback cb )
@@ -234,18 +288,15 @@ int unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED in
       log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
       return ESP32_TARGZ_FS_ERROR;
     }
-    untarredBytesCount+=length;
-    log_v("Wrote %d bytes", length);
+    untarredBytesCount+=wlen;
     // TODO: file unpack progress
-    //tgzLogger("[TAR INFO] unTarStreamWriteCallback wrote %d bytes to %s\n", length, proper->filename );
-    /*
-    if( gzProgressCallback == nullptr ) {
-      if( untarredBytesCount%(length*80) == 0 ) {
-        tgzLogger("\n");
-      } else {
-        tgzLogger("T");
-      }
-    }*/
+    log_v("[TAR INFO] unTarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
+    tarCurrentFileSizeProgress += wlen;
+    if( tarCurrentFileSize > 0 ) {
+      // this is a per-file progress, not an overall progress !
+      int32_t progress = 100*(tarCurrentFileSizeProgress) / tarCurrentFileSize;
+      tarProgressCallback( progress );
+    }
   }
   return ESP32_TARGZ_OK;
 }
@@ -253,6 +304,15 @@ int unTarStreamWriteCallback(CC_UNUSED header_translated_t *proper, CC_UNUSED in
 // gzWriteCallback
 static bool gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t buffsize )
 {
+  if( lastblock ) {
+    /*
+    log_w("Ignoring %d bytes for block #%d)", buffsize, gzTarBlockPos );
+    for(int i=0;i<buffsize;i+=64) {
+      hexDumpData( (const char*)buff+i, 64, 64 );
+    }*/
+    return true;
+  }
+
   if( firstblock ) {
     tar_setup(&tarCallbacks, NULL);
     firstblock = false;
@@ -260,9 +320,22 @@ static bool gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t 
   gzTarBlockPos = 0;
   while( gzTarBlockPos < blockmod ) {
     int response = read_tar_step(); // warn: this may fire more than 1 read_cb()
-    if( response != TAR_OK ) {
+
+    if( response == TAR_EXPANDING_DONE ) {
+      log_d("[TAR] Expanding done !");
+      lastblock = true;
+      return true;
+    }
+
+    if( gzTarBlockPos > blockmod ) {
+      log_e("[ERROR] read_tar_step() fired more too many read_cb()");
+      if( targz_halt_on_error ) targz_system_halt();
+    }
+
+    if( response < 0 ) {
       _error = ESP32_TARGZ_TAR_ERR_GZREAD_FAIL;
-      log_e("[DEBUG] gzProcessTarBuffer failed reading %d bytes (buffsize=%d) in gzip block #%d/%d, got response %d\n", TAR_BLOCK_SIZE, buffsize, gzTarBlockPos%blockmod, blockmod, response);
+      log_w("[False positive?] gzProcessTarBuffer failed reading %d bytes (buffsize=%d) in gzip block #%d/%d, got response %d", TAR_BLOCK_SIZE, buffsize, gzTarBlockPos%blockmod, blockmod, response);
+      if( targz_halt_on_error ) targz_system_halt();
       return false;
     }
   }
@@ -277,6 +350,7 @@ int tarReadGzStream( unsigned char* buff, size_t buffsize )
   if( buffsize%TAR_BLOCK_SIZE !=0 ) {
     log_e("[ERROR] tarReadGzStream Can't unmerge tar blocks (%d bytes) from gz block (%d bytes)\n", buffsize, GZIP_BUFF_SIZE);
     _error = ESP32_TARGZ_TAR_ERR_GZDEFL_FAIL;
+    if( targz_halt_on_error ) targz_system_halt();
     return 0;
   }
   size_t i;
@@ -302,37 +376,20 @@ int tarReadGzStream( unsigned char* buff, size_t buffsize )
 // tinyUntarReadCallback
 int gzFeedTarBuffer( unsigned char* buff, size_t buffsize )
 {
+  static size_t bytes_fed = 0;
   if( buffsize%TAR_BLOCK_SIZE !=0 ) {
     log_e("[ERROR] gzFeedTarBuffer Can't unmerge tar blocks (%d bytes) from gz block (%d bytes)\n", buffsize, GZIP_BUFF_SIZE);
     _error = ESP32_TARGZ_TAR_ERR_GZDEFL_FAIL;
+    if( targz_halt_on_error ) targz_system_halt();
     return 0;
   }
   uint32_t blockpos = gzTarBlockPos%blockmod;
   memcpy( buff, output_buffer/*uzlib_buffer*/+(TAR_BLOCK_SIZE*blockpos), TAR_BLOCK_SIZE );
-  //tgzLogger("[TGZ INFO][tarbuf<-gzbuf] block #%d at output_buffer[%d] (%d bytes)\n", gzTarBlockPos, (TAR_BLOCK_SIZE*blockpos), buffsize );
+  bytes_fed += TAR_BLOCK_SIZE;
+  log_d("[TGZ INFO][tarbuf<-gzbuf] block #%d (%d mod %d) at output_buffer[%d] (%d bytes, total %d)", blockpos, gzTarBlockPos, blockmod, (TAR_BLOCK_SIZE*blockpos), buffsize, bytes_fed );
   gzTarBlockPos++;
+  //gzTarBlockPos = gzTarBlockPos%blockmod;
   return TAR_BLOCK_SIZE;
-}
-
-// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-void defaultProgressCallback( uint8_t progress )
-{
-  static int8_t uzLibLastProgress = -1;
-  if( uzLibLastProgress != progress ) {
-    uzLibLastProgress = progress;
-    if( progress == 0 ) {
-      Serial.print("Progress:\n[0%");
-    } else if( progress == 100 ) {
-      Serial.println("100%]\n");
-    } else {
-      switch( progress ) {
-        case 25: Serial.print(" 25% ");break;
-        case 50: Serial.print(" 50% ");break;
-        case 75: Serial.print(" 75% ");break;
-        default: Serial.print("Z"); break; // assert the lack of precision by using a decimal sign :-)
-      }
-    }
-  }
 }
 
 
@@ -428,7 +485,7 @@ static unsigned int readSourceByte(struct TINF_DATA *data, unsigned char *out)
     log_e("readSourceByte read error");
     return -1;
   } else {
-    log_v("read 1 byte: 0x%02x", out[0] );
+    //log_v("read 1 byte: 0x%02x", out[0] );
   }
   return 0;
 }
@@ -448,6 +505,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
 
   if( !tarGzStream.gz->available() ) {
     log_e("[ERROR] in gzUncompress: gz resource doesn't exist!");
+    if( targz_halt_on_error ) targz_system_halt();
     return ESP32_TARGZ_STREAM_ERROR;
   }
 
@@ -466,6 +524,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
   } else {
     if( stream_to_tar ) {
       log_e("[ERROR] gz->tar->filesystem streaming requires a gzip dictionnnary");
+      if( targz_halt_on_error ) targz_system_halt();
       return ESP32_TARGZ_NEEDS_DICT;
     } else {
       uzLibDecompressor.readDestByte   = readDestByte;
@@ -485,6 +544,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
   res = uzlib_gzip_parse_header(&uzLibDecompressor);
   if (res != TINF_OK) {
     log_e("[ERROR] in gzUncompress: uzlib_gzip_parse_header failed (response code %d!", res);
+    if( targz_halt_on_error ) targz_system_halt();
     tarGzExpanderCleanup();
     return res;
   }
@@ -494,6 +554,7 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
   output_buffer = (unsigned char *)calloc( output_buffer_size+1, sizeof(unsigned char) );
   if( !output_buffer ) {
     log_e("[ERROR] can't alloc %d bytes for output buffer", output_buffer_size );
+    if( targz_halt_on_error ) targz_system_halt();
     return -1; // TODO : Number this error
   }
 
@@ -504,7 +565,9 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
   output_position = 0;
   unsigned int outlen = 0;
 
-  gzProgressCallback( 0 );
+  if( show_progress ) {
+    gzProgressCallback( 0 );
+  }
 
   if( stream_to_tar ) {
     // tar will pull bytes from gz for when needed
@@ -537,8 +600,6 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
         uzlib_bytesleft = tarGzStream.output_size - outlen;
         int32_t progress = 100*(tarGzStream.output_size-uzlib_bytesleft) / tarGzStream.output_size;
         gzProgressCallback( progress );
-      } else {
-
       }
 
     } while ( res == TINF_OK/*uzlib_bytesleft > 0 */);
@@ -560,6 +621,8 @@ int gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_di
         memset( output_buffer, 0, zerofill_size );
         // zero-fill to fit update.h required binary size
         gzWriteCallback( output_buffer, zerofill_size );
+        outlen += zerofill_size;
+        output_position = 0;
       }
     }
 
@@ -641,65 +704,6 @@ bool gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const c
 }
 
 
-#ifdef ESP32
-
-bool gzStreamUpdater( Stream *stream, size_t uncompressed_size )
-{
-
-  if( !gzProgressCallback ) {
-    setProgressCallback( defaultProgressCallback );
-  }
-
-  size_t size = stream->available();
-  if( ! size ) {
-    log_e("Bad stream, aborting");
-    _error = ESP32_TARGZ_STREAM_ERROR;
-    return false;
-  }
-
-  tarGzStream.gz = stream;
-
-  gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
-
-  if( uncompressed_size == 0 || uncompressed_size == UPDATE_SIZE_UNKNOWN ) {
-    Update.begin( UPDATE_SIZE_UNKNOWN );
-  } else {
-    Update.begin( ( ( uncompressed_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ) );
-  }
-
-  int ret = gzUncompress( true, false, true, false );
-
-  if( ret!=0 ) {
-    log_e("gzHTTPUpdater returned error code %d", ret);
-    _error = (tarGzErrorCode)ret;
-    return false;
-  }
-
-  if ( Update.end( true ) ) {
-    log_d( "OTA done!" );
-    if ( Update.isFinished() ) {
-      // yay
-      log_d("Update finished !");
-      ESP.restart();
-    } else {
-      log_e( "Update not finished? Something went wrong!" );
-      _error = ESP32_TARGZ_UPDATE_INCOMPLETE;
-      return false;
-    }
-  } else {
-    log_e( "Update Error Occurred. Error #: %u", Update.getError() );
-    _error = (tarGzErrorCode)(Update.getError()-20); // "-20" offset is Update error id to esp32-targz error id
-    return false;
-  }
-  log_d("uzLib filesystem Updater finished!\n");
-  _error = (tarGzErrorCode)ret;
-
-  return true;
-}
-
-
-#endif
-
 
 // uncompress gz to flash (expected to be a valid Arduino compiled binary sketch)
 bool gzUpdater( fs::FS &fs, const char* gz_filename )
@@ -721,6 +725,7 @@ bool gzUpdater( fs::FS &fs, const char* gz_filename )
   fs::File gz = fs.open( gz_filename, FILE_READ );
   if( !readGzHeaders( gz ) ) {
     log_e("[ERROR] in gzUpdater: Not a valid gzip file");
+    if( targz_halt_on_error ) targz_system_halt();
     gz.close();
     _error = ESP32_TARGZ_UZLIB_INVALID_FILE;
     return false;
@@ -825,11 +830,20 @@ int unTarHeaderCallBack(header_translated_t *proper,  CC_UNUSED int entry_index,
     untarredFile = tarFS->open(file_path, FILE_WRITE);
     if(!untarredFile) {
       log_e("[ERROR] in unTarHeaderCallBack: Could not open [%s] for write.", file_path);
+      if( targz_halt_on_error ) targz_system_halt();
       delete file_path;
       return ESP32_TARGZ_FS_ERROR;
     }
     delete file_path;
     tarGzStream.output = &untarredFile;
+    tarCurrentFileSize = proper->filesize; // for progress
+    tarCurrentFileSizeProgress = 0; // for progress
+    static size_t totalsize = 0;
+    totalsize += proper->filesize;
+    if( tarStatusProgressCallback ) {
+      tarStatusProgressCallback( proper->filename, proper->filesize, totalsize );
+    }
+    tarProgressCallback( 0 );
   } else {
 
     switch( proper->type ) {
@@ -868,9 +882,14 @@ int unTarEndCallBack( CC_UNUSED header_translated_t *proper, CC_UNUSED int entry
       size_t pos = untarredFile.position();
       untarredFile.close();
 
-      // health check 1: compare stream buffer position with speculated file size
-      // health check 2: file existence
-      if( pos != proper->filesize || !tarFS->exists(tmp_path ) ) {
+      // health check 1: file existence
+      if( !tarFS->exists(tmp_path ) ) {
+        log_e("[TAR ERROR] File %s was not created although it was properly decoded, path is too long ?", tmp_path );
+        delete tmp_path;
+        return ESP32_TARGZ_FS_WRITE_ERROR;
+      }
+      // health check 2: compare stream buffer position with speculated file size
+      if( pos != proper->filesize ) {
         log_e("[TAR ERROR] File size and data size do not match (%d vs %d)!", pos, proper->filesize);
         delete tmp_path;
         return ESP32_TARGZ_FS_WRITE_ERROR;
@@ -889,12 +908,12 @@ int unTarEndCallBack( CC_UNUSED header_translated_t *proper, CC_UNUSED int entry
         untarredFile.close();
         delete tmp_path;
         return ESP32_TARGZ_FS_ERROR;
-      } else {
-        log_d("Expanded %s (%d bytes)", tmp_path, tmpsize );
       }
 
+      log_d("Expanded %s (%d bytes)", tmp_path, tmpsize );
+
       // health check5: prind md5sum
-      log_d("[TAR INFO] unTarEndCallBack: Untarred %d bytes md5sum(%s)=%s\n\n", tmpsize, proper->filename, MD5Sum::fromFile( untarredFile ) );
+      log_d("[TAR INFO] unTarEndCallBack: Untarred %d bytes md5sum(%s)=%s", tmpsize, proper->filename, MD5Sum::fromFile( untarredFile ) );
 
       delete tmp_path;
 
@@ -903,15 +922,15 @@ int unTarEndCallBack( CC_UNUSED header_translated_t *proper, CC_UNUSED int entry
     untarredFile.close();
 
     static size_t totalsize = 0;
-
     if( proper->type != T_DIRECTORY ) {
       totalsize += proper->filesize;
     }
 
     if( tarGzStream.tar_size > 0 ) {
       int32_t tarprogress = (totalsize*100) / tarGzStream.tar_size;
-      //tgzLogger("Tar Progress: %d, file: %s, tarsize: %d, totalsize: %d", tarprogress, proper->filename, tarGzStream.tar_size, totalsize );
       tarProgressCallback( tarprogress );
+    } else {
+      log_d("Total expanded bytes: %d", totalsize );
     }
 
     tarMessageCallback( "%s", proper->filename );
@@ -973,6 +992,7 @@ bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const 
   int res = read_tar( &tarCallbacks, NULL );
   if( res != TAR_OK ) {
     log_e("[ERROR] operation aborted while expanding tar file %s (return code #%d", fileName, res-30);
+    if( targz_halt_on_error ) targz_system_halt();
     _error = (tarGzErrorCode)(res-30);
     return false;
   }
@@ -1043,6 +1063,7 @@ bool gzStreamExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, c
   totalFolders = 0;
 
   firstblock = true;
+  lastblock  = false;
 
   int ret = gzUncompress( false, true );
 
@@ -1094,6 +1115,34 @@ bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, cons
 }
 
 
+
+void hexDumpData( const char* buff, size_t buffsize, uint32_t output_size )
+{
+  static size_t totalBytes = 0;
+  String bytesStr = "";
+  String binaryStr = "";
+  char byteToStr[32];
+
+  for( int i=0; i<buffsize; i++ ) {
+    sprintf( byteToStr, "%02X", buff[i] );
+    bytesStr  += String( byteToStr ) + String(" ");
+    if( isprint( buff[i] ) ) {
+      binaryStr += String( buff[i] );
+    } else {
+      binaryStr += ".";
+    }
+  }
+  sprintf( byteToStr, "[0x%04X - 0x%04X] ",  totalBytes, totalBytes+buffsize);
+  totalBytes += buffsize;
+  if( buffsize < output_size ) {
+    for( size_t i=0; i<output_size-buffsize; i++ ) {
+      bytesStr  += "-- ";
+      binaryStr += ".";
+    }
+  }
+  Serial.println( byteToStr + bytesStr + " " + binaryStr );
+}
+
 // show the contents of a given file as a hex dump
 void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
 {
@@ -1106,12 +1155,15 @@ void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
     binFile.seek(0);
     char* buff = new char[output_size];
     uint8_t bytes_read = binFile.readBytes( buff, output_size );
-    String bytesStr  = "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
-    String binaryStr = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-    String addrStr = "[0x0000 - 0x0000] ";
-    char byteToStr[32];
-    size_t totalBytes = 0;
+    //String bytesStr  = "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
+    //String binaryStr = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+    //String addrStr = "[0x0000 - 0x0000] ";
+    //char byteToStr[32];
+    //size_t totalBytes = 0;
     while( bytes_read > 0 ) {
+
+      hexDumpData( buff, bytes_read, output_size );
+      /*
       bytesStr = "";
       binaryStr = "";
       for( int i=0; i<bytes_read; i++ ) {
@@ -1132,6 +1184,7 @@ void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
         }
       }
       Serial.println( byteToStr + bytesStr + " " + binaryStr );
+      */
       bytes_read = binFile.readBytes( buff, output_size );
     }
   } else {
@@ -1143,15 +1196,140 @@ void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
 // get a directory listing of a given filesystem
 #if defined( ESP32 )
 
+
+
+
+
+  bool tarGzStreamExpander( Stream *stream, fs::FS &destFS, const char* destFolder )
+  {
+
+    if( !stream->available() ) {
+      log_e("Bad stream, aborting");
+      Serial.printf("0x%02x", stream->read() );
+      Serial.printf("0x%02x", stream->read() );
+      Serial.println();
+      _error = ESP32_TARGZ_STREAM_ERROR;
+      return false;
+    }
+
+    if( !gzProgressCallback ) {
+      setProgressCallback( defaultProgressCallback );
+    }
+
+    tarGzStream.gz = stream;
+
+    tarFS = &destFS;
+    tarDestFolder = destFolder;
+    if( !tarProgressCallback ) {
+      setTarProgressCallback( tarNullProgressCallback );
+    }
+    if( !tarMessageCallback ) {
+      setTarMessageCallback( targzNullLoggerCallback );
+    }
+    if( !destFS.exists( tarDestFolder ) ) {
+      destFS.mkdir( tarDestFolder );
+    }
+
+    untarredBytesCount = 0;
+    gzTarBlockPos = 0;
+    tarCallbacks = {
+      unTarHeaderCallBack,
+      unTarStreamWriteCallback,
+      unTarEndCallBack
+    };
+    tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
+    tar_debug_logger      = tgzLogger; // comment this out if too verbose
+    tinyUntarReadCallback = &gzFeedTarBuffer;
+    gzWriteCallback       = &gzProcessTarBuffer;
+
+    totalFiles = 0;
+    totalFolders = 0;
+
+    firstblock = true;
+    lastblock  = false;
+
+    int ret = gzUncompress( false, false, true, false );
+
+    if( ret!=0 ) {
+      log_e("tarGzStreamExpander returned error code %d", ret);
+      _error = (tarGzErrorCode)ret;
+      return false;
+    }
+
+    return true;
+  }
+
+
+  bool gzStreamUpdater( Stream *stream, size_t uncompressed_size )
+  {
+
+    if( !gzProgressCallback ) {
+      setProgressCallback( defaultProgressCallback );
+    }
+
+    size_t size = stream->available();
+    if( ! size ) {
+      log_e("Bad stream, aborting");
+      _error = ESP32_TARGZ_STREAM_ERROR;
+      return false;
+    }
+
+    tarGzStream.gz = stream;
+
+    gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
+
+    if( uncompressed_size == 0 || uncompressed_size == UPDATE_SIZE_UNKNOWN ) {
+      Update.begin( UPDATE_SIZE_UNKNOWN );
+    } else {
+      Update.begin( ( ( uncompressed_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ) );
+    }
+
+    int ret = gzUncompress( true, false, true, false );
+
+    if( ret!=0 ) {
+      log_e("gzHTTPUpdater returned error code %d", ret);
+      _error = (tarGzErrorCode)ret;
+      return false;
+    }
+
+    if ( Update.end( true ) ) {
+      log_d( "OTA done!" );
+      if ( Update.isFinished() ) {
+        // yay
+        log_d("Update finished !");
+        ESP.restart();
+      } else {
+        log_e( "Update not finished? Something went wrong!" );
+        _error = ESP32_TARGZ_UPDATE_INCOMPLETE;
+        return false;
+      }
+    } else {
+      log_e( "Update Error Occurred. Error #: %u", Update.getError() );
+      _error = (tarGzErrorCode)(Update.getError()-20); // "-20" offset is Update error id to esp32-targz error id
+      return false;
+    }
+    log_d("uzLib filesystem Updater finished!\n");
+    _error = (tarGzErrorCode)ret;
+
+    return true;
+  }
+
+
+
+
+
+
   void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump )
   {
     File root = fs.open( dirName, FILE_READ );
     if( !root ) {
       log_e("[ERROR] in tarGzListDir: Can't open %s dir", dirName );
+      if( targz_halt_on_error ) targz_system_halt();
       return;
     }
     if( !root.isDirectory() ) {
       log_e("[ERROR] in tarGzListDir: %s is not a directory", dirName );
+      if( targz_halt_on_error ) targz_system_halt();
       return;
     }
     File file = root.openNextFile();

@@ -1,6 +1,6 @@
 /*\
  *
- * Update_from_gz_stream.ino
+ * Unpack_tar_gz_stream.ino
  * Example code for ESP32-targz
  * https://github.com/tobozo/ESP32-targz
  *
@@ -23,19 +23,15 @@
 HTTPClient http;
 
 
-// 1) gzip the other firmware you need to flash:
+// 1) Edit the value of "const char* tgzURL" in this sketch to match the url of your gzip file
 //
-//    #> gzip -c /tmp/arduino/firmware.bin > /tmp/firmware.gz
+// 2) Setup WIFI_SSID and WIFI_PASS if necessary
 //
-// 2) Publish the firmware.gz on a web server
-//
-// 3) Edit the value of "const char* firmwareFile" in this sketch to match the url of the gzip file
-//
-// 4) Setup WIFI_SSID and WIFI_PASS if necessary
-//
-// 5) Flash this sketch
+// 3) Flash this sketch
 
-const char* firmwareURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/master/examples/Update_from_gz/data/esp32_example_firmware.gz" ;
+const char* tgzURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/master/examples/Unpack_targz_file/data/zombocrash.tar.gz";
+//const char* tgzURL = "https://poritrin.phpsecu.re/tgz/HVSC-74.tar.gz";
+
 const char *certificate = NULL; // change this as needed, leave as is for no TLS check (yolo security)
 
 //#define WIFI_SSID "blahSSID"
@@ -68,7 +64,7 @@ void stubbornConnect()
 }
 
 
-WiFiClient *getFirmwareClientPtr( WiFiClientSecure *client, const char* url, const char *cert = NULL )
+WiFiClient *getTarGzHTTPClientPtr( WiFiClientSecure *client, const char* url, const char *cert = NULL )
 {
   client->setCACert( cert );
   const char* UserAgent = "ESP32-HTTP-GzUpdater-Client";
@@ -98,8 +94,7 @@ WiFiClient *getFirmwareClientPtr( WiFiClientSecure *client, const char* url, con
     http.end();
     if( newlocation != "" ) {
       log_w("Found 302/301 location header: %s", newlocation.c_str() );
-      // delete client;
-      return getFirmwareClientPtr( client, newlocation.c_str(), cert );
+      return getTarGzHTTPClientPtr( client, newlocation.c_str(), cert );
     } else {
       log_e("Empty redirect !!");
       return nullptr;
@@ -111,38 +106,77 @@ WiFiClient *getFirmwareClientPtr( WiFiClientSecure *client, const char* url, con
 
 
 
+void myTarProgressCallback( uint8_t progress )
+{
+  static int8_t uzLibLastProgress = -1;
+  if( uzLibLastProgress != progress ) {
+    uzLibLastProgress = progress;
+    if( progress == 0 ) {
+      Serial.print("Progress: [0% ");
+    } else if( progress == 100 ) {
+      Serial.println(" 100%]\n");
+    } else {
+      switch( progress ) {
+        case 25: Serial.print(" 25% ");break;
+        case 50: Serial.print(" 50% ");break;
+        case 75: Serial.print(" 75% ");break;
+        default: Serial.print("T"); break;
+      }
+    }
+  }
+}
+
+
+
 void setup()
 {
 
   Serial.begin( 115200 );
 
-  //setLoggerCallback( targzNullLoggerCallback );
+  if( !tarGzFS.begin() ) {
+    Serial.println("Could not start filesystem");
+    while(1);
+  }
+
   stubbornConnect();
   WiFiClientSecure *client = new WiFiClientSecure;
-  Stream *streamptr = getFirmwareClientPtr( client, firmwareURL, certificate );
-  size_t streamsize = UPDATE_SIZE_UNKNOWN;
-
-  /*
-  // it also works with filesystem
-  tarGzFS.begin();
-  if(!tarGzFS.exists(firmwareFile) ) {
-    Serial.println("File isn't there");
-    while(1) { yield(); }
-  }
-  fs::File file = tarGzFS.open( firmwareFile, "r" );
-  size_t streamsize = file.size();
-  if (!file) {
-    Serial.println("Can't open file");
-    while(1) { yield(); }
-  }
-  Stream *streamptr = &file;
-  */
+  Stream *streamptr = getTarGzHTTPClientPtr( client, tgzURL, certificate );
 
   if( streamptr != nullptr ) {
-    if( !gzStreamUpdater( streamptr, streamsize ) ) {
-      Serial.printf("gzHTTPUpdater failed with return code #%d", tarGzGetError() );
+
+    //tarGzHaltOnError( true );
+    setTarVerify( true ); // true = enables health checks but slows down the overall process
+
+    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    setProgressCallback( defaultProgressCallback /*targzNullProgressCallback*/ ); // useless with tarGzStreamExpander
+
+    setTarProgressCallback( myTarProgressCallback /*targzNullProgressCallback*/  ); // prints the untarring progress for each individual file
+    setTarStatusProgressCallback( defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+
+    setLoggerCallback( targzNullLoggerCallback /*targzPrintLoggerCallback*/  );   // gz log verbosity
+    setTarMessageCallback( targzNullLoggerCallback/*targzPrintLoggerCallback*/ ); // tar log verbosity
+
+
+    if( !tarGzStreamExpander( streamptr, tarGzFS ) ) {
+      Serial.printf("tarGzStreamExpander failed with return code #%d", tarGzGetError() );
     } else {
       Serial.println("Yay!"); // however the ESP has restarted so this code is unreachable
+
+      // print leftover bytes if any (probably zero-fill from the server)
+      while(http.connected() ) {
+        //esp_task_wdt_reset();
+        size_t streamSize = streamptr->available();
+        if (streamSize) {
+          //int c = streamptr->readBytes(buff, ((streamSize > sizeof(buff)) ? sizeof(buff) : streamSize));
+          //Serial.printf("Read %5d bytes from stream, %6d remaining\r", c, len);
+          Serial.printf( "%02x ", streamptr->read() );
+        } else break;
+      }
+
+      Serial.println();
+
+
+      tarGzListDir( tarGzFS, "/", 3 );
     }
   } else {
     Serial.println("Failed to establish http connection");
@@ -155,3 +189,4 @@ void loop()
 {
 
 }
+

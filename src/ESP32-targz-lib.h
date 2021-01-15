@@ -66,19 +66,36 @@ bool    gzUpdater( fs::FS &fs, const char* gz_filename );
 #if defined ESP32
 // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
 bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 );
+// unpack stream://fileName.tar.gz contents to destFS::/destFolder/
+bool    tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
 #endif
-// null progress callback, use with setProgressCallback() to silent output
-void    targzNullProgressCallback( uint8_t progress );
 // error/warning/info null logger, use with setLoggerCallback() to silent output
 void    targzNullLoggerCallback( const char* format, ... );
+// null progress callback, use with setProgressCallback or setTarProgressCallback to silent output
+void    targzNullProgressCallback( uint8_t progress );
+
+// error/warning/info logger, use with setLoggerCallback() to enable output
+void    targzPrintLoggerCallback(const char* format, ...);
+// print progress callback, use with setProgressCallback or setTarProgressCallback to enable progress output
+void    defaultProgressCallback( uint8_t progress );
+
+// print tar status since a progress can't be provided
+void    defaultTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked );
+
 // naive ls
 void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool hexDump = false );
 // fs helper
 //char    *dirname( char *path );
+
+void tarGzHaltOnError( bool halt );
+
+//static bool targz_halt_on_error = false;
+
 // useful to share the buffer so it's not totally wasted memory outside targz scope
 uint8_t *getGzBufferUint8();
 // file-based hexViewer for debug
 void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+void    hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
 
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
@@ -92,6 +109,10 @@ void    setFsFreeBytesCb( fsFreeBytesCb cb );
 // must be done from outside the library since FS is an abstraction of an abstraction :(
 typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 void    setupFSCallbacks(  fsTotalBytesCb cbt, fsFreeBytesCb cbf );
+
+// tar doesn't have a real progress, so provide a status instead
+typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
+void    setTarStatusProgressCallback( tarStatusProgressCb cb );
 
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );

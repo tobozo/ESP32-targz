@@ -263,16 +263,24 @@ void tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
 
 
 int tar_datablock_step() {
+
+  static int block_read = 0;
+
   if(num_blocks_iterator < num_blocks) {
-    if(read_block( read_buffer ) != 0) {
-      tar_abort("Could not read block. File too short.", 1);
-      tar_error = TAR_ERR_READBLOCK_FAIL;
-      return tar_error;
-    }
-    int res = expand_tar_data_block();
-    if( res != 0 ) {
-      tar_abort("Data callback failed", 1);
-      return res;
+    if( block_read == 0 ) {
+      if(read_block( read_buffer ) != 0) {
+        tar_abort("Could not read block. File too short.", 1);
+        tar_error = TAR_ERR_READBLOCK_FAIL;
+        return tar_error;
+      }
+      block_read = 1;
+    } else {
+      int res = expand_tar_data_block();
+      if( res != 0 ) {
+        tar_abort("Data callback failed", 1);
+        return res;
+      }
+      block_read = 0;
     }
     return TAR_CONTINUE;
   } else {
@@ -290,6 +298,8 @@ int tar_datablock_step() {
 
 int tar_step() {
 
+  static int readstep = 0;
+
   if( tar_error != TAR_OK ) {
     tar_abort("tar expanding interrupted!", 1);
     return tar_error;
@@ -301,13 +311,20 @@ int tar_step() {
 
   if(empty_count >= 2) {
     tar_abort("tar expanding done!", 0);
-    return TAR_ERROR;
+    return TAR_EXPANDING_DONE;
   }
 
-  if(read_block( read_buffer ) != 0) {
-    tar_abort("tar expanding done!", 0);
-    return TAR_ERROR;
+  if( readstep == 0 ) {
+    if(read_block( read_buffer ) != 0) {
+      tar_abort("tar expanding done!", 0);
+      return TAR_ERROR;
+    }
+    readstep = 1;
+    return TAR_OK;
+  } else {
+    readstep = 0;
   }
+
   // If we haven't yet determined what format to support, read the
   // header of the next entry, now. This should be done only at the
   // top of the archive.
@@ -367,7 +384,7 @@ int read_tar_step() {
       return TAR_OK;
     }
   } else {
-    return TAR_OK;
+    return res == TAR_EXPANDING_DONE ? TAR_EXPANDING_DONE : TAR_OK;
   }
 }
 
