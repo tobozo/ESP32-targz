@@ -108,9 +108,9 @@ WiFiClient *getTarGzHTTPClientPtr( WiFiClientSecure *client, const char* url, co
 
 void myTarProgressCallback( uint8_t progress )
 {
-  static int8_t uzLibLastProgress = -1;
-  if( uzLibLastProgress != progress ) {
-    uzLibLastProgress = progress;
+  static int8_t myLastProgress = -1;
+  if( myLastProgress != progress ) {
+    myLastProgress = progress;
     if( progress == 0 ) {
       Serial.print("Progress: [0% ");
     } else if( progress == 100 ) {

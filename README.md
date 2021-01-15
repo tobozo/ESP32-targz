@@ -103,7 +103,13 @@ Expand contents from `.tar.gz`  to `/tmp` folder
     // attach FS callbacks to prevent the partition from exploding during decompression
     setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
 
+    // using an intermediate file (default is /tmp/tmp.tar)
     if( ! tarGzExpander(tarGzFs, "/tbz.tar.gz", tarGzFs, "/tmp") ) {
+      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    }
+
+    // or without intermediate file
+    if( ! tarGzExpander(tarGzFs, "/tbz.tar.gz", tarGzFs, "/tmp", nullptr ) ) {
       Serial.printf("operation failed with return code #%d", tarGzGetError() );
     }
 
@@ -150,6 +156,25 @@ ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
 ```
 
 
+ESP32 Only: Direct expansion (no intermediate file) from .tar.gz.` stream (HTTP or Filesystem)
+----------------------------------------------------------------------------------------------
+```C
+
+    // mount spiffs (or any other filesystem)
+    tarGzFS.begin();
+    fs::File file = tarGzFS.open( "/example_archive.tgz", "r" );
+    if (!file) {
+      Serial.println("Can't open file");
+      return;
+    }
+    if( !tarGzStreamExpander( streamptr, tarGzFS ) ) {
+      Serial.printf("tarGzStreamExpander failed with return code #%d", tarGzGetError() );
+    } else {
+      Serial.println("Yay!");
+    }
+
+```
+
 
 
 Callbacks
@@ -164,13 +189,13 @@ Callbacks
     //#define DEST_FS_USES_LITTLEFS
     #include <ESP32-targz.h>
 
-    // Progress callback, leave empty for less console output
-    void myProgressCallback( uint8_t progress )
+    // Progress callback for gzip, leave empty for less console output
+    void myGzProgressCallback( uint8_t progress )
     {
       Serial.printf("Progress: %d\n", progress );
     }
 
-    // Error/Warning/Info logger, leave empty for less console output
+    // General Error/Warning/Info logger, leave empty for less console output
     void myLogger(const char* format, ...)
     {
       va_list args;
@@ -179,6 +204,34 @@ Callbacks
       va_end(args);
     }
 
+    // status callback for TAR (fired at file creation)
+    void myTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked )
+    {
+      Serial.printf("[TAR] %-64s %8d bytes - %8d Total bytes\n", name, size, total_unpacked );
+    }
+
+    // progress callback for TAR (fired for each individual file)
+    void myTarProgressCallback( uint8_t progress )
+    {
+      static int8_t myLastProgress = -1;
+      if( myLastProgress != progress ) {
+        myLastProgress = progress;
+        if( progress == 0 ) {
+          Serial.print("Progress: [0% ");
+        } else if( progress == 100 ) {
+          Serial.println(" 100%]\n");
+        } else {
+          switch( progress ) {
+            case 25: Serial.print(" 25% ");break;
+            case 50: Serial.print(" 50% ");break;
+            case 75: Serial.print(" 75% ");break;
+            default: Serial.print("T"); break;
+          }
+        }
+      }
+    }
+
+
     void setup()
     {
       // (...)
@@ -186,9 +239,12 @@ Callbacks
       tarGzFs.begin(true);
 
       // attach progress/log callbacks
-      setProgressCallback( myProgressCallback );
+      setProgressCallback( myGzProgressCallback );
       setLoggerCallback( myLogger );
       setTarMessageCallback( myLogger );
+
+      setTarProgressCallback( myTarProgressCallback ); // prints the untarring progress for each individual file
+      setTarStatusProgressCallback( myTarStatusProgressCallback ); // print the filenames as they're expanded
 
       // .... or attach empty callbacks to silent the output (zombie mode)
       // setProgressCallback( targzNullProgressCallback );
@@ -200,10 +256,10 @@ Callbacks
 
       // (...)
 
-      if( gzUpdater(tarGzFs, "/menu_bin.gz") ) {
+      if( tarGzExpander(tarGzFs, "/blah.tar.gz", tarGzFs, "/tmp", nullptr ) ) {
         Serial.println("Yay!");
       } else {
-        Serial.printf("gzUpdater failed with return code #%d\n", tarGzGetError() );
+        Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
       }
 
     }

@@ -1123,7 +1123,7 @@ void hexDumpData( const char* buff, size_t buffsize, uint32_t output_size )
   String binaryStr = "";
   char byteToStr[32];
 
-  for( int i=0; i<buffsize; i++ ) {
+  for( size_t i=0; i<buffsize; i++ ) {
     sprintf( byteToStr, "%02X", buff[i] );
     bytesStr  += String( byteToStr ) + String(" ");
     if( isprint( buff[i] ) ) {

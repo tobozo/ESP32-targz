@@ -199,6 +199,9 @@ unsigned char uzlib_get_byte(TINF_DATA *d)
       unsigned char out;
       //d->log("Using readsource\n");
       int ret = d->readSourceByte(d, &out);
+      if(! ret ) {
+        // TODO: handle read errors !
+      }
       return out;
     }
 }
