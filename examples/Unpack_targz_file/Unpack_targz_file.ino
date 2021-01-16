@@ -48,7 +48,6 @@ void setup() {
     Serial.println("Decompressing using an intermediate file: this is slower and requires more filesystem space, but uses less memory");
     if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp") ) {
       Serial.println("Yay!");
-      Serial.println("Filesystem contents:");
     } else {
       Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
     }
@@ -60,7 +59,6 @@ void setup() {
     Serial.println("Decompressing using no intermediate file is faster and generates much less i/o, but consumes more memory (~32kb)");
     if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp", nullptr ) ) {
       Serial.println("Yay!");
-      Serial.println("Filesystem contents:");
     } else {
       Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
     }
