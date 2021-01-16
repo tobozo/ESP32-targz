@@ -55,19 +55,38 @@
   #error Unsupported architecture
 #endif
 
+#define GZIP_DICT_SIZE 32768
+#define GZIP_BUFF_SIZE 4096
+
+#define FOLDER_SEPARATOR "/"
+
+#ifndef FILE_READ
+  #define FILE_READ "r"
+#endif
+#ifndef FILE_WRITE
+  #define FILE_WRITE "w+"
+#endif
+#ifndef SPI_FLASH_SEC_SIZE
+  #define SPI_FLASH_SEC_SIZE 4096
+#endif
+
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
 bool    tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
+#if defined ESP32
+  // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
+  bool    tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
+#endif
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
 bool    tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
+//TODO: tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );
 // uncompresses *gzipped* sourceFile to destFile, filesystems may differ
 bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
+//TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
 // flashes the ESP with the content of a *gzipped* file
-bool    gzUpdater( fs::FS &fs, const char* gz_filename );
+bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename );
 #if defined ESP32
-// flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
-bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 );
-// unpack stream://fileName.tar.gz contents to destFS::/destFolder/
-bool    tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
+  // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
+  bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 );
 #endif
 // error/warning/info null logger, use with setLoggerCallback() to silent output
 void    targzNullLoggerCallback( const char* format, ... );
@@ -84,15 +103,12 @@ void    defaultTarStatusProgressCallback( const char* name, size_t size, size_t 
 
 // naive ls
 void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool hexDump = false );
-// fs helper
-//char    *dirname( char *path );
 
+// paranoid mode
 void tarGzHaltOnError( bool halt );
 
-//static bool targz_halt_on_error = false;
-
 // useful to share the buffer so it's not totally wasted memory outside targz scope
-uint8_t *getGzBufferUint8();
+uint8_t *gzGetBufferUint8();
 // file-based hexViewer for debug
 void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
 void    hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
@@ -182,7 +198,22 @@ typedef enum tarGzErrorCode /* int8_t */
 } ErrorCodes ;
 
 
+
+struct TarGzStream
+{
+  Stream *gz;
+  Stream *tar;
+  Stream *output;
+  size_t gz_size;
+  size_t tar_size;
+  size_t output_size;
+};
+
+
+
+// md5sum (essentially for debug)
 #include "helpers/md5_sum.h"
+// helpers: mkdir, mkpath, dirname
 #include "helpers/path_tools.h"
 
 
