@@ -86,11 +86,6 @@ namespace TAR
   }
 }
 
-// md5sum (essentially for debug)
-#include "helpers/md5_sum.h"
-// helpers: mkdir, mkpath, dirname
-#include "helpers/path_tools.h"
-
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
 // to explode during stream writes.
@@ -133,6 +128,8 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_UZLIB_DATA_ERROR           =  -3,   // Gz Error TINF_DATA_ERROR
   ESP32_TARGZ_UZLIB_CHKSUM_ERROR         =  -4,   // Gz Error TINF_CHKSUM_ERROR
   ESP32_TARGZ_UZLIB_DICT_ERROR           =  -5,   // Gz Error TINF_DICT_ERROR
+  ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
+  ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
 
   // UPDATE: adding -20 offset to actual error values from Update.h
   ESP32_TARGZ_UPDATE_ERROR_ABORT         =  -8,   // Updater Error UPDATE_ERROR_ABORT        -20   // (12-20) = -8
@@ -195,9 +192,9 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
   static int unTarStreamReadCallback( unsigned char* buff, size_t buffsize );
-  static int unTarStreamWriteCallback(CC_UNUSED TAR::header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data, unsigned char *block, int length);
-  static int unTarHeaderCallBack(TAR::header_translated_t *proper,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data);
-  static int unTarEndCallBack( CC_UNUSED TAR::header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data);
+  static int unTarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+  static int unTarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
+  static int unTarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
 };
 
 
@@ -206,10 +203,10 @@ struct GzUnpacker : virtual public BaseUnpacker
   GzUnpacker();
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
   //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
-  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename ); // flashes the ESP with the content of a *gzipped* file
-  #if defined ESP32
-  bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 ); // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
-  #endif
+  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
+  //#if defined ESP32
+  bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0, bool restart_on_update = true ); // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
+  //#endif
   void    setGzProgressCallback( genericProgressCallback cb );
   uint8_t *gzGetBufferUint8();
   void    gzExpanderCleanup();
@@ -233,15 +230,30 @@ struct TarGzUnpacker :
   bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
   // same as tarGzExpander but without intermediate file
   bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
-  #if defined ESP32
+  //#if defined ESP32
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
   bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
-  #endif
-  static bool gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t buffsize );
+  //#endif
+  static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );
   static int gzFeedTarBuffer( unsigned char* buff, size_t buffsize );
 };
 
+
+#ifdef ESP8266
+  // some ESP32 => ESP8266 syntax shim
+  #define ARDUHAL_LOG_FORMAT(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", __FILE__, __LINE__, __FUNCTION__
+  #define log_v BaseUnpacker::targzNullLoggerCallback
+  #define log_d BaseUnpacker::targzNullLoggerCallback
+  #define log_i BaseUnpacker::targzNullLoggerCallback
+  #define log_w(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(W, format), ##__VA_ARGS__)
+  #define log_e(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
+  #define log_n(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
+#endif
+// md5sum (essentially for debug)
+#include "helpers/md5_sum.h"
+// helpers: mkdir, mkpath, dirname
+#include "helpers/path_tools.h"
 
 
 #endif // #ifdef _ESP_TGZ_H
