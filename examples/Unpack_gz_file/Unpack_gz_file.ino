@@ -27,22 +27,16 @@ void setup() {
     Serial.println("Filesystem Mount Successful");
   }
 
-  // attach FS callbacks to prevent the partition from exploding during decompression
-  setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
-  // attach empty callbacks to silent the output (zombie mode)
-  // setProgressCallback( targzNullProgressCallback );
-  // setLoggerCallback( targzNullLoggerCallback );
-
-  // extract content from gz file
-  if( !gzExpander(tarGzFS, "/index_html.gz", tarGzFS, "/index.html") ) {
-    Serial.printf("gzExpander failed with return code #%d\n", tarGzGetError() );
+  GzUnpacker *GZUnpacker = new GzUnpacker();
+  GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+  GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+  GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+  GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+  if( !GZUnpacker->gzExpander(tarGzFS, "/gz_example.gz", tarGzFS, "/tbz.jpg") ) {
+    Serial.printf("gzExpander failed with return code #%d", GZUnpacker->tarGzGetError() );
   }
 
-  if( ! gzExpander(tarGzFS, "/tbz.gz", tarGzFS, "/tbz.jpg") ) {
-    Serial.printf("gzExpander failed with return code #%d\n", tarGzGetError() );
-  }
-
-  tarGzListDir( tarGzFS, "/", 3 );
+  GZUnpacker->tarGzListDir( tarGzFS, "/", 3 );
 
 }
 

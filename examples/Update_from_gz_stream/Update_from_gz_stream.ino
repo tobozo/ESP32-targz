@@ -116,7 +116,6 @@ void setup()
 
   Serial.begin( 115200 );
 
-  //setLoggerCallback( targzNullLoggerCallback );
   stubbornConnect();
   WiFiClientSecure *client = new WiFiClientSecure;
   Stream *streamptr = getFirmwareClientPtr( client, firmwareURL, certificate );
@@ -139,11 +138,16 @@ void setup()
   */
 
   if( streamptr != nullptr ) {
-    if( !gzStreamUpdater( streamptr, streamsize ) ) {
-      Serial.printf("gzHTTPUpdater failed with return code #%d", tarGzGetError() );
-    } else {
-      Serial.println("Yay!"); // however the ESP has restarted so this code is unreachable
+
+    GzUnpacker *GZUnpacker = new GzUnpacker();
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    if( !GZUnpacker->gzStreamUpdater( streamptr, streamsize ) ) {
+      Serial.printf("gzHTTPUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
     }
+
   } else {
     Serial.println("Failed to establish http connection");
   }

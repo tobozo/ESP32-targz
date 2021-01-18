@@ -7,7 +7,7 @@
 \*/
 
 #ifndef ESP32
-  #error "gzStreamUpdater is only available on ESP32 architecture"
+  #error "gzStreamExpander is only available on ESP32 architecture"
 #endif
 
 // Set **destination** filesystem by uncommenting one of these:
@@ -144,40 +144,30 @@ void setup()
 
   if( streamptr != nullptr ) {
 
-    //tarGzHaltOnError( true );
-    setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    TARGZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
 
-    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
-    setProgressCallback( defaultProgressCallback /*targzNullProgressCallback*/ ); // useless with tarGzStreamExpander
-
-    setTarProgressCallback( myTarProgressCallback /*targzNullProgressCallback*/  ); // prints the untarring progress for each individual file
-    setTarStatusProgressCallback( defaultTarStatusProgressCallback ); // print the filenames as they're expanded
-
-    setLoggerCallback( targzNullLoggerCallback /*targzPrintLoggerCallback*/  );   // gz log verbosity
-    setTarMessageCallback( targzNullLoggerCallback/*targzPrintLoggerCallback*/ ); // tar log verbosity
-
-
-    if( !tarGzStreamExpander( streamptr, tarGzFS ) ) {
-      Serial.printf("tarGzStreamExpander failed with return code #%d", tarGzGetError() );
+    if( !TARGZUnpacker->tarGzStreamExpander( streamptr, tarGzFS ) ) {
+      Serial.printf("tarGzStreamExpander failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     } else {
-      Serial.println("Yay!"); // however the ESP has restarted so this code is unreachable
-
       // print leftover bytes if any (probably zero-fill from the server)
       while(http.connected() ) {
-        //esp_task_wdt_reset();
         size_t streamSize = streamptr->available();
         if (streamSize) {
-          //int c = streamptr->readBytes(buff, ((streamSize > sizeof(buff)) ? sizeof(buff) : streamSize));
-          //Serial.printf("Read %5d bytes from stream, %6d remaining\r", c, len);
           Serial.printf( "%02x ", streamptr->read() );
         } else break;
       }
 
       Serial.println();
-
-
-      tarGzListDir( tarGzFS, "/", 3 );
     }
+
   } else {
     Serial.println("Failed to establish http connection");
   }
