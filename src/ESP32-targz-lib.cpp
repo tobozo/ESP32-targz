@@ -89,9 +89,7 @@ static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static struct GZ::TINF_DATA uzLibDecompressor;
 static uint16_t gzTarBlockPos = 0;
 static size_t tarReadGzStreamBytes = 0;
-#ifdef ESP8266
 size_t min_output_buffer_size = 512;
-#endif
 
 static bool halt_on_error()
 {

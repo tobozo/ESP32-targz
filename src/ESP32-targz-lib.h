@@ -122,14 +122,14 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_FS_READSIZE_ERROR          =  -102, // no space left on device
   ESP32_TARGZ_HEAP_TOO_LOW               =  -103, // not enough heap
   ESP32_TARGZ_NEEDS_DICT                 =  -104, // gzip dictionnary needs to be enabled
+  ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
+  ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file
   ESP32_TARGZ_UZLIB_DATA_ERROR           =  -3,   // Gz Error TINF_DATA_ERROR
   ESP32_TARGZ_UZLIB_CHKSUM_ERROR         =  -4,   // Gz Error TINF_CHKSUM_ERROR
   ESP32_TARGZ_UZLIB_DICT_ERROR           =  -5,   // Gz Error TINF_DICT_ERROR
-  ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
-  ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
 
   // UPDATE: adding -20 offset to actual error values from Update.h
   ESP32_TARGZ_UPDATE_ERROR_ABORT         =  -8,   // Updater Error UPDATE_ERROR_ABORT        -20   // (12-20) = -8
