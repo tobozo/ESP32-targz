@@ -1,4 +1,4 @@
-# ESP32-targz
+# 🗜️ESP32-targz
 
 ## An ESP32/ESP8266 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
@@ -55,16 +55,20 @@ Extract content from `.gz` file
     // mount spiffs (or any other filesystem)
     tarGzFs.begin();
 
-    // attach FS callbacks to prevent the partition from exploding during decompression
-    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+    GzUnpacker *GZUnpacker = new GzUnpacker();
+
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
 
     // expand one file
-    if( ! gzExpander(tarGzFs, "/index_html.gz", tarGzFs, "/index.html") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    if( !GZUnpacker->gzExpander(tarGzFS, "/gz_example.gz", tarGzFS, "/gz_example.jpg") ) {
+      Serial.printf("gzExpander failed with return code #%d", GZUnpacker->tarGzGetError() );
     }
 
     // expand another file
-    if( ! gzExpander(tarGzFs, "/tbz.gz", tarGzFs, "/tbz.jpg") ) {
+    if( ! gzExpander(tarGzFs, "/blah.gz", tarGzFs, "/blah.jpg") ) {
       Serial.printf("operation failed with return code #%d", tarGzGetError() );
     }
 
@@ -80,11 +84,17 @@ Expand contents from `.tar` file to `/tmp` folder
     // mount spiffs (or any other filesystem)
     tarGzFs.begin();
 
-    // attach FS callbacks to prevent the partition from exploding during decompression
-    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+    TarUnpacker *TARUnpacker = new TarUnpacker();
 
-    if( ! tarExpander(tarGzFs, "/tobozo.tar", tarGzFs, "/tmp") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    TARUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TARUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    TARUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+    TARUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
+
+    if( !TARUnpacker->tarExpander(tarGzFS, "/tar_example.tar", tarGzFS, "/") ) {
+      Serial.printf("tarExpander failed with return code #%d\n", TARUnpacker->tarGzGetError() );
     }
 
 
@@ -100,17 +110,25 @@ Expand contents from `.tar.gz`  to `/tmp` folder
     // mount spiffs (or any other filesystem)
     tarGzFs.begin();
 
-    // attach FS callbacks to prevent the partition from exploding during decompression
-    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    TARGZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
 
     // using an intermediate file (default is /tmp/tmp.tar)
-    if( ! tarGzExpander(tarGzFs, "/tbz.tar.gz", tarGzFs, "/tmp") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    if( !TARGZUnpacker->tarGzExpander(tarGzFS, "/targz_example.tar.gz", tarGzFS, "/tmp") ) {
+      Serial.printf("tarGzExpander+intermediate file failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     }
 
     // or without intermediate file
-    if( ! tarGzExpander(tarGzFs, "/tbz.tar.gz", tarGzFs, "/tmp", nullptr ) ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    if( !TARGZUnpacker->tarGzExpander(tarGzFS, "/targz_example.tar.gz", tarGzFS, "/tmp", nullptr ) ) {
+      Serial.printf("tarGzExpander+intermediate file failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     }
 
 
@@ -125,8 +143,15 @@ Flash the ESP with contents from `.gz` file
     // mount spiffs (or any other filesystem)
     tarGzFs.begin();
 
-    if( ! gzUpdater(tarGzFs, "/menu_bin.gz") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+    GzUnpacker *GZUnpacker = new GzUnpacker();
+
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+
+    if( ! GZUnpacker->gzUpdater(tarGzFS, firmwareFile, /*don't restart after update*/false ) ) {
+      Serial.printf("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
     }
 
 
@@ -140,16 +165,23 @@ ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
 
     // mount spiffs (or any other filesystem)
     tarGzFS.begin();
+
     fs::File file = tarGzFS.open( "/example_firmware.gz", "r" );
-    size_t streamsize = file.size();
+
     if (!file) {
       Serial.println("Can't open file");
       return;
     }
-    if( !gzStreamUpdater( (Stream *)&file, streamsize ) ) {
-      Serial.printf("gzHTTPUpdater failed with return code #%d", tarGzGetError() );
-    } else {
-      Serial.println("Yay!"); // however the ESP has restarted so this code is unreachable
+
+    GzUnpacker *GZUnpacker = new GzUnpacker();
+
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+
+    if( !GZUnpacker->gzStreamUpdater( (Stream *)&file, UPDATE_SIZE_UNKNOWN ) ) {
+      Serial.printf("gzStreamUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
     }
 
 
@@ -162,16 +194,29 @@ ESP32 Only: Direct expansion (no intermediate file) from .tar.gz.` stream (HTTP 
 
     // mount spiffs (or any other filesystem)
     tarGzFS.begin();
+
     fs::File file = tarGzFS.open( "/example_archive.tgz", "r" );
+
     if (!file) {
       Serial.println("Can't open file");
       return;
     }
-    if( !tarGzStreamExpander( streamptr, tarGzFS ) ) {
-      Serial.printf("tarGzStreamExpander failed with return code #%d", tarGzGetError() );
-    } else {
-      Serial.println("Yay!");
+
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    TARGZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
+
+    if( !TARGZUnpacker->tarGzStreamExpander( (Stream *)&file, tarGzFS ) ) {
+      Serial.printf("tarGzStreamExpander failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     }
+
 
 ```
 
@@ -182,20 +227,36 @@ Callbacks
 
 ```C
 
-    #define DEST_FS_USES_SPIFFS
-    //#define DEST_FS_USES_FFAT
-    //#define DEST_FS_USES_SD
-    //#define DEST_FS_USES_SD_MMC
-    //#define DEST_FS_USES_LITTLEFS
-    #include <ESP32-targz.h>
 
-    // Progress callback for gzip, leave empty for less console output
-    void myGzProgressCallback( uint8_t progress )
+    // basic progress callback (valid for tar or gzip)
+    void myBasicProgressCallback( uint8_t progress )
     {
       Serial.printf("Progress: %d\n", progress );
     }
 
-    // General Error/Warning/Info logger, leave empty for less console output
+
+    // complex progress callback (valid for tar or gzip)
+    void myProgressCallback( uint8_t progress )
+    {
+      static int8_t myLastProgress = -1;
+      if( myLastProgress != progress ) {
+        if( myLastProgress == -1 ) {
+          Serial.print("Progress: ");
+        }
+        myLastProgress = progress;
+        switch( progress ) {
+          case   0: Serial.print("0% ▓");  break;
+          case  25: Serial.print(" 25% ");break;
+          case  50: Serial.print(" 50% ");break;
+          case  75: Serial.print(" 75% ");break;
+          case 100: Serial.print("▓ 100%\n"); myLastProgress = -1; break;
+          default: if( progress < 100) Serial.print( "▓" ); break;
+        }
+      }
+    }
+
+
+    // General Error/Warning/Info logger
     void myLogger(const char* format, ...)
     {
       va_list args;
@@ -204,65 +265,13 @@ Callbacks
       va_end(args);
     }
 
+
     // status callback for TAR (fired at file creation)
     void myTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked )
     {
       Serial.printf("[TAR] %-64s %8d bytes - %8d Total bytes\n", name, size, total_unpacked );
     }
 
-    // progress callback for TAR (fired for each individual file)
-    void myTarProgressCallback( uint8_t progress )
-    {
-      static int8_t myLastProgress = -1;
-      if( myLastProgress != progress ) {
-        myLastProgress = progress;
-        if( progress == 0 ) {
-          Serial.print("Progress: [0% ");
-        } else if( progress == 100 ) {
-          Serial.println(" 100%]\n");
-        } else {
-          switch( progress ) {
-            case 25: Serial.print(" 25% ");break;
-            case 50: Serial.print(" 50% ");break;
-            case 75: Serial.print(" 75% ");break;
-            default: Serial.print("T"); break;
-          }
-        }
-      }
-    }
-
-
-    void setup()
-    {
-      // (...)
-
-      tarGzFs.begin(true);
-
-      // attach progress/log callbacks
-      setProgressCallback( myGzProgressCallback );
-      setLoggerCallback( myLogger );
-      setTarMessageCallback( myLogger );
-
-      setTarProgressCallback( myTarProgressCallback ); // prints the untarring progress for each individual file
-      setTarStatusProgressCallback( myTarStatusProgressCallback ); // print the filenames as they're expanded
-
-      // .... or attach empty callbacks to silent the output (zombie mode)
-      // setProgressCallback( targzNullProgressCallback );
-      // setLoggerCallback( targzNullLoggerCallback );
-      // setTarMessageCallback( targzNullLoggerCallback );
-
-      // optional but recommended, to check for available space before writing
-      setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
-
-      // (...)
-
-      if( tarGzExpander(tarGzFs, "/blah.tar.gz", tarGzFs, "/tmp", nullptr ) ) {
-        Serial.println("Yay!");
-      } else {
-        Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
-      }
-
-    }
 
 
 ```
@@ -286,6 +295,8 @@ Return Codes
     - `-102` : No space left on device
     - `-103` : Not enough heap
     - `-104` : Gzip dictionnary needs to be enabled
+    - `-105` : Gz Error when parsing header
+    - `-106` : Gz Error when allocating memory
 
   - UZLIB: forwarding error values from uzlib.h as is (no offset)
 
@@ -319,12 +330,21 @@ Return Codes
     - `37`  : Tar Error TAR_ERR_HEADERPARSE_FAIL
 
 
+
+Test Suite
+----------
+
+  - 📷 [ESP32 capture](extras/esp32-test-suite.gif)
+  - 📷 [ESP8266 capture](extras/esp8266-test-suite.gif)
+
+
 Known bugs
 ----------
 
 
   - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
+
   ~~- tarGzExpander: files smaller than 4K aren't processed~~
   - ~~error detection isn't deferred efficiently, debugging may be painful~~
   - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
@@ -349,5 +369,6 @@ Credits:
   - [atanisoft](https://github.com/atanisoft) (motivation and support)
   - [lbernstone](https://github.com/lbernstone) (motivation and support)
   - [scubachristopher](https://github.com/scubachristopher) (contribution and support)
+  - [infrafast](https://github.com/infrafast) (feedback fueler)
 
 
