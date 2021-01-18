@@ -1,4 +1,4 @@
-# 🗜️ESP32-targz
+# 🗜️ ESP32-targz
 
 ## An ESP32/ESP8266 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
@@ -16,10 +16,16 @@
 
 This library enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data ~~without using an intermediate file~~ (bug: see [#4](https://github.com/tobozo/ESP32-targz/issues/4)).
 
-In order to reach this goal, TinyUntar was heavily modified to allow data streaming, however uzlib is used *as is*.
+In order to reach this goal, TinyUntar was heavily modified to allow data streaming, uzlib is also customized.
 
-:warning: uzlib will eat ~36KB of sram when used, and try to free them afterwards.
+Tradeoffs
+---------
+
+When the output is the filesystem (e.g. NOT when streaming to TAR), gzip can work without the dictionary.
+Disabling the dictionary can cause huge slowdowns but saves ~36KB of ram.
+
 TinyUntar requires 512bytes only so its memory footprint is negligible.
+
 
 
 Scope
