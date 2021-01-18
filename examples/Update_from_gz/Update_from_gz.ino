@@ -25,7 +25,6 @@
 // 4) Edit the value of "const char* firmwareFile" in this sketch to match the gz file name:
 //
 // 5) Flash this sketch
-
 #ifdef ESP8266
   const char* firmwareFile = "/esp8266_example_firmware.gz";
 #elif defined ESP32
@@ -43,34 +42,29 @@ void setup() {
 
   if (!tarGzFS.begin()) {
     Serial.println("Filesystem Mount Failed");
-    while(1);
+    while(1) yield();
+  }
+
+  Serial.println("Filesystem Mount Successful");
+
+  if (tarGzFS.exists( firmwareFile )) { // <<< gzipped firmware update
+    Serial.printf("Found file, about to update...\n");
+    // flash the ESP with gz's contents (gzip the bin yourself and use the spiffs uploader)
+    GzUnpacker *GZUnpacker = new GzUnpacker();
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    if( ! GZUnpacker->gzUpdater(tarGzFS, firmwareFile, /*don't restart after update*/false ) ) {
+      Serial.printf("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
+    }
   } else {
-    Serial.println("Filesystem Mount Successful");
+    Serial.println("Firmware not found");
   }
 
 }
 
 
 void loop() {
-  bool done = false;
 
-  while (!done) {
-    delay(1000);
-    if (tarGzFS.exists( firmwareFile )) { // <<< gzipped firmware update
-      Serial.printf("Found file, about to update...\n");
-      delay(1000);
-      // attach empty callbacks to silent the output (zombie mode)
-      // setProgressCallback( targzNullProgressCallback );
-      // setLoggerCallback( targzNullLoggerCallback );
-      // flash the ESP with gz's contents (gzip the bin yourself and use the spiffs uploader)
-      if( ! gzUpdater(tarGzFS, firmwareFile ) ) {
-        Serial.printf("gzUpdater failed with return code #%d", tarGzGetError() );
-        while(1); // prevent bad loop
-      }
-      done = true;
-    } else {
-      Serial.println("Firmware not found");
-      while(1);
-    }
-  }
 }

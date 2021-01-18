@@ -27,18 +27,19 @@ void setup() {
     Serial.println("Filesystem Mount Successful");
   }
 
-  // attach FS callbacks to prevent the partition from exploding during decompression
-  setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
-  // attach empty callbacks to silent the output (zombie mode)
-  // setProgressCallback( targzNullProgressCallback );
-  // setLoggerCallback( targzNullLoggerCallback );
+  TarUnpacker *TARUnpacker = new TarUnpacker();
+  TARUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+  TARUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+  TARUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+  TARUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+  TARUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+  TARUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
 
-  // expand tar contents to /tmp folder
-  if(  tarExpander(tarGzFS, "/tar_expander_example.tar", tarGzFS, "/") ) {
-    tarGzListDir( tarGzFS, "/", 3 );
-  } else {
-    Serial.printf("tarExpander failed with return code #%d\n", tarGzGetError() );
+  if( !TARUnpacker->tarExpander(tarGzFS, "/tar_example.tar", tarGzFS, "/") ) {
+    Serial.printf("tarExpander failed with return code #%d\n", TARUnpacker->tarGzGetError() );
   }
+
+  TARUnpacker->tarGzListDir( tarGzFS, "/", 3 );
 
 }
 

@@ -15,19 +15,21 @@ int received_bytes;
 int indatablock;
 int tar_error = TAR_OK;
 
-void (*tar_error_logger)(const char* subject, ...);
-void (*tar_debug_logger)(const char* subject, ...);
+extern void (*tar_error_logger)(const char* subject, ...);
+extern void (*tar_debug_logger)(const char* subject, ...);
 
-static void log_error(const char *message) {
+void log_error(const char *message) {
   if(tar_error_logger) tar_error_logger("[TAR ERROR]: %s\n", message);
+  //else printf("[TAR ERROR]: %s\n", message);
 }
 
-static void log_debug(const char *message) {
+void log_debug(const char *message) {
   if(tar_debug_logger) tar_debug_logger("[TAR DEBUG]: %s\n", message);
+  //else printf("[TAR DEBUG]: %s\n", message);
 }
 
 int parse_header(const unsigned char buffer[TAR_BLOCK_SIZE], header_t *header) {
-  log_debug("Copying tar header");
+  //log_debug("Copying tar header");
   memcpy(header, buffer, sizeof(header_t));
   return TAR_OK;
 }
@@ -192,11 +194,19 @@ int translate_header(header_t *raw_header, header_translated_t *parsed) {
   return TAR_OK;
 }
 
-static int read_block(unsigned char *buffer) {
+int read_block(unsigned char *buffer) {
   char message[200];
   int num_read;
 
-  num_read = tinyUntarReadCallback(buffer, TAR_BLOCK_SIZE);
+  //log_debug("Will read block");
+
+  if( read_tar_callbacks->read_cb == NULL ) {
+    log_error("read_cb() has NOT been defined" );
+    tar_error = TAR_ERR_READBLOCK_FAIL;
+    return TAR_ERROR;
+  }
+
+  num_read = read_tar_callbacks->read_cb(buffer, TAR_BLOCK_SIZE);
 
   if(num_read < TAR_BLOCK_SIZE) {
     snprintf(message,
@@ -222,7 +232,7 @@ int expand_tar_data_block() {
 
   read_buffer[current_data_size] = 0;
 
-  if(read_tar_callbacks->data_cb(&header_translated, entry_index, read_context_data, read_buffer, current_data_size) != 0) {
+  if(read_tar_callbacks->write_cb(&header_translated, entry_index, read_context_data, read_buffer, current_data_size) != 0) {
     //log_error("Data callback failed.");
     return TAR_ERR_DATACB_FAIL;
   }
@@ -263,16 +273,24 @@ void tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
 
 
 int tar_datablock_step() {
+
+  static int block_read = 0;
+
   if(num_blocks_iterator < num_blocks) {
-    if(read_block( read_buffer ) != 0) {
-      tar_abort("Could not read block. File too short.", 1);
-      tar_error = TAR_ERR_READBLOCK_FAIL;
-      return tar_error;
-    }
-    int res = expand_tar_data_block();
-    if( res != 0 ) {
-      tar_abort("Data callback failed", 1);
-      return res;
+    if( block_read == 0 ) {
+      if(read_block( read_buffer ) != 0) {
+        tar_abort("Could not read block. File too short.", 1);
+        tar_error = TAR_ERR_READBLOCK_FAIL;
+        return tar_error;
+      }
+      block_read = 1;
+    } else {
+      int res = expand_tar_data_block();
+      if( res != 0 ) {
+        tar_abort("Data callback failed", 1);
+        return res;
+      }
+      block_read = 0;
     }
     return TAR_CONTINUE;
   } else {
@@ -290,6 +308,8 @@ int tar_datablock_step() {
 
 int tar_step() {
 
+  static int readstep = 0;
+
   if( tar_error != TAR_OK ) {
     tar_abort("tar expanding interrupted!", 1);
     return tar_error;
@@ -301,13 +321,20 @@ int tar_step() {
 
   if(empty_count >= 2) {
     tar_abort("tar expanding done!", 0);
-    return TAR_ERROR;
+    return TAR_EXPANDING_DONE;
   }
 
-  if(read_block( read_buffer ) != 0) {
-    tar_abort("tar expanding done!", 0);
-    return TAR_ERROR;
+  if( readstep == 0 ) {
+    if(read_block( read_buffer ) != 0) {
+      tar_abort("tar expanding done!", 0);
+      return TAR_ERROR;
+    }
+    readstep = 1;
+    return TAR_OK;
+  } else {
+    readstep = 0;
   }
+
   // If we haven't yet determined what format to support, read the
   // header of the next entry, now. This should be done only at the
   // top of the archive.
@@ -367,7 +394,7 @@ int read_tar_step() {
       return TAR_OK;
     }
   } else {
-    return TAR_OK;
+    return res == TAR_EXPANDING_DONE ? TAR_EXPANDING_DONE : TAR_OK;
   }
 }
 
@@ -430,7 +457,7 @@ int read_tar( entry_callbacks_t *callbacks, void *context_data) {
 
         read_buffer[current_data_size] = 0;
 
-        if(callbacks->data_cb(&header_translated, entry_index, context_data, read_buffer, current_data_size) != 0) {
+        if(callbacks->write_cb(&header_translated, entry_index, context_data, read_buffer, current_data_size) != 0) {
           tar_abort("Data callback failed.", 1);
           tar_error = TAR_ERR_DATACB_FAIL;
           return tar_error;

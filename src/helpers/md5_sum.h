@@ -66,12 +66,14 @@ class MD5Sum {
 
 
 //#include <ESP32-targz.h>
-// some ESP32 => ESP8266 syntax shim
+
+/*
 #define log_e tgzLogger
 #define log_w tgzLogger
 #define log_i tgzLogger
-#define log_d targzNullLoggerCallback
-#define log_v targzNullLoggerCallback
+#define log_d BaseUnpacker::targzNullLoggerCallback
+#define log_v BaseUnpacker::targzNullLoggerCallback
+*/
 extern void (*tgzLogger)( const char* format, ...);
 #include <MD5Builder.h>
 

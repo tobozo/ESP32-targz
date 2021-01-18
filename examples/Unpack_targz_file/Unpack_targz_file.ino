@@ -13,21 +13,18 @@
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
-//#include <ESP8266WiFi.h>
-//#include <ESP8266HTTPClient.h>
 
 // small partitions crash-test !!
 // contains 1 big file that will make the extraction fail on partitions <= 1.5MB
-// const char *fileTooBigForSPIFFS = "/zombocrash.tar.gz";
+// const char *tarGzFile = "/zombocrash.tar.gz";
 
 // regular test, should work even after a crash-test
 // same archive without the big file
-const char *fileJustBigEnoughForSPIFFS = "/zombocom.tar.gz";
+const char *tarGzFile = "/zombocom.tar.gz";
 
 void setup() {
 
   Serial.begin( 115200 );
-
 
   delay(1000);
   Serial.printf("Initializing Filesystem with free heap: %d\n", ESP.getFreeHeap() );
@@ -35,43 +32,30 @@ void setup() {
   if (!tarGzFS.begin()) {
     Serial.println("Filesystem Mount Failed :(");
   } else {
+
     Serial.println("Source filesystem Mount Successful :)");
 
-    // attach FS callbacks to prevent the partition from exploding during decompression
-    setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
-    // attach empty callbacks to silent the output (zombie mode)
-    // setProgressCallback( targzNullProgressCallback );
-    // setLoggerCallback( targzNullLoggerCallback );
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+    TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    TARGZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
 
-    // targz files can be extracted with or without an intermediate file
-
-    Serial.println("Decompressing using an intermediate file: this is slower and requires more filesystem space, but uses less memory");
-    if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp") ) {
-      Serial.println("Yay!");
-      Serial.println("Filesystem contents:");
-    } else {
-      Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
+    if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, "/tmp") ) {
+      Serial.printf("tarGzExpander+intermediate file failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     }
 
-    Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
-
-    #ifdef ESP32
-    // ESP32 has enough ram to uncompress without intermediate file
-    Serial.println("Decompressing using no intermediate file is faster and generates much less i/o, but consumes more memory (~32kb)");
-    if( tarGzExpander(tarGzFS, fileJustBigEnoughForSPIFFS, tarGzFS, "/tmp", nullptr ) ) {
-      Serial.println("Yay!");
-      Serial.println("Filesystem contents:");
-    } else {
-      Serial.printf("tarGzExpander failed with return code #%d\n", tarGzGetError() );
+    if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, "/tmp", nullptr ) ) {
+      Serial.printf("tarGzExpander+intermediate file failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
     }
 
-    Serial.printf("Free heap after operation: %d\n", ESP.getFreeHeap() );
-    #endif
-
+    TARGZUnpacker->tarGzListDir( tarGzFS, "/", 3 );
 
   }
-
-  tarGzListDir( tarGzFS, "/", 3 );
 
 }
 

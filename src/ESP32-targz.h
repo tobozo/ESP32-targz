@@ -29,10 +29,12 @@
   #endif
 
 #elif defined ESP8266
-
   // ESP8266 has no SD_MMC or FFat.h library, so these are implicitely invalidated
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
+  // the fuck with spamming the console
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
   #if defined DEST_FS_USES_SD
     #include <SDFS.h>
@@ -120,6 +122,13 @@ size_t targzTotalBytesFn() {
   #endif
 }
 
-#include <ESP32-targz-lib.h>
+#include "ESP32-targz-lib.h"
+
+/*
+#include "Unpacker/Base.h"
+#include "Unpacker/Tar.h"
+#include "Unpacker/Gz.h"
+#include "Unpacker/TarGz.h"
+*/
 
 #endif

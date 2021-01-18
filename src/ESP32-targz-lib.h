@@ -2,7 +2,7 @@
 
   MIT License
 
-  Copyright (c) 2020 tobozo
+  Copyright (c) 2020-now tobozo
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -55,60 +55,53 @@
   #error Unsupported architecture
 #endif
 
-// unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
-bool    tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
-// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-bool    tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
-// uncompresses *gzipped* sourceFile to destFile, filesystems may differ
-bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
-// flashes the ESP with the content of a *gzipped* file
-bool    gzUpdater( fs::FS &fs, const char* gz_filename );
-#if defined ESP32
-// flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
-bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0 );
+#define GZIP_DICT_SIZE 32768
+#define GZIP_BUFF_SIZE 4096
+
+#define FOLDER_SEPARATOR "/"
+
+#ifndef FILE_READ
+  #define FILE_READ "r"
 #endif
-// null progress callback, use with setProgressCallback() to silent output
-void    targzNullProgressCallback( uint8_t progress );
-// error/warning/info null logger, use with setLoggerCallback() to silent output
-void    targzNullLoggerCallback( const char* format, ... );
-// naive ls
-void    tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels=1, bool hexDump = false );
-// fs helper
-//char    *dirname( char *path );
-// useful to share the buffer so it's not totally wasted memory outside targz scope
-uint8_t *getGzBufferUint8();
-// file-based hexViewer for debug
-void    hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+#ifndef FILE_WRITE
+  #define FILE_WRITE "w+"
+#endif
+#ifndef SPI_FLASH_SEC_SIZE
+  #define SPI_FLASH_SEC_SIZE 4096
+#endif
+
+#define CC_UNUSED __attribute__((unused))
+
+
+namespace GZ
+{
+  #include "uzlib/uzlib.h"     // https://github.com/pfalcon/uzlib
+}
+
+namespace TAR
+{
+  extern "C"
+  {
+    #include "TinyUntar/untar.h" // https://github.com/dsoprea/TinyUntar
+  }
+}
 
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
 // to explode during stream writes.
 typedef size_t (*fsTotalBytesCb)();
 typedef size_t (*fsFreeBytesCb)();
-void    setFsTotalBytesCb( fsTotalBytesCb cb );
-void    setFsFreeBytesCb( fsFreeBytesCb cb );
 
 // setup filesystem helpers (totalBytes, freeBytes)
 // must be done from outside the library since FS is an abstraction of an abstraction :(
 typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
-void    setupFSCallbacks(  fsTotalBytesCb cbt, fsFreeBytesCb cbf );
+
+// tar doesn't have a real progress, so provide a status instead
+typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
 
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
 typedef void (*genericLoggerCallback)( const char* format, ... );
-void    setProgressCallback( genericProgressCallback cb ); // for gzip
-void    setTarProgressCallback( genericProgressCallback cb ); // for tar
-void    setTarMessageCallback( genericLoggerCallback cb ); // for tar
-void    setLoggerCallback( genericLoggerCallback cb );
-void    setTarVerify( bool verify ); // enables health checks but does slower writes
-
-
-// Error handling
-__attribute__((unused))
-static void (*tgzLogger)( const char* format, ...);
-int8_t  tarGzGetError();
-void    tarGzClearError();
-bool    tarGzHasError();
 
 // This is only to centralize error codes and spare the
 // hassle of looking up in three different library folders
@@ -129,6 +122,8 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_FS_READSIZE_ERROR          =  -102, // no space left on device
   ESP32_TARGZ_HEAP_TOO_LOW               =  -103, // not enough heap
   ESP32_TARGZ_NEEDS_DICT                 =  -104, // gzip dictionnary needs to be enabled
+  ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
+  ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file
@@ -161,7 +156,103 @@ typedef enum tarGzErrorCode /* int8_t */
 } ErrorCodes ;
 
 
+
+
+struct BaseUnpacker
+{
+  BaseUnpacker();
+  bool tarGzHasError();
+  int8_t tarGzGetError();
+  void tarGzClearError();
+  void haltOnError( bool halt );
+  void initFSCallbacks();
+  void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
+  void hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
+  void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+  void setLoggerCallback( genericLoggerCallback cb );
+  void setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
+  static void tarNullProgressCallback( uint8_t progress );
+  static void targzNullLoggerCallback( const char* format, ... );
+  static void targzNullProgressCallback( uint8_t progress );  // null progress callback, use with setProgressCallback or setTarProgressCallback to silent output
+  static void targzPrintLoggerCallback(const char* format, ...);  // error/warning/info logger, use with setLoggerCallback() to enable output
+  static void defaultProgressCallback( uint8_t progress );  // print progress callback, use with setProgressCallback or setTarProgressCallback to enable progress output
+  static void defaultTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked ); // print tar status since a progress can't be provided
+  static void setFsTotalBytesCb( fsTotalBytesCb cb ); // filesystem helpers totalBytes
+  static void setFsFreeBytesCb( fsFreeBytesCb cb ); // filesystem helpers freeBytes
+};
+
+
+struct TarUnpacker : virtual public BaseUnpacker
+{
+  TarUnpacker();
+  bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
+  //TODO: tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );
+  void setTarStatusProgressCallback( tarStatusProgressCb cb );
+  void setTarProgressCallback( genericProgressCallback cb ); // for tar
+  void setTarMessageCallback( genericLoggerCallback cb ); // for tar
+  void setTarVerify( bool verify ); // enables health checks but does slower writes
+  static int unTarStreamReadCallback( unsigned char* buff, size_t buffsize );
+  static int unTarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+  static int unTarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
+  static int unTarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+};
+
+
+struct GzUnpacker : virtual public BaseUnpacker
+{
+  GzUnpacker();
+  bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
+  //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
+  //#if defined ESP32
+  bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0, bool restart_on_update = true ); // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
+  //#endif
+  void    setGzProgressCallback( genericProgressCallback cb );
+  uint8_t *gzGetBufferUint8();
+  void    gzExpanderCleanup();
+  int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
+  static bool         gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
+  static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
+  static bool         gzReadHeader(fs::File &gzFile);
+  static uint8_t      gzReadByte(fs::File &gzFile, const int32_t addr, fs::SeekMode mode=fs::SeekSet);
+  static unsigned int gzReadDestByte(int offset, unsigned char *out);
+  static unsigned int gzReadSourceByte(struct GZ::TINF_DATA *data, unsigned char *out);
+};
+
+
+struct TarGzUnpacker :
+   public TarUnpacker,
+   public GzUnpacker
+{
+
+  TarGzUnpacker();
+  // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
+  bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
+  // same as tarGzExpander but without intermediate file
+  bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
+  //#if defined ESP32
+  // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
+  bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
+  //#endif
+  static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
+  static int tarReadGzStream( unsigned char* buff, size_t buffsize );
+  static int gzFeedTarBuffer( unsigned char* buff, size_t buffsize );
+};
+
+
+#ifdef ESP8266
+  // some ESP32 => ESP8266 syntax shim
+  #define ARDUHAL_LOG_FORMAT(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", __FILE__, __LINE__, __FUNCTION__
+  #define log_v BaseUnpacker::targzNullLoggerCallback
+  #define log_d BaseUnpacker::targzNullLoggerCallback
+  #define log_i BaseUnpacker::targzNullLoggerCallback
+  #define log_w(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(W, format), ##__VA_ARGS__)
+  #define log_e(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
+  #define log_n(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
+#endif
+// md5sum (essentially for debug)
 #include "helpers/md5_sum.h"
+// helpers: mkdir, mkpath, dirname
 #include "helpers/path_tools.h"
 
 
