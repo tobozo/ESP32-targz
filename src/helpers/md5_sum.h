@@ -78,7 +78,8 @@ extern void (*tgzLogger)( const char* format, ...);
 #include <MD5Builder.h>
 
 static MD5Builder _md5;
-
+static char md5result[33];
+static uint8_t fbuf[256];
 
 class MD5Sum {
 
@@ -86,21 +87,15 @@ class MD5Sum {
 
     static char* fromFile(fs::File &file ) {
 
-      static char md5result[33];
-      uint8_t * _buf = (uint8_t*)malloc(16);
-
-      if(_buf == NULL) {
-        log_e("Error can't malloc 16 bytes for md5 hashing");
-        return md5result;
-      }
-
       int len = file.size();
-      file.seek(0); // make sure to read from the start
+      if( file.position() != 0 )
+        file.seek(0); // make sure to read from the start
 
       _md5.begin();
 
-      int bufSize = len > 4096 ? 4096 : len;
-      uint8_t *fbuf = (uint8_t*)malloc(bufSize+1);
+      int bufSize = len > 256 ? 256 : len;
+      //uint8_t *fbuf = (uint8_t*)malloc(bufSize+1);
+
       size_t bytes_read = file.read( fbuf, bufSize );
 
       do {

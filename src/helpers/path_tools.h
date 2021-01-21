@@ -68,16 +68,9 @@ static char *dirname(char *path)
 __attribute__((unused))
 static int mkpath(fs::FS *fs, char *dir)
 {
-  if (!dir) {
-    //errno = EINVAL;
-    return 1;
-  }
-
-  if (strlen(dir) == 1 && dir[0] == '/')
-    return 0;
-
+  if (!dir) return 1;
+  if (strlen(dir) == 1 && dir[0] == '/') return 0;
   mkpath(fs, dirname(strdupa(dir)));
-
   return fs->mkdir( dir );
 }
 
@@ -91,18 +84,25 @@ static void mkdirp( fs::FS *fs, const char* tempFile )
     return; // no need to create folder if the file is there
   }
 
-  char *tmp_path = new char[256];
-  memcpy( tmp_path, tempFile, 256 );
+  char tmp_path[256] = {0};
+  snprintf( tmp_path, 256, "%s", tempFile );
+
+  for( size_t i=0;i<strlen(tmp_path);i++ ) {
+    if( !isPrintable( tmp_path[i] ) ) {
+      log_w("Non printable char detected in path at offset %d, setting null", i);
+      tmp_path[i] = '\0';
+    }
+  }
+
   char *dir_name = dirname( tmp_path );
 
   if( !fs->exists( dir_name ) ) {
-    log_v("Creating %s folder for path %s", dir_name, tempFile);
-    //fs->mkdir( dir_name );
+    log_v("Creating %s folder for path %s", dir_name, tmp_path);
     mkpath( fs, dir_name );
   } else {
-    log_v("Folder %s already exists for path %s", dir_name, tempFile);
+    log_v("Folder %s already exists for path %s", dir_name, tmp_path);
   }
-  delete tmp_path;
+  //delete tmp_path;
 }
 
 #endif
