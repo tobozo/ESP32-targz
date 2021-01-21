@@ -124,12 +124,14 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_NEEDS_DICT                 =  -104, // gzip dictionnary needs to be enabled
   ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
   ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
+  ESP32_TARGZ_INTEGRITY_FAIL             =  -107, // General error, file integrity check fail
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file
   ESP32_TARGZ_UZLIB_DATA_ERROR           =  -3,   // Gz Error TINF_DATA_ERROR
   ESP32_TARGZ_UZLIB_CHKSUM_ERROR         =  -4,   // Gz Error TINF_CHKSUM_ERROR
   ESP32_TARGZ_UZLIB_DICT_ERROR           =  -5,   // Gz Error TINF_DICT_ERROR
+  ESP32_TARGZ_TAR_ERR_FILENAME_NOT_GZ    =  -41,  // Gz error, can't guess filename
 
   // UPDATE: adding -20 offset to actual error values from Update.h
   ESP32_TARGZ_UPDATE_ERROR_ABORT         =  -8,   // Updater Error UPDATE_ERROR_ABORT        -20   // (12-20) = -8
@@ -152,6 +154,7 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_TAR_ERR_READBLOCK_FAIL     =  -35,  // Tar Error TAR_ERR_READBLOCK_FAIL    -30   // (-5-30) = -35
   ESP32_TARGZ_TAR_ERR_HEADERTRANS_FAIL   =  -36,  // Tar Error TAR_ERR_HEADERTRANS_FAIL  -30   // (-6-30) = -36
   ESP32_TARGZ_TAR_ERR_HEADERPARSE_FAIL   =  -37,  // Tar Error TAR_ERR_HEADERPARSE_FAIL  -30   // (-7-30) = -37
+  ESP32_TARGZ_TAR_ERR_HEAP_TOO_LOW       =  -38,  // Tar Error TAR_ERROR_HEAP            -30   // (-8-30) = -38
 
 } ErrorCodes ;
 
@@ -167,6 +170,9 @@ struct BaseUnpacker
   void haltOnError( bool halt );
   void initFSCallbacks();
   void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
+  #ifdef ESP8266
+  void printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
+  #endif
   void hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
   void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
   void setLoggerCallback( genericLoggerCallback cb );
@@ -179,6 +185,7 @@ struct BaseUnpacker
   static void defaultTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked ); // print tar status since a progress can't be provided
   static void setFsTotalBytesCb( fsTotalBytesCb cb ); // filesystem helpers totalBytes
   static void setFsFreeBytesCb( fsFreeBytesCb cb ); // filesystem helpers freeBytes
+  static void setGeneralError( tarGzErrorCode code );
 };
 
 
@@ -201,13 +208,12 @@ struct TarUnpacker : virtual public BaseUnpacker
 struct GzUnpacker : virtual public BaseUnpacker
 {
   GzUnpacker();
-  bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile );
+  bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
   //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
-  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
-  //#if defined ESP32
-  bool    gzStreamUpdater( Stream *stream, size_t uncompressed_size = 0, bool restart_on_update = true ); // flashes the ESP with the contents of a gzip stream (file or http), no progress callbacks
-  //#endif
+  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
+  bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
+  void    setGzMessageCallback( genericLoggerCallback cb );
   uint8_t *gzGetBufferUint8();
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
@@ -242,14 +248,41 @@ struct TarGzUnpacker :
 
 #ifdef ESP8266
   // some ESP32 => ESP8266 syntax shim
+
+  #define U_PART U_FS
   #define ARDUHAL_LOG_FORMAT(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", __FILE__, __LINE__, __FUNCTION__
-  #define log_v BaseUnpacker::targzNullLoggerCallback
-  #define log_d BaseUnpacker::targzNullLoggerCallback
-  #define log_i BaseUnpacker::targzNullLoggerCallback
-  #define log_w(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(W, format), ##__VA_ARGS__)
-  #define log_e(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
-  #define log_n(format, ...) tgzLogger(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__)
+
+  #if defined DEBUG_ESP_PORT
+    // always show errors/warnings when debug port is there
+    #define log_n(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(N, format), ##__VA_ARGS__);
+    #define log_e(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__);
+    #define log_w(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(W, format), ##__VA_ARGS__);
+
+    #if defined DEBUG_ESP_CORE
+      // be verbose
+      #define log_i(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(I, format), ##__VA_ARGS__);
+      #define log_d(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(D, format), ##__VA_ARGS__);
+      #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
+    #else
+      // don't be verbose, only errors+warnings
+      #define log_i BaseUnpacker::targzNullLoggerCallback
+      #define log_d BaseUnpacker::targzNullLoggerCallback
+      #define log_v BaseUnpacker::targzNullLoggerCallback
+    #endif
+
+  #else
+    #define log_n BaseUnpacker::targzNullLoggerCallback
+    #define log_e BaseUnpacker::targzNullLoggerCallback
+    #define log_w BaseUnpacker::targzNullLoggerCallback
+    #define log_i BaseUnpacker::targzNullLoggerCallback
+    #define log_d BaseUnpacker::targzNullLoggerCallback
+    #define log_v BaseUnpacker::targzNullLoggerCallback
+  #endif
+
+#else
+  #define U_PART U_SPIFFS
 #endif
+
 // md5sum (essentially for debug)
 #include "helpers/md5_sum.h"
 // helpers: mkdir, mkpath, dirname

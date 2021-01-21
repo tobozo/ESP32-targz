@@ -8,24 +8,30 @@
   #if defined DEST_FS_USES_SPIFFS
     #include <SPIFFS.h>
     #define tarGzFS SPIFFS
+    #define FS_NAME "SPIFFS"
   #elif defined DEST_FS_USES_FFAT
     #include <FFat.h>
     #define tarGzFS FFat
+    #define FS_NAME "FFAT"
   #elif defined DEST_FS_USES_SD
     #include <SD.h>
     #define tarGzFS SD
+    #define FS_NAME "SD"
   #elif defined DEST_FS_USES_SD_MMC
     #include <SD_MMC.h>
     #define tarGzFS SD_MMC
+    #define FS_NAME "SD_MMC"
   #elif defined DEST_FS_USES_LITTLEFS
     #include <LITTLEFS.h>
     #define tarGzFS LITTLEFS
+    #define FS_NAME "LITTLEFS"
   #else
     #warning "Unspecified filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_FFAT, DEST_FS_USES_SD, DEST_FS_USES_SD_MMC, DEST_FS_USES_LITTLEFS"
     #warning "Defaulting to SPIFFS"
     #define DEST_FS_USES_SPIFFS
     #include <SPIFFS.h>
     #define tarGzFS SPIFFS
+    #define FS_NAME "SPIFFS"
   #endif
 
 #elif defined ESP8266
@@ -39,17 +45,21 @@
   #if defined DEST_FS_USES_SD
     #include <SDFS.h>
     #define tarGzFS SDFS
+    #define FS_NAME "SD"
   #else
     #if defined DEST_FS_USES_LITTLEFS
       #include <LittleFS.h>
       #define tarGzFS LittleFS
+      #define FS_NAME "LITTLEFS"
     #elif defined DEST_FS_USES_SPIFFS
       #if defined USE_LittleFS // emulate SPIFFS using LittleFS
         #include <LittleFS.h>
         #define tarGzFS SPIFFS
+        #define FS_NAME "LITTLEFS"
       #else // use core SPIFFS
         #include <FS.h>
         #define tarGzFS SPIFFS
+        #define FS_NAME "SPIFFS"
       #endif
     #else // no destination filesystem defined in sketch
       #warning "Unspecified filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD"
@@ -59,11 +69,13 @@
         #define tarGzFS LittleFS
         #warning "Defaulting to LittleFS"
         #define DEST_FS_USES_LITTLEFS
+        #define FS_NAME "LITTLEFS"
       #else
         #include <FS.h>
         #define tarGzFS SPIFFS
         #warning "Defaulting to SPIFFS (soon deprecated)"
         #define DEST_FS_USES_SPIFFS
+        #define FS_NAME "SPIFFS"
       #endif
     #endif
   #endif
