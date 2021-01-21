@@ -259,16 +259,20 @@ void tar_abort( const char* msgstr, int iserror ) {
 }
 
 
-void tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
+int tar_setup(  entry_callbacks_t *callbacks, void *context_data ) {
   //log_debug("entering tar setup");
   tar_error = TAR_OK;
   read_tar_callbacks = callbacks;
   read_context_data = context_data;
   read_buffer = (unsigned char*)malloc(TAR_BLOCK_SIZE + 1);
+  if( read_buffer == NULL ) {
+    return TAR_ERROR_HEAP;
+  }
   entry_index = 0;
   empty_count = 0;
   indatablock = -1;
   read_buffer[TAR_BLOCK_SIZE] = 0;
+  return TAR_OK;
 }
 
 
@@ -384,8 +388,8 @@ int read_tar_step() {
   int res = tar_step();
 
   if( res < 0 ) {
-    char message[200];
     if( res != TAR_ERROR ) {
+      char message[200];
       snprintf(message, 200, "read_tar return code (%d)", res );
       tar_abort(message, 1);
       return res;

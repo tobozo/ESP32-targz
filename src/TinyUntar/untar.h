@@ -39,6 +39,7 @@ inline int get_last_block_portion_size(int filesize);
 #define TAR_ERR_READBLOCK_FAIL   -5
 #define TAR_ERR_HEADERTRANS_FAIL -6
 #define TAR_ERR_HEADERPARSE_FAIL -7
+#define TAR_ERROR_HEAP           -8
 
 #define TAR_BLOCK_SIZE 512
 
@@ -98,6 +99,9 @@ typedef int (*entry_header_callback_t)(header_translated_t *header,
 										int entry_index,
 										void *context_data);
 
+typedef int(*entry_read_callback_t)(unsigned char* buff,
+                                     size_t buffsize );
+
 typedef int (*entry_write_callback_t)(header_translated_t *header,
 										int entry_index,
 										void *context_data,
@@ -108,8 +112,7 @@ typedef int (*entry_end_callback_t)(header_translated_t *header,
 									int entry_index,
 									void *context_data);
 
-typedef int(*entry_read_callback_t)(unsigned char* buff,
-                                     size_t buffsize );
+
 
 struct entry_callbacks_s
 {
@@ -125,7 +128,7 @@ typedef struct entry_callbacks_s entry_callbacks_t;
 __attribute__((unused))static void (*tar_error_logger)(const char* subject, ...);
 __attribute__((unused))static void (*tar_debug_logger)(const char* subject, ...);
 
-void tar_setup(  entry_callbacks_t *callbacks, void *context_data );
+int tar_setup(  entry_callbacks_t *callbacks, void *context_data );
 void tar_abort( const char* msgstr, int iserror);
 //int read_tar_data_block();
 int read_tar( entry_callbacks_t *callbacks, void *context_data);
