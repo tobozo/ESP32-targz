@@ -194,7 +194,7 @@ ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
 ```
 
 
-ESP32 Only: Direct expansion (no intermediate file) from .tar.gz.` stream (HTTP or Filesystem)
+ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream (HTTP or Filesystem)
 ----------------------------------------------------------------------------------------------
 ```C
 
