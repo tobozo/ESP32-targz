@@ -303,6 +303,7 @@ Return Codes
     - `-104` : Gzip dictionnary needs to be enabled
     - `-105` : Gz Error when parsing header
     - `-106` : Gz Error when allocating memory
+    - `-107` : General error, file integrity check fail
 
   - UZLIB: forwarding error values from uzlib.h as is (no offset)
 
@@ -310,6 +311,7 @@ Return Codes
     - `-3`   : Gz Error TINF_DATA_ERROR
     - `-4`   : Gz Error TINF_CHKSUM_ERROR
     - `-5`   : Gz Error TINF_DICT_ERROR
+    - `-41`  : Gz error, can't guess filename
 
   - UPDATE: applying -20 offset to forwarded error values from Update.h
 
@@ -347,7 +349,6 @@ Test Suite
 Known bugs
 ----------
 
-
   - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
 
@@ -356,13 +357,21 @@ Known bugs
   - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
   - ~~reading/writing simultaneously on SPIFFS may induce errors~~
 
+
+Debugging:
+----------
+
+  - ESP32: use all of the "Debug level" values from the boards menu
+  - ESP8266: Warning/Error when "Debug Port:Serial" is used, and Debug/Verbose when "Debug Level:Core" is selected from the boards menu
+
+
 Resources
 -----------
+  - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
+  - [ESP8266 Sketch Data Upload tool for LittleFS](https://github.com/earlephilhower/arduino-esp8266littlefs-plugin)
   - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
 
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
-
-  - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
 
 
 Credits:
