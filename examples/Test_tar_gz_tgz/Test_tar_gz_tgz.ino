@@ -6,9 +6,9 @@
  *
 \*/
 // Set **destination** filesystem by uncommenting one of these:
-#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
+//#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
 //#define DEST_FS_USES_LITTLEFS
-//#define DEST_FS_USES_SD
+#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
@@ -247,6 +247,54 @@ bool test_tarGzStreamExpander()
 
 
 
+#include <SPIFFS.h>
+
+bool test_tarGzStreamUpdater()
+{
+  bool ret = false;
+  #if defined ESP32
+    const char* bundleGzFile = "/partitions_bundle_esp32.tar.gz"; // archive containing both partitions for app and spiffs
+  #endif
+  #if defined ESP8266
+    // unsupported yet
+    return true;
+  #endif
+
+  SerialPrintCentered("Testing tarGzStreamUpdater", false, true );
+
+  TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+  TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+  TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
+  // TARGZUnpacker->setupFSCallbacks( nullptr, nullptr ); // Update.h already takes care of that
+  TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // don't care about gz progress
+  TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual partition
+  TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+  TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
+
+  SerialPrintCentered("Pre formattings SPIFFS", true, false );
+
+  SPIFFS.format();
+
+  SerialPrintCentered("Done!", false, true );
+
+  fs::File file = tarGzFS.open( bundleGzFile, "r" );
+  if (!file) {
+    Serial.println( OpenLine );
+    SerialPrintfCentered("Can't open file");
+    Serial.println( CloseLine );
+    while(1) { yield(); }
+  }
+  Stream *streamptr = &file;
+  if( !TARGZUnpacker->tarGzStreamUpdater( streamptr ) ) {
+    Serial.println( OpenLine );
+    SerialPrintfCentered("tarGzStreamUpdater failed with return code #%d", TARGZUnpacker->tarGzGetError() );
+    Serial.println( CloseLine );
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
 
 void setup()
 {
@@ -269,26 +317,27 @@ void setup()
   SerialPrintCentered("ESP32-Targz Test Suite", true);
   Serial.println( MiddleLine );
 
-  if( testNum < 6 ) {
-    #if defined DEST_FS_USES_SD
-      #if defined ESP8266
-        SDFSConfig sdConf(4, SD_SCK_MHZ(20) );
-        tarGzFS.setConfig(sdConf);
-        if (!tarGzFS.begin())
-      #else // ESP32 specific SD settings
-        // if (!tarGzFS.begin( TFCARD_CS_PIN, 16000000 ))
-        if (!tarGzFS.begin())
-      #endif
-    #else // LITTLEFS or SPIFFS
-      //tarGzFS.format();
+  #if defined DEST_FS_USES_SD
+    #if defined ESP8266
+      SDFSConfig sdConf(4, SD_SCK_MHZ(20) );
+      tarGzFS.setConfig(sdConf);
+      if (!tarGzFS.begin())
+    #else // ESP32 specific SD settings
+      // if (!tarGzFS.begin( TFCARD_CS_PIN, 16000000 ))
       if (!tarGzFS.begin())
     #endif
-    {
-      SerialPrintfCentered("%s Mount Failed, halting", FS_NAME );
-      while(1) yield();
-    } else {
-      SerialPrintfCentered("%s Mount Successful", FS_NAME);
-    }
+  #else // LITTLEFS or SPIFFS
+    //tarGzFS.format();
+    if (!tarGzFS.begin())
+  #endif
+  {
+    SerialPrintfCentered("%s Mount Failed, halting", FS_NAME );
+    while(1) yield();
+  } else {
+    SerialPrintfCentered("%s Mount Successful", FS_NAME);
+  }
+
+  if( testNum < 7 ) {
     Serial.println( MiddleLine );
     SerialPrintfCentered("System Available heap: %d bytes", ESP.getFreeHeap() );
     Serial.println( MiddleLine );
@@ -310,17 +359,21 @@ void setup()
     case 1: test_succeeded = test_gzExpander(); break;
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
-    case 5: test_succeeded = test_gzUpdater(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
+    case 5: test_succeeded = test_gzUpdater(); break;
+    case 6: test_succeeded = test_tarGzStreamUpdater(); break;
     default:
       tests_finished = true;
     break;
   }
 
   if( tests_finished ) {
-    SerialPrintCentered("All tests performed, press reset to restart", false, true );
     EEPROM.write(0, 0 );
     EEPROM.commit();
+    BaseUnpacker *Unpacker = new BaseUnpacker();
+    SPIFFS.begin();
+    Unpacker->tarGzListDir( SPIFFS, "/", 3 );
+    SerialPrintCentered("All tests performed, press reset to restart", false, true );
   }
 
   if( test_succeeded ) {

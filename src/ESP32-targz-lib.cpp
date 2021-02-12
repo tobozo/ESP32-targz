@@ -96,6 +96,7 @@ static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static struct GZ::TINF_DATA uzLibDecompressor;
 static uint16_t gzTarBlockPos = 0;
 static size_t tarReadGzStreamBytes = 0;
+static bool tarBlockIsUpdateData = false;
 size_t min_output_buffer_size = 512;
 
 static bool halt_on_error()
@@ -674,6 +675,163 @@ int TarUnpacker::unTarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED i
 }
 
 
+
+
+int TarUnpacker::unTarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data)
+{
+  dump_header(proper);
+  static size_t totalsize = 0;
+  if(proper->type == TAR::T_NORMAL) {
+
+    int partition = -1;
+
+    if( String( proper->filename ).endsWith("ino.bin") ) {
+      // partition = app
+      partition = U_FLASH;
+    } else if( String( proper->filename ).endsWith("spiffs.bin") ) {
+      // partition = spiffs
+      partition = U_PART;
+    } else {
+      // not relevant to Update
+      return ESP32_TARGZ_OK;
+    }
+
+    // check that proper->filesize is smaller than partition available size
+    if( !Update.begin( proper->filesize/*UPDATE_SIZE_UNKNOWN*/, partition ) ) {
+      setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+      return (Update.getError()-20);
+    }
+
+    tarCurrentFileSize = proper->filesize; // for progress
+    tarCurrentFileSizeProgress = 0; // for progress
+    tarBlockIsUpdateData = true;
+
+    totalsize += proper->filesize;
+    if( tarStatusProgressCallback ) {
+      tarStatusProgressCallback( proper->filename, proper->filesize, totalsize );
+    }
+    if( totalsize == proper->filesize )
+      tarProgressCallback( 0 );
+
+  }/* else {
+
+    switch( proper->type ) {
+      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", proper->filename); break;
+      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", proper->filename); break;
+      case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
+      case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
+      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", proper->filename);
+        //tarMessageCallback( "Entering %s directory\n", proper->filename );
+        if( tarStatusProgressCallback ) {
+          tarStatusProgressCallback( proper->filename, 0, totalsize );
+        }
+        totalFolders++;
+      break;
+      case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
+      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", proper->filename); break;
+      case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
+      case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
+      case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
+    }
+
+  }*/
+
+  return ESP32_TARGZ_OK;
+}
+
+
+int TarUnpacker::unTarEndUpdateCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data)
+{
+  int ret = ESP32_TARGZ_OK;
+
+  if ( !Update.end( true ) ) {
+    Update.printError(Serial);
+    log_e( "Update Error Occurred. Error #: %u", Update.getError() );
+    setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+    return (Update.getError()-20);
+  }
+
+  if ( !Update.isFinished() ) {
+    log_e("Update incomplete");
+    setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
+    return ESP32_TARGZ_UPDATE_INCOMPLETE;
+  }
+
+  log_d("Update finished !");
+  Update.end();
+
+  tarBlockIsUpdateData = false;
+  tarProgressCallback( 100 );
+  log_d("Total expanded bytes: %d, heap free: %d", (int)totalsize, ESP.getFreeHeap() );
+  tarMessageCallback( "%s", proper->filename );
+  totalFiles++;
+
+  return ret;
+}
+
+
+
+int TarUnpacker::unTarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length)
+{
+  if( tarBlockIsUpdateData ) {
+    int wlen = Update.write( block, length );
+    if( wlen != length ) {
+      //tgzLogger("\n");
+      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
+      return ESP32_TARGZ_FS_ERROR;
+    }
+    untarredBytesCount+=wlen;
+    // file unpack progress
+    log_v("[TAR INFO] unTarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
+    tarCurrentFileSizeProgress += wlen;
+    if( tarCurrentFileSize > 0 ) {
+      // this is a per-file progress, not an overall progress !
+      int32_t progress = (100*tarCurrentFileSizeProgress) / tarCurrentFileSize;
+      if( progress != 100 && progress != 0 ) {
+        tarProgressCallback( progress );
+      }
+    }
+  }
+  return ESP32_TARGZ_OK;
+}
+
+
+
+
+
+// tinyUntarReadCallback
+int TarUnpacker::unTarStreamReadCallback( unsigned char* buff, size_t buffsize )
+{
+  return tarGzStream.tar->readBytes( buff, buffsize );
+}
+
+
+int TarUnpacker::unTarStreamWriteCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length)
+{
+  if( tarGzStream.output ) {
+    int wlen = tarGzStream.output->write( block, length );
+    if( wlen != length ) {
+      //tgzLogger("\n");
+      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
+      return ESP32_TARGZ_FS_ERROR;
+    }
+    untarredBytesCount+=wlen;
+    // file unpack progress
+    log_v("[TAR INFO] unTarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
+    tarCurrentFileSizeProgress += wlen;
+    if( tarCurrentFileSize > 0 ) {
+      // this is a per-file progress, not an overall progress !
+      int32_t progress = (100*tarCurrentFileSizeProgress) / tarCurrentFileSize;
+      if( progress != 100 && progress != 0 ) {
+        tarProgressCallback( progress );
+      }
+    }
+  }
+  return ESP32_TARGZ_OK;
+}
+
+
+
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
 bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder )
 {
@@ -734,40 +892,6 @@ bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &d
 
   return true;
 }
-
-
-// tinyUntarReadCallback
-int TarUnpacker::unTarStreamReadCallback( unsigned char* buff, size_t buffsize )
-{
-  return tarGzStream.tar->readBytes( buff, buffsize );
-}
-
-
-int TarUnpacker::unTarStreamWriteCallback(CC_UNUSED TAR::header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data, unsigned char *block, int length)
-{
-  if( tarGzStream.output ) {
-    int wlen = tarGzStream.output->write( block, length );
-    if( wlen != length ) {
-      //tgzLogger("\n");
-      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
-      return ESP32_TARGZ_FS_ERROR;
-    }
-    untarredBytesCount+=wlen;
-    // TODO: file unpack progress
-    log_v("[TAR INFO] unTarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
-    tarCurrentFileSizeProgress += wlen;
-    if( tarCurrentFileSize > 0 ) {
-      // this is a per-file progress, not an overall progress !
-      int32_t progress = (100*tarCurrentFileSizeProgress) / tarCurrentFileSize;
-      if( progress != 100 && progress != 0 ) {
-        tarProgressCallback( progress );
-      }
-    }
-  }
-  return ESP32_TARGZ_OK;
-}
-
-
 
 
 
@@ -1627,7 +1751,52 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
   }
 }
 
+bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
+{
+  if( !stream->available() ) {
+    log_e("Bad stream, aborting");
+    setError( ESP32_TARGZ_STREAM_ERROR );
+    return false;
+  }
+  if( !gzProgressCallback ) {
+    setGzProgressCallback( defaultProgressCallback );
+  }
+  tarGzStream.gz = stream;
+  tarFS = nullptr;
+  untarredBytesCount = 0;
+  gzTarBlockPos = 0;
 
+  tarCallbacks = {
+    unTarHeaderUpdateCallBack,
+    gzFeedTarBuffer,
+    unTarStreamWriteUpdateCallback,
+    unTarEndUpdateCallBack
+  };
+
+  TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
+  TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
+
+  gzWriteCallback = &gzProcessTarBuffer;
+
+  totalFiles = 0;
+  totalFolders = 0;
+
+  firstblock = true; // trigger TAR setup from gzUncompress callback
+  lastblock  = false;
+
+  bool use_dict = true;
+
+  int ret = gzUncompress( true, false, use_dict, false );
+
+  if( ret!=0 ) {
+    log_e("tarGzStreamExpander returned error code %d", ret);
+    setError( (tarGzErrorCode)ret );
+    return false;
+  }
+
+  return true;
+
+}
 
 
 // uncompress tar+gz stream (file or HTTP) to filesystem without intermediate tar file
@@ -1681,39 +1850,35 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
   bool use_dict = true;
 
-#if defined ESP8266
+  #if defined ESP8266
 
-  // calculate minimal ram for gzip
-  int available_heap = (ESP.getFreeHeap()-(GZIP_DICT_SIZE+min_output_buffer_size+2048)); // leave 1k heap for the stack
-  if( available_heap < 0 ) {
-    use_dict = false;
-    available_heap = (ESP.getFreeHeap()-(min_output_buffer_size+2048)); // leave 1k heap for the stack
+    // calculate minimal ram for gzip
+    int available_heap = (ESP.getFreeHeap()-(GZIP_DICT_SIZE+min_output_buffer_size+2048)); // leave 1k heap for the stack
     if( available_heap < 0 ) {
+      use_dict = false;
+      available_heap = (ESP.getFreeHeap()-(min_output_buffer_size+2048)); // leave 1k heap for the stack
+      if( available_heap < 0 ) {
+        setError( ESP32_TARGZ_HEAP_TOO_LOW );
+        return false;
+      }
+    }
+
+    // calculate minimal ram for tar
+    size_t free_min_heap_blocks = available_heap / 1024;
+    if( free_min_heap_blocks <1 ) {
       setError( ESP32_TARGZ_HEAP_TOO_LOW );
       return false;
     }
-  }
+    // adjust gz->tar buffer size accordingly
+    min_output_buffer_size = free_min_heap_blocks * 1024;
+    if( min_output_buffer_size > GZIP_BUFF_SIZE ) min_output_buffer_size = GZIP_BUFF_SIZE; // cap to 4096
 
-  // calculate minimal ram for tar
-  size_t free_min_heap_blocks = available_heap / 1024;
-  if( free_min_heap_blocks <1 ) {
-    setError( ESP32_TARGZ_HEAP_TOO_LOW );
-    return false;
-  }
-  // adjust gz->tar buffer size accordingly
-  min_output_buffer_size = free_min_heap_blocks * 1024;
-  if( min_output_buffer_size > GZIP_BUFF_SIZE ) min_output_buffer_size = GZIP_BUFF_SIZE; // cap to 4096
+    min_output_buffer_size = 4096;
 
-  min_output_buffer_size = 4096;
+    blockmod = min_output_buffer_size / TAR_BLOCK_SIZE;
+    tgzLogger("tarGzStreamExpander will unpack stream to %s folder using %d buffered bytes and %s dictionary\n", destFolder, min_output_buffer_size, use_dict ? "36Kb for the" : "NO" );
 
-  blockmod = min_output_buffer_size / TAR_BLOCK_SIZE;
-  tgzLogger("tarGzStreamExpander will unpack stream to %s folder using %d buffered bytes and %s dictionary\n", destFolder, min_output_buffer_size, use_dict ? "36Kb for the" : "NO" );
-
-
-
-#endif
-
-
+  #endif
 
   int ret = gzUncompress( false, false, use_dict, false );
 

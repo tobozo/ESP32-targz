@@ -32,7 +32,7 @@ Scope
 -----
 
   - This library is only for unpacking / decompressing, no compression support is provided whatsoever
-  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS, FFat, LittleFS)
+  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
 
@@ -42,11 +42,11 @@ Usage
 
 ```C
     // Set **destination** filesystem by uncommenting one of these:
-    #define DEST_FS_USES_SPIFFS
+    //#define DEST_FS_USES_SPIFFS
     //#define DEST_FS_USES_FFAT
     //#define DEST_FS_USES_SD
     //#define DEST_FS_USES_SD_MMC
-    //#define DEST_FS_USES_LITTLEFS
+    #define DEST_FS_USES_LITTLEFS
     #include <ESP32-targz.h>
     // filesystem object will be available as "tarGzFs"
 ```
@@ -75,7 +75,7 @@ Extract content from `.gz` file
 
     // expand another file
     if( ! gzExpander(tarGzFs, "/blah.gz", tarGzFs, "/blah.jpg") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+      Serial.printf("operation failed with return code #%d", GZUnpacker->tarGzGetError() );
     }
 
 
@@ -285,7 +285,7 @@ Callbacks
 Return Codes
 ------------
 
-`tarGzGetError()` returns a value when a problem occured:
+`*Unpacker->tarGzGetError()` returns a value when a problem occured:
 
   - General library error codes
 
@@ -349,7 +349,9 @@ Test Suite
 Known bugs
 ----------
 
+  - tarGzStreamExpander hates SPIFFS
   - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
+  - tarGzExpander without intermediate file hates situations with low heap
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
 
   ~~- tarGzExpander: files smaller than 4K aren't processed~~
@@ -369,7 +371,7 @@ Resources
 -----------
   - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
   - [ESP8266 Sketch Data Upload tool for LittleFS](https://github.com/earlephilhower/arduino-esp8266littlefs-plugin)
-  - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
+  - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS](https://github.com/lorol/arduino-esp32fs-plugin/releases)
 
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
 

@@ -200,8 +200,14 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarVerify( bool verify ); // enables health checks but does slower writes
   static int unTarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int unTarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+  static int unTarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+
   static int unTarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
   static int unTarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+
+  static int unTarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
+  static int unTarEndUpdateCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+
 };
 
 
@@ -236,10 +242,13 @@ struct TarGzUnpacker :
   bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
   // same as tarGzExpander but without intermediate file
   bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
-  //#if defined ESP32
+  #if defined ESP32
+    // requirements: targz archive must contain files with names suffixed by ".ino.bin" and ".spiffs.bin"
+    bool tarGzStreamUpdater( Stream *stream );
+  #endif
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
   bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
-  //#endif
+
   static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );
   static int gzFeedTarBuffer( unsigned char* buff, size_t buffsize );

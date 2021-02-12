@@ -114,18 +114,13 @@ struct packageMeta
   fileMeta *files;
 };
 
-/*
-#!/bin/bash
-for file in $(find .); do
-  if [ ! -d ${file} ] ; then
-    bname=`basename $file`;
-    echo `wc -c $file | awk '{print $1}' && md5sum ${file:2}`
-  fi
-done
-*/
 
 #include "test_files.h"
+
 /*
+
+// or hardcode them
+
 fileMeta myFiles[15] =
 {
   { 279200, "2297aacd9380d9b438490d6002bc83be", "firmware_example_esp32" },
@@ -148,6 +143,7 @@ packageMeta myPackage =
 {
   nullptr, 15, myFiles
 };
+
 */
 
 char tmp_path[255] = {0};
@@ -187,19 +183,16 @@ void myTarMessageCallback(const char* format, ...)
     filePath = String( myPackage.folder ) + "/" + String( myPackage.files[found].path );
     if( !tarGzFS.exists( filePath ) ) {
       log_w("[TAR] %-16s MD5 FAIL! File can't be opened\n", tmp_path );
-      //BaseUnpacker::setGeneralError( ESP32_TARGZ_INTEGRITY_FAIL );
       return;
     }
     fs::File tarFile = tarGzFS.open( filePath, "r" );
     if( !tarGzFS.exists( filePath ) ) {
       log_w("[TAR] %-16s MD5 FAIL! File can't be reached\n", tmp_path );
-      //BaseUnpacker::setGeneralError( ESP32_TARGZ_INTEGRITY_FAIL );
       return;
     }
     size_t tarFileSize = tarFile.size();
     if( tarFileSize == 0 ) {
       log_w("[TAR] %-16s MD5 FAIL! File is empty\n", tmp_path );
-      //BaseUnpacker::setGeneralError( ESP32_TARGZ_INTEGRITY_FAIL );
       return;
     }
     md5sum = MD5Sum::fromFile( tarFile );
