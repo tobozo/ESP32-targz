@@ -13,9 +13,6 @@
 // Set **destination** filesystem by uncommenting one of these:
 #define DEST_FS_USES_SPIFFS
 //#define DEST_FS_USES_LITTLEFS
-//#define DEST_FS_USES_SD
-//#define DEST_FS_USES_FFAT   // ESP32 only
-//#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -30,11 +27,11 @@ HTTPClient http;
 // 4) Create the .tar.gz archive:
 //      $ cd /tmp/arduino_build_xxxxxx/ && tar cvzf partitions_bundle.tar.gz Your_Sketch.ino.bin Your_Sketch.spiffs.bin
 // 2) Publish the partitions_bundle.tar.gz file on a web server
-// 3) Edit the value of "const char* firmwareURL" in this sketch to match the url to this .tar.gz file
+// 3) Edit the value of "const char* bundleURL" in this sketch to match the url to this .tar.gz file
 // 4) Setup WIFI_SSID and WIFI_PASS if necessary
 // 5) Flash this sketch
 
-const char* firmwareURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/tarGzStreamUpdater/examples/Test_tar_gz_tgz/SD/partitions_bundle_esp32.tar.gz" ;
+const char* bundleURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/tarGzStreamUpdater/examples/Test_tar_gz_tgz/SD/partitions_bundle_esp32.tar.gz" ;
 const char *certificate = NULL; // change this as needed, leave as is for no TLS check (yolo security)
 
 //#define WIFI_SSID "blahSSID"
@@ -113,34 +110,34 @@ void setup()
 {
 
   Serial.begin( 115200 );
-  SPIFFS.begin();
+  tarGzFS.begin();
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
 
   if( rtc_get_reset_reason(0) != 1 ) // software reset or crash
   {
-    Serial.println("Listing SPIFFS contents:");
-    TARGZUnpacker->tarGzListDir( SPIFFS, "/", 3 );
+    Serial.println("Listing destination Filesystem contents:");
+    TARGZUnpacker->tarGzListDir( tarGzFS, "/", 3 );
     Serial.println("Press reset to restart test");
     return;
   }
 
-  Serial.println("Pre formattings SPIFFS");
-  SPIFFS.format();
+  Serial.println("Pre formattings filesystem");
+  tarGzFS.format();
   Serial.println("Done!");
 
   stubbornConnect();
   WiFiClientSecure *client = new WiFiClientSecure;
-  Stream *streamptr = getFirmwareClientPtr( client, firmwareURL, certificate );
+  Stream *streamptr = getFirmwareClientPtr( client, bundleURL, certificate );
   //size_t streamsize = UPDATE_SIZE_UNKNOWN;
 
   /*
   // it also works with filesystem
-  tarGzFS.begin();
-  if(!tarGzFS.exists(firmwareFile) ) {
+  SD.begin();
+  if(!SD.exists(firmwareFile) ) {
     Serial.println("File isn't there");
     while(1) { yield(); }
   }
-  fs::File file = tarGzFS.open( firmwareFile, "r" );
+  fs::File file = SD.open( bundleFile, "r" );
   size_t streamsize = file.size();
   if (!file) {
     Serial.println("Can't open file");
@@ -152,10 +149,9 @@ void setup()
   if( streamptr != nullptr ) {
 
     TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
-    TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
-    // TARGZUnpacker->setupFSCallbacks( nullptr, nullptr ); // Update.h already takes care of that
-    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // don't care about gz progress
-    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual partition
+    TARGZUnpacker->setTarVerify( false ); // disable verify as we're writing to a partition
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // gz progress is irrelevant for this operation
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // print the untarring progress for each individual partition
     TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
     TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
 

@@ -247,6 +247,10 @@ bool test_tarGzStreamExpander()
 
 
 
+#if defined ESP32
+
+// this is arbitrary, the partitions_bundle_esp32.tar.gz file contains a spiffs.bin partition
+// but it should also work with mklittlefs.bin partitions
 #include <SPIFFS.h>
 
 bool test_tarGzStreamUpdater()
@@ -295,6 +299,10 @@ bool test_tarGzStreamUpdater()
   return ret;
 }
 
+#endif
+
+
+
 
 void setup()
 {
@@ -306,6 +314,9 @@ void setup()
     wifi_station_disconnect();
     wifi_set_opmode(NULL_MODE);
     // now let's do the tests without the interferences of wifiscan or dhcp lease
+    int max_tests = 6;
+  #else
+    int max_tests = 7;
   #endif
 
   delay(1000);
@@ -337,7 +348,7 @@ void setup()
     SerialPrintfCentered("%s Mount Successful", FS_NAME);
   }
 
-  if( testNum < 7 ) {
+  if( testNum < max_tests ) {
     Serial.println( MiddleLine );
     SerialPrintfCentered("System Available heap: %d bytes", ESP.getFreeHeap() );
     Serial.println( MiddleLine );
@@ -361,7 +372,9 @@ void setup()
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
     case 5: test_succeeded = test_gzUpdater(); break;
+    #if defined ESP32
     case 6: test_succeeded = test_tarGzStreamUpdater(); break;
+    #endif
     default:
       tests_finished = true;
     break;
