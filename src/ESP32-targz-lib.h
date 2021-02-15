@@ -164,28 +164,29 @@ typedef enum tarGzErrorCode /* int8_t */
 struct BaseUnpacker
 {
   BaseUnpacker();
-  bool tarGzHasError();
+  bool   tarGzHasError();
   int8_t tarGzGetError();
-  void tarGzClearError();
-  void haltOnError( bool halt );
-  void initFSCallbacks();
-  void tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
+  void   tarGzClearError();
+  void   haltOnError( bool halt );
+  void   initFSCallbacks();
+  void   tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
+  void   hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
+  void   hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+  void   setLoggerCallback( genericLoggerCallback cb );
+  void   setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
   #ifdef ESP8266
-  void printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
+  void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
   #endif
-  void hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
-  void hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
-  void setLoggerCallback( genericLoggerCallback cb );
-  void setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
-  static void tarNullProgressCallback( uint8_t progress );
-  static void targzNullLoggerCallback( const char* format, ... );
+
+  static void tarNullProgressCallback( uint8_t progress ); // null progress callback
+  static void targzNullLoggerCallback( const char* format, ... ); // null logger callback
   static void targzNullProgressCallback( uint8_t progress );  // null progress callback, use with setProgressCallback or setTarProgressCallback to silent output
   static void targzPrintLoggerCallback(const char* format, ...);  // error/warning/info logger, use with setLoggerCallback() to enable output
   static void defaultProgressCallback( uint8_t progress );  // print progress callback, use with setProgressCallback or setTarProgressCallback to enable progress output
   static void defaultTarStatusProgressCallback( const char* name, size_t size, size_t total_unpacked ); // print tar status since a progress can't be provided
   static void setFsTotalBytesCb( fsTotalBytesCb cb ); // filesystem helpers totalBytes
   static void setFsFreeBytesCb( fsFreeBytesCb cb ); // filesystem helpers freeBytes
-  static void setGeneralError( tarGzErrorCode code );
+  static void setGeneralError( tarGzErrorCode code ); // alias to static setError
 };
 
 
@@ -198,10 +199,17 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarProgressCallback( genericProgressCallback cb ); // for tar
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
-  static int unTarStreamReadCallback( unsigned char* buff, size_t buffsize );
-  static int unTarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
-  static int unTarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
-  static int unTarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+
+  static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
+  static int tarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+  static int tarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+
+  static int tarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
+  static int tarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+
+  static int tarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
+  static int tarEndUpdateCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+
 };
 
 
@@ -214,9 +222,9 @@ struct GzUnpacker : virtual public BaseUnpacker
   bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
-  uint8_t *gzGetBufferUint8();
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
+
   static bool         gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzReadHeader(fs::File &gzFile);
@@ -226,9 +234,7 @@ struct GzUnpacker : virtual public BaseUnpacker
 };
 
 
-struct TarGzUnpacker :
-   public TarUnpacker,
-   public GzUnpacker
+struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 {
 
   TarGzUnpacker();
@@ -236,10 +242,11 @@ struct TarGzUnpacker :
   bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
   // same as tarGzExpander but without intermediate file
   bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
-  //#if defined ESP32
+  // requirements: targz archive must contain files with names suffixed by ".ino.bin" and/or ".spiffs.bin"
+  bool tarGzStreamUpdater( Stream *stream );
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
   bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
-  //#endif
+
   static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );
   static int gzFeedTarBuffer( unsigned char* buff, size_t buffsize );

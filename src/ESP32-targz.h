@@ -45,7 +45,7 @@
   #if defined DEST_FS_USES_SD
     #include <SDFS.h>
     #define tarGzFS SDFS
-    #define FS_NAME "SD"
+    #define FS_NAME "SDFS"
   #else
     #if defined DEST_FS_USES_LITTLEFS
       #include <LittleFS.h>

@@ -32,7 +32,7 @@ Scope
 -----
 
   - This library is only for unpacking / decompressing, no compression support is provided whatsoever
-  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, SPIFFS, FFat, LittleFS)
+  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and streams (HTTP, HTTPS, UDP, CAN, Ethernet)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
 
@@ -42,11 +42,11 @@ Usage
 
 ```C
     // Set **destination** filesystem by uncommenting one of these:
-    #define DEST_FS_USES_SPIFFS
+    //#define DEST_FS_USES_SPIFFS
     //#define DEST_FS_USES_FFAT
     //#define DEST_FS_USES_SD
     //#define DEST_FS_USES_SD_MMC
-    //#define DEST_FS_USES_LITTLEFS
+    #define DEST_FS_USES_LITTLEFS
     #include <ESP32-targz.h>
     // filesystem object will be available as "tarGzFs"
 ```
@@ -75,7 +75,7 @@ Extract content from `.gz` file
 
     // expand another file
     if( ! gzExpander(tarGzFs, "/blah.gz", tarGzFs, "/blah.jpg") ) {
-      Serial.printf("operation failed with return code #%d", tarGzGetError() );
+      Serial.printf("operation failed with return code #%d", GZUnpacker->tarGzGetError() );
     }
 
 
@@ -164,8 +164,8 @@ Flash the ESP with contents from `.gz` file
 ```
 
 
-ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
-------------------------------------------------------------------------------
+ESP32 Only: Flash the ESP with contents from `.gz` stream
+---------------------------------------------------------
 
 ```C
 
@@ -194,8 +194,8 @@ ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
 ```
 
 
-ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream (HTTP or Filesystem)
-----------------------------------------------------------------------------------------------
+ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream
+--------------------------------------------------------------------------
 ```C
 
     // mount spiffs (or any other filesystem)
@@ -225,6 +225,47 @@ ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream (HTTP
 
 
 ```
+
+
+ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
+-----------------------------------------------------------------------
+```C
+
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // don't care about gz progress
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual partition
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
+
+    // mount SD
+    SD.begin();
+
+    // this .tar.gz file has both the "app.ino.bin" and "app.spiffs.bin" partitions
+    fs::File file = SD.open( "/bundle_firmware.tar.gz", "r" );
+
+    if (!file) {
+      Serial.println("Can't open file");
+      return;
+    }
+
+    // this could also be a HTTP/HTTPS/UDP/Ethernet Stream
+    Stream *streamptr = &file;
+
+    if( !TARGZUnpacker->tarGzStreamUpdater( streamptr ) ) {
+      Serial.printf("tarGzStreamUpdater failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
+    } else {
+      Serial.println( "Flashing successful, now restarting" );
+      ESP.restart();
+    }
+
+
+```
+
+
+
 
 
 
@@ -285,7 +326,7 @@ Callbacks
 Return Codes
 ------------
 
-`tarGzGetError()` returns a value when a problem occured:
+`*Unpacker->tarGzGetError()` returns a value when a problem occured:
 
   - General library error codes
 
@@ -336,6 +377,7 @@ Return Codes
     - `35`  : Tar Error TAR_ERR_READBLOCK_FAIL
     - `36`  : Tar Error TAR_ERR_HEADERTRANS_FAIL
     - `37`  : Tar Error TAR_ERR_HEADERPARSE_FAIL
+    - `38`  : Tar Error TAR_ERROR_HEAP
 
 
 
@@ -349,7 +391,9 @@ Test Suite
 Known bugs
 ----------
 
+  - tarGzStreamExpander hates SPIFFS
   - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
+  - tarGzExpander without intermediate file hates situations with low heap
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
 
   ~~- tarGzExpander: files smaller than 4K aren't processed~~
@@ -369,7 +413,7 @@ Resources
 -----------
   - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
   - [ESP8266 Sketch Data Upload tool for LittleFS](https://github.com/earlephilhower/arduino-esp8266littlefs-plugin)
-  - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS/](https://github.com/lorol/arduino-esp32fs-plugin/releases)
+  - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS](https://github.com/lorol/arduino-esp32fs-plugin/releases)
 
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
 
