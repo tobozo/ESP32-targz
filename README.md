@@ -32,7 +32,7 @@ Scope
 -----
 
   - This library is only for unpacking / decompressing, no compression support is provided whatsoever
-  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS)
+  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and streams (HTTP, HTTPS, UDP, CAN, Ethernet)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
 
@@ -164,8 +164,8 @@ Flash the ESP with contents from `.gz` file
 ```
 
 
-ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
-------------------------------------------------------------------------------
+ESP32 Only: Flash the ESP with contents from `.gz` stream
+---------------------------------------------------------
 
 ```C
 
@@ -194,8 +194,8 @@ ESP32 Only: Flash the ESP with contents from `.gz` stream (HTTP or Filesystem)
 ```
 
 
-ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream (HTTP or Filesystem)
-----------------------------------------------------------------------------------------------
+ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream
+--------------------------------------------------------------------------
 ```C
 
     // mount spiffs (or any other filesystem)
@@ -225,6 +225,47 @@ ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream (HTTP
 
 
 ```
+
+
+ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
+-----------------------------------------------------------------------
+```C
+
+    TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
+    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // don't care about gz progress
+    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual partition
+    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+    TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
+
+    // mount SD
+    SD.begin();
+
+    // this .tar.gz file has both the "app.ino.bin" and "app.spiffs.bin" partitions
+    fs::File file = SD.open( "/bundle_firmware.tar.gz", "r" );
+
+    if (!file) {
+      Serial.println("Can't open file");
+      return;
+    }
+
+    // this could also be a HTTP/HTTPS/UDP/Ethernet Stream
+    Stream *streamptr = &file;
+
+    if( !TARGZUnpacker->tarGzStreamUpdater( streamptr ) ) {
+      Serial.printf("tarGzStreamUpdater failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
+    } else {
+      Serial.println( "Flashing successful, now restarting" );
+      ESP.restart();
+    }
+
+
+```
+
+
+
 
 
 
@@ -336,6 +377,7 @@ Return Codes
     - `35`  : Tar Error TAR_ERR_READBLOCK_FAIL
     - `36`  : Tar Error TAR_ERR_HEADERTRANS_FAIL
     - `37`  : Tar Error TAR_ERR_HEADERPARSE_FAIL
+    - `38`  : Tar Error TAR_ERROR_HEAP
 
 
 
