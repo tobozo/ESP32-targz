@@ -71,6 +71,8 @@ typedef struct TINF_DATA  {
        source_limit fields, thus allowing for buffered operation. */
     int (*source_read_cb)(struct TINF_DATA *uncomp);
     unsigned int (*readSourceByte)(struct TINF_DATA *data, unsigned char *out);
+    //unsigned int readSourceErrors = 0;
+    unsigned int readSourceErrors;
 
     void (*log)( const char* format, ... );
 
@@ -97,11 +99,8 @@ typedef struct TINF_DATA  {
        reading from the output stream, rather than assuming
        'dest' contains the entire output stream in memory
     */
-   unsigned int (*readDestByte)(int offset, unsigned char *out);
-   unsigned int (*writeDestWord)(unsigned long data);
-
-
-
+    unsigned int (*readDestByte)(int offset, unsigned char *out);
+    unsigned int (*writeDestWord)(unsigned long data);
 
     /* Accumulating checksum */
     unsigned int checksum;

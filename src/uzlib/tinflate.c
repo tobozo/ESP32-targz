@@ -199,7 +199,9 @@ unsigned char uzlib_get_byte(TINF_DATA *d)
       unsigned char out;
       //d->log("Using readsource\n");
       int ret = d->readSourceByte(d, &out);
-      if(! ret ) {
+      if( ret == -1 ) {
+        d->readSourceErrors++;
+        d->log("uzlib_get_byte/readSourceByte Errors: %d\n", d->readSourceErrors );
         // TODO: handle read errors !
       }
       return out;
@@ -307,6 +309,8 @@ static int tinf_decode_symbol(TINF_DATA *d, TINF_TREE *t)
       sum += t->table[len];
       cur -= t->table[len];
 
+      if( d->readSourceErrors > 0 ) return TINF_DATA_ERROR;
+
    } while (cur >= 0);
 
    sum += cur;
@@ -315,6 +319,8 @@ static int tinf_decode_symbol(TINF_DATA *d, TINF_TREE *t)
       return TINF_DATA_ERROR;
    }
    #endif
+
+
 
    return t->trans[sum];
 }
@@ -612,6 +618,7 @@ void uzlib_uncompress_init(TINF_DATA *d, void *dict, unsigned int dictLen)
    d->dict_ring = dict;
    d->dict_idx = 0;
    d->curlen = 0;
+   d->readSourceErrors = 0;
 }
 
 /* inflate next output bytes from compressed stream */
@@ -622,7 +629,7 @@ int uzlib_uncompress(TINF_DATA *d)
 
         /* start a new block */
         if (d->btype == -1) {
-next_blk:
+          next_blk:
             /* read final block flag */
             d->bfinal = tinf_getbit(d);
             /* read block type (2 bits) */
@@ -666,13 +673,15 @@ next_blk:
 
         if (res == TINF_DONE && !d->bfinal) {
             /* the block has ended (without producing more data), but we
-               can't return without data, so start procesing next block */
+               can't return without data, so start processing next block */
             goto next_blk;
         }
 
         if (res != TINF_OK) {
             return res;
         }
+
+        if( d->readSourceErrors > 0 ) return TINF_DATA_ERROR;
 
     }  while (--d->destRemaining);
 
