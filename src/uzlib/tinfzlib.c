@@ -44,6 +44,8 @@ int uzlib_zlib_parse_header(TINF_DATA *d)
    cmf = uzlib_get_byte(d);
    flg = uzlib_get_byte(d);
 
+   //if( d->readSourceErrors > 0 ) return TINF_DATA_ERROR;
+
    /* -- check format -- */
 
    /* check checksum */

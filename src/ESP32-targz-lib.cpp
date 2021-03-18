@@ -1083,6 +1083,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
   uzLibDecompressor.readSourceByte = gzReadSourceByte;
   uzLibDecompressor.destSize       = 1;
   uzLibDecompressor.log            = targzPrintLoggerCallback;
+  uzLibDecompressor.readSourceErrors = 0;
 
   res = GZ::uzlib_gzip_parse_header(&uzLibDecompressor);
   if (res != TINF_OK) {
@@ -1152,6 +1153,11 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     } while ( res == TINF_OK );
 
     if (res != TINF_DONE) {
+      if( uzLibDecompressor.readSourceErrors > 0 ) {
+        free( output_buffer );
+        gzExpanderCleanup();
+        return ESP32_TARGZ_STREAM_ERROR;
+      }
       log_w("[GZ WARNING] uzlib_uncompress_chksum return code=%d, premature end at position %d while %d bytes left", res, output_position, (int)uzlib_bytesleft);
     }
 

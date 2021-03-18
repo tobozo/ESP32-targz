@@ -48,7 +48,7 @@ Usage
     //#define DEST_FS_USES_SD_MMC
     #define DEST_FS_USES_LITTLEFS
     #include <ESP32-targz.h>
-    // filesystem object will be available as "tarGzFs"
+    // filesystem object will be available as "tarGzFS"
 ```
 
 
@@ -59,7 +59,7 @@ Extract content from `.gz` file
 ```C
 
     // mount spiffs (or any other filesystem)
-    tarGzFs.begin();
+    tarGzFS.begin();
 
     GzUnpacker *GZUnpacker = new GzUnpacker();
 
@@ -74,7 +74,7 @@ Extract content from `.gz` file
     }
 
     // expand another file
-    if( ! gzExpander(tarGzFs, "/blah.gz", tarGzFs, "/blah.jpg") ) {
+    if( ! gzExpander(tarGzFS, "/blah.gz", tarGzFS, "/blah.jpg") ) {
       Serial.printf("operation failed with return code #%d", GZUnpacker->tarGzGetError() );
     }
 
@@ -88,7 +88,7 @@ Expand contents from `.tar` file to `/tmp` folder
 ```C
 
     // mount spiffs (or any other filesystem)
-    tarGzFs.begin();
+    tarGzFS.begin();
 
     TarUnpacker *TARUnpacker = new TarUnpacker();
 
@@ -114,7 +114,7 @@ Expand contents from `.tar.gz`  to `/tmp` folder
 ```C
 
     // mount spiffs (or any other filesystem)
-    tarGzFs.begin();
+    tarGzFS.begin();
 
     TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
 
@@ -147,7 +147,7 @@ Flash the ESP with contents from `.gz` file
 ```C
 
     // mount spiffs (or any other filesystem)
-    tarGzFs.begin();
+    tarGzFS.begin();
 
     GzUnpacker *GZUnpacker = new GzUnpacker();
 
