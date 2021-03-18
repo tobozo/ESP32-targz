@@ -27,6 +27,12 @@ Disabling the dictionary can cause huge slowdowns but saves ~36KB of ram.
 TinyUntar requires 512bytes only so its memory footprint is negligible.
 
 
+Limitations
+-----------
+
+ESP32-TarGz can only have one **output** filesystem (see *Support Matrix*), and it must be set at compilation time (see *Usage*).
+This limitation does not apply to the **input** filesystem/stream.
+
 
 Scope
 -----
@@ -37,8 +43,26 @@ Scope
   - Contributions and feedback are more than welcome :-)
 
 
+
+Support Matrix
+--------------
+
+
+| fs::FS  | SPIFFS  |  LittleFS |  SD    |  SD_MMC |  FFAT |
+| ------- |:------- | :-------- | :----- | :------ | :---- |
+| ESP32   | 1.0     |  1.0.5    |  1.0.5 |  1.0    |  1.0  |
+|         |         |           |        |         |       |
+| ESP8266 | builtin |  0.1.0    |  0.1.0 |  n/a    |  n/a  |
+
+
+
+
 Usage
 -----
+
+
+:warning: Important note: setting the `#define` **before** including `<ESP32-targz.h>` is mandatory otherwise it will be ignored and the library will default to SPIFFS.
+
 
 ```C
     // Set **destination** filesystem by uncommenting one of these:
