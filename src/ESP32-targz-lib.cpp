@@ -482,7 +482,8 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
 {
   dump_header(proper);
   static size_t totalsize = 0;
-  if(proper->type == TAR::T_NORMAL) {
+  // https://github.com/tobozo/ESP32-targz/issues/33
+  if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
 
     if( fstotalBytes &&  fsfreeBytes ) {
       size_t freeBytes  = fsfreeBytes();
@@ -650,7 +651,8 @@ int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int 
 {
   dump_header(proper);
   static size_t totalsize = 0;
-  if(proper->type == TAR::T_NORMAL) {
+  // https://github.com/tobozo/ESP32-targz/issues/33
+  if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
 
     int partition = -1;
 

@@ -12,8 +12,8 @@
 inline int get_last_block_portion_size(int filesize);
 
 #ifdef _MSC_VER
-	#define strtoull _strtoui64
-	#define snprintf _snprintf
+  #define strtoull _strtoui64
+  #define snprintf _snprintf
 #endif
 
 #define TAR_T_NORMAL1 0
@@ -46,91 +46,85 @@ inline int get_last_block_portion_size(int filesize);
 #define TAR_HT_PRE11988 1
 #define TAR_HT_P10031 2
 
-enum entry_type_e { T_NORMAL, T_HARDLINK, T_SYMBOLIC, T_CHARSPECIAL,
-					T_BLOCKSPECIAL, T_DIRECTORY, T_FIFO, T_CONTIGUOUS,
-					T_GLOBALEXTENDED, T_EXTENDED, T_OTHER };
+enum entry_type_e
+{
+  T_NORMAL,
+  T_HARDLINK,
+  T_SYMBOLIC,
+  T_CHARSPECIAL,
+  T_BLOCKSPECIAL,
+  T_DIRECTORY,
+  T_FIFO,
+  T_CONTIGUOUS,
+  T_GLOBALEXTENDED,
+  T_EXTENDED,
+  T_OTHER
+};
 
 // Describes a header for TARs conforming to pre-POSIX.1-1988 .
 struct header_s
 {
-	char filename[100];
-	char filemode[8];
-	char uid[8];
-	char gid[8];
-	char filesize[12];
-	char mtime[12];
-	char checksum[8];
-	char type;
-	char link_target[100];
+  char filename[100];
+  char filemode[8];
+  char uid[8];
+  char gid[8];
+  char filesize[12];
+  char mtime[12];
+  char checksum[8];
+  char type;
+  char link_target[100];
 
-	char ustar_indicator[6];
-	char ustar_version[2];
-	char user_name[32];
-	char group_name[32];
-	char device_major[8];
-	char device_minor[8];
+  char ustar_indicator[6];
+  char ustar_version[2];
+  char user_name[32];
+  char group_name[32];
+  char device_major[8];
+  char device_minor[8];
 };
 
 typedef struct header_s header_t;
 
 struct header_translated_s
 {
-	char filename[101];
-	unsigned long long filemode;
-	unsigned long long uid;
-	unsigned long long gid;
-	unsigned long long filesize;
-	unsigned long long mtime;
-	unsigned long long checksum;
-	enum entry_type_e type;
-	char link_target[101];
-
-	char ustar_indicator[6];
-	char ustar_version[3];
-	char user_name[32];
-	char group_name[32];
-	unsigned long long device_major;
-	unsigned long long device_minor;
+  char filename[101];
+  unsigned long long filemode;
+  unsigned long long uid;
+  unsigned long long gid;
+  unsigned long long filesize;
+  unsigned long long mtime;
+  unsigned long long checksum;
+  enum entry_type_e type;
+  char link_target[101];
+  char ustar_indicator[6];
+  char ustar_version[3];
+  char user_name[32];
+  char group_name[32];
+  unsigned long long device_major;
+  unsigned long long device_minor;
 };
 
 typedef struct header_translated_s header_translated_t;
 
-typedef int (*entry_header_callback_t)(header_translated_t *header,
-										int entry_index,
-										void *context_data);
-
-typedef int(*entry_read_callback_t)(unsigned char* buff,
-                                     size_t buffsize );
-
-typedef int (*entry_write_callback_t)(header_translated_t *header,
-										int entry_index,
-										void *context_data,
-										unsigned char *block,
-										int length);
-
-typedef int (*entry_end_callback_t)(header_translated_t *header,
-									int entry_index,
-									void *context_data);
-
-
+typedef int (*entry_header_callback_t) (header_translated_t *header, int entry_index, void *context_data);
+typedef int (*entry_read_callback_t)   (unsigned char* buff, size_t buffsize );
+typedef int (*entry_write_callback_t)  (header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
+typedef int (*entry_end_callback_t)    (header_translated_t *header, int entry_index, void *context_data);
 
 struct entry_callbacks_s
 {
-	entry_header_callback_t header_cb;
-    entry_read_callback_t read_cb;
-	entry_write_callback_t write_cb;
-	entry_end_callback_t end_cb;
+  entry_header_callback_t header_cb;
+  entry_read_callback_t read_cb;
+  entry_write_callback_t write_cb;
+  entry_end_callback_t end_cb;
 };
 
 typedef struct entry_callbacks_s entry_callbacks_t;
-
 
 __attribute__((unused))static void (*tar_error_logger)(const char* subject, ...);
 __attribute__((unused))static void (*tar_debug_logger)(const char* subject, ...);
 
 int tar_setup(  entry_callbacks_t *callbacks, void *context_data );
 void tar_abort( const char* msgstr, int iserror);
-//int read_tar_data_block();
 int read_tar( entry_callbacks_t *callbacks, void *context_data);
 int read_tar_step();
 void dump_header(header_translated_t *header);
