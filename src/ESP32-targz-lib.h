@@ -99,6 +99,10 @@ typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 // tar doesn't have a real progress, so provide a status instead
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
 
+// tar has --exclude support, also provide --include
+typedef bool (*tarExcludePattern)( const char* pattern );
+typedef bool (*tarIncludePattern)( const char* pattern );
+
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
 typedef void (*genericLoggerCallback)( const char* format, ... );
@@ -199,6 +203,9 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarProgressCallback( genericProgressCallback cb ); // for tar
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
+
+  void setTarExcludePattern( tarExcludePattern cb );
+  void setTarIncludePattern( tarIncludePattern cb );
 
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int tarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);

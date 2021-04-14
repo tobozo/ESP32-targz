@@ -65,6 +65,8 @@ static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
 static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
+static bool   (*tarFileNameFilterOut)( const char* pattern ) = nullptr;
+static bool   (*tarFileNameFilterIn)( const char* pattern ) = nullptr;
 
 static const char* tarDestFolder = nullptr;
 static unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
@@ -468,6 +470,19 @@ void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 }
 
 
+// exclude / include based on filename
+void TarUnpacker::setTarExcludePattern( tarExcludePattern cb )
+{
+  log_d("Assigning tar filename exclude pattern callback : 0x%8x", (uint)cb );
+  tarFileNameFilterOut = cb;
+}
+void TarUnpacker::setTarIncludePattern( tarIncludePattern cb )
+{
+  log_d("Assigning tar filename include pattern callback : 0x%8x", (uint)cb );
+  tarFileNameFilterIn = cb;
+}
+
+
 // safer but slower
 void TarUnpacker::setTarVerify( bool verify )
 {
@@ -484,6 +499,20 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
   static size_t totalsize = 0;
   // https://github.com/tobozo/ESP32-targz/issues/33
   if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
+
+    if( tarFileNameFilterOut ) {
+      if( tarFileNameFilterOut( proper->filename ) ) {
+        log_d("Filtered out: %s.", proper->filename);
+        return ESP32_TARGZ_OK;
+      }
+    }
+
+    if( tarFileNameFilterIn ) {
+      if( !tarFileNameFilterIn( proper->filename ) ) {
+        log_d("Filtered in: %s.", proper->filename);
+        return ESP32_TARGZ_OK;
+      }
+    }
 
     if( fstotalBytes &&  fsfreeBytes ) {
       size_t freeBytes  = fsfreeBytes();
@@ -572,7 +601,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
       case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
       case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", proper->filename); break;
       case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
-      case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
+      //case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
       case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
     }
 
