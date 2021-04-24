@@ -111,6 +111,11 @@ bool test_tarGzExpander()
   TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
+
+  TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore "spinner.png" file
+  TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will only unpack "spinner.png" file
+
+
   if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, myPackage.folder ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("tarGzExpander+intermediate file failed with return code #%d", TARGZUnpacker->tarGzGetError() );
@@ -154,7 +159,7 @@ bool test_tarGzExpander_no_intermediate()
   Serial.println("Testing tarGzExpander without intermediate file");
   if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, myPackage.folder, nullptr ) ) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("tarGzExpander+intermediate file failed with return code #%d", TARGZUnpacker->tarGzGetError() );
+    SerialPrintfCentered("tarGzExpander direct expanding failed with return code #%d", TARGZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
   } else {
     ret = true;

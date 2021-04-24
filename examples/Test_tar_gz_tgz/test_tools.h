@@ -211,3 +211,18 @@ void myTarMessageCallback(const char* format, ...)
 
 }
 
+
+
+
+bool myTarIncludeFilter( TAR::header_translated_t *proper )
+{
+  // unpack files from "img/" and "css/" folders only
+  return (strstr(proper->filename, "img/") != NULL) || (strstr(proper->filename, "css/") != NULL);
+}
+
+bool myTarExcludeFilter( TAR::header_translated_t *proper )
+{
+  // exclude "logo.png"
+  return (strstr(proper->filename, "logo.png") != NULL);
+}
+
