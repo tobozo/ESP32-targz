@@ -65,8 +65,9 @@ static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
 static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
-static bool   (*tarFileNameFilterOut)( const char* pattern ) = nullptr;
-static bool   (*tarFileNameFilterIn)( const char* pattern ) = nullptr;
+static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *proper ) = nullptr;
+static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *proper ) = nullptr;
+static bool   tarSkipThisEntry = false;
 
 static const char* tarDestFolder = nullptr;
 static unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
@@ -129,8 +130,6 @@ BaseUnpacker::BaseUnpacker()
   output_buffer = nullptr;
   _error = ESP32_TARGZ_OK;
 
-  //firstblock = true;
-  //lastblock = false;
   tarCurrentFileSize = 0;
   tarCurrentFileSizeProgress = 0;
   untarredBytesCount = 0;
@@ -143,7 +142,6 @@ BaseUnpacker::BaseUnpacker()
   blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
   gzTarBlockPos = 0;
   tarReadGzStreamBytes = 0;
-
 
 }
 
@@ -470,16 +468,16 @@ void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 }
 
 
-// exclude / include based on filename
-void TarUnpacker::setTarExcludePattern( tarExcludePattern cb )
+// exclude / include based on tar header properties (filename, size, type)
+void TarUnpacker::setTarExcludeFilter( tarExcludeFilter cb )
 {
-  log_d("Assigning tar filename exclude pattern callback : 0x%8x", (uint)cb );
-  tarFileNameFilterOut = cb;
+  log_d("Assigning tar filename exclude filter callback : 0x%8x", (uint)cb );
+  tarSkipThisEntryOut = cb;
 }
-void TarUnpacker::setTarIncludePattern( tarIncludePattern cb )
+void TarUnpacker::setTarIncludeFilter( tarIncludeFilter cb )
 {
-  log_d("Assigning tar filename include pattern callback : 0x%8x", (uint)cb );
-  tarFileNameFilterIn = cb;
+  log_d("Assigning tar filename include filter callback : 0x%8x", (uint)cb );
+  tarSkipThisEntryIn  = cb;
 }
 
 
@@ -497,22 +495,24 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
 {
   dump_header(proper);
   static size_t totalsize = 0;
+  tarSkipThisEntry = false;
+
+  if( tarSkipThisEntryOut ) {
+    if( tarSkipThisEntryOut( proper ) ) {
+      tgzLogger("[TAR] Skipping: %s (filter 'Out' matches)\n", proper->filename );
+      tarSkipThisEntry = true;
+    }
+  }
+
+  if( tarSkipThisEntryIn ) {
+    if( !tarSkipThisEntryIn( proper ) ) {
+      tgzLogger("[TAR] Skipping: %s (filter 'In' does not match)\n", proper->filename );
+      tarSkipThisEntry = true;
+    }
+  }
+
   // https://github.com/tobozo/ESP32-targz/issues/33
   if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
-
-    if( tarFileNameFilterOut ) {
-      if( tarFileNameFilterOut( proper->filename ) ) {
-        log_d("Filtered out: %s.", proper->filename);
-        return ESP32_TARGZ_OK;
-      }
-    }
-
-    if( tarFileNameFilterIn ) {
-      if( !tarFileNameFilterIn( proper->filename ) ) {
-        log_d("Filtered in: %s.", proper->filename);
-        return ESP32_TARGZ_OK;
-      }
-    }
 
     if( fstotalBytes &&  fsfreeBytes ) {
       size_t freeBytes  = fsfreeBytes();
@@ -527,61 +527,68 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
       #endif
     }
 
-    char file_path[256] = {0};
-    memset( file_path, 0, 256 );
-    // avoid double slashing root path
-    if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
-      strcat(file_path, tarDestFolder);
-    }
-    // only append slash if destination folder does not end with a slash
-    if( file_path[strlen(file_path)-1] != FOLDER_SEPARATOR[0] ) {
-      strcat(file_path, FOLDER_SEPARATOR);
-    }
-    strcat(file_path, proper->filename);
+    if( !tarSkipThisEntry ) {
 
-    if( tarFS->exists( file_path ) ) {
-      // file will be truncated
-      /*
-      untarredFile = tarFS->open( file_path, FILE_READ );
-      bool isdir = untarredFile.isDirectory();
-      untarredFile.close();
-      if( isdir ) {
-        log_d("[TAR DEBUG] Keeping %s folder", file_path);
-      } else {
-        log_d("[TAR DEBUG] Deleting %s as it is in the way", file_path);
-        tarFS->remove( file_path );
+      char file_path[256] = {0};
+      memset( file_path, 0, 256 );
+      // avoid double slashing root path
+      if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
+        strcat(file_path, tarDestFolder);
       }
-      */
+      // only append slash if destination folder does not end with a slash
+      if( file_path[strlen(file_path)-1] != FOLDER_SEPARATOR[0] ) {
+        strcat(file_path, FOLDER_SEPARATOR);
+      }
+      strcat(file_path, proper->filename);
+
+      if( tarFS->exists( file_path ) ) {
+        // file will be truncated
+        /*
+        untarredFile = tarFS->open( file_path, FILE_READ );
+        bool isdir = untarredFile.isDirectory();
+        untarredFile.close();
+        if( isdir ) {
+          log_d("[TAR DEBUG] Keeping %s folder", file_path);
+        } else {
+          log_d("[TAR DEBUG] Deleting %s as it is in the way", file_path);
+          tarFS->remove( file_path );
+        }
+        */
+      } else {
+        // create directory (recursively if necessary)
+        mkdirp( tarFS, file_path );
+      }
+      //TODO: limit this check to SPIFFS/LittleFS only
+      if( strlen( file_path ) > 32 ) {
+        // WARNING: SPIFFS LIMIT
+        #if defined WARN_LIMITED_FS
+          log_w("[TAR WARNING] file path is longer than 32 chars (SPIFFS limit) and may fail: %s", file_path);
+          setError( ESP32_TARGZ_TAR_ERR_FILENAME_TOOLONG ); // don't break untar for that
+        #endif
+      } else {
+        log_d("[TAR] Creating %s", file_path);
+      }
+
+      untarredFile = tarFS->open(file_path, FILE_WRITE);
+      if(!untarredFile) {
+        log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write.", file_path);
+        setError( ESP32_TARGZ_FS_ERROR );
+        return ESP32_TARGZ_FS_ERROR;
+      }
+      tarGzIO.output = &untarredFile;
     } else {
-      // create directory (recursively if necessary)
-      mkdirp( tarFS, file_path );
-    }
-    //TODO: limit this check to SPIFFS/LittleFS only
-    if( strlen( file_path ) > 32 ) {
-      // WARNING: SPIFFS LIMIT
-      #if defined WARN_LIMITED_FS
-        log_w("[TAR WARNING] file path is longer than 32 chars (SPIFFS limit) and may fail: %s", file_path);
-        setError( ESP32_TARGZ_TAR_ERR_FILENAME_TOOLONG ); // don't break untar for that
-      #endif
-    } else {
-      log_d("[TAR] Creating %s", file_path);
+      log_v("[TAR FILTER] Skipped file/folder creation for: %s.", proper->filename);
     }
 
-    untarredFile = tarFS->open(file_path, FILE_WRITE);
-    if(!untarredFile) {
-      log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write.", file_path);
-      setError( ESP32_TARGZ_FS_ERROR );
-      return ESP32_TARGZ_FS_ERROR;
-    }
-    tarGzIO.output = &untarredFile;
     tarCurrentFileSize = proper->filesize; // for progress
     tarCurrentFileSizeProgress = 0; // for progress
 
     totalsize += proper->filesize;
-    if( tarStatusProgressCallback ) {
+
+    if( tarStatusProgressCallback && !tarSkipThisEntry ) {
       tarStatusProgressCallback( proper->filename, proper->filesize, totalsize );
     }
-    if( totalsize == proper->filesize )
+    if( totalsize == proper->filesize && !tarSkipThisEntry )
       tarProgressCallback( 0 );
 
   } else {
@@ -593,7 +600,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
       case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
       case TAR::T_DIRECTORY:      log_d("Entering %s directory.", proper->filename);
         //tarMessageCallback( "Entering %s directory\n", proper->filename );
-        if( tarStatusProgressCallback ) {
+        if( tarStatusProgressCallback && !tarSkipThisEntry ) {
           tarStatusProgressCallback( proper->filename, 0, totalsize );
         }
         totalFolders++;
@@ -607,8 +614,6 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
 
   }
 
-
-
   return ESP32_TARGZ_OK;
 }
 
@@ -619,9 +624,9 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
 int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data)
 {
   int ret = ESP32_TARGZ_OK;
-  char tmp_path[256] = {0};
-  if(untarredFile) {
 
+  if( untarredFile ) {
+    char tmp_path[256] = {0};
     if( unTarDoHealthChecks ) {
       memset( tmp_path, 0, 256 );
       snprintf( tmp_path, 256, "%s", untarredFile.name() );
@@ -666,7 +671,11 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
     tarMessageCallback( "%s", proper->filename );
 
   } else {
-    log_v("[TAR INFO] tarEndCallBack: nofile for `%s`", proper->filename );
+    if( tarSkipThisEntry ) {
+      log_v("[TAR FILTER] Skipped file close for: %s.", proper->filename);
+    } else {
+      log_v("[TAR INFO] tarEndCallBack: nofile for `%s`", proper->filename );
+    }
   }
   totalFiles++;
 
@@ -808,6 +817,14 @@ int TarUnpacker::tarStreamReadCallback( unsigned char* buff, size_t buffsize )
 
 int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length)
 {
+
+  if( tarSkipThisEntry ) {
+    log_v("[TAR FILTER] Skipping data bits from: %s.", proper->filename);
+    untarredBytesCount += length;
+    tarCurrentFileSizeProgress += length;
+    return ESP32_TARGZ_OK;
+  }
+
   if( tarGzIO.output ) {
     int wlen = tarGzIO.output->write( block, length );
     if( wlen != length ) {

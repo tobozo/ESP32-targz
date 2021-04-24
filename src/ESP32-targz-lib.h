@@ -100,8 +100,8 @@ typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
 
 // tar has --exclude support, also provide --include
-typedef bool (*tarExcludePattern)( const char* pattern );
-typedef bool (*tarIncludePattern)( const char* pattern );
+typedef bool (*tarExcludeFilter)( TAR::header_translated_t *proper );
+typedef bool (*tarIncludeFilter)( TAR::header_translated_t *proper );
 
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
@@ -204,8 +204,10 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
 
-  void setTarExcludePattern( tarExcludePattern cb );
-  void setTarIncludePattern( tarIncludePattern cb );
+  // callback setters: handles criterias for allowing or skipping files/folders creation
+  // NOTE: the exclude filter runs first, set to nullptr (default) for disabling
+  void setTarExcludeFilter( tarExcludeFilter cb );
+  void setTarIncludeFilter( tarIncludeFilter cb );
 
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int tarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
