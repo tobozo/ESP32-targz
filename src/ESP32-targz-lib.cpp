@@ -940,6 +940,12 @@ void GzUnpacker::setGzMessageCallback( genericLoggerCallback cb )
 
 
 
+void GzUnpacker::setStreamWriter( gzStreamWriter cb )
+{
+  gzWriteCallback = cb;
+}
+
+
 
 void GzUnpacker::gzExpanderCleanup()
 {
@@ -973,7 +979,6 @@ bool GzUnpacker::gzStreamWriteCallback( unsigned char* buff, size_t buffsize )
       setError( ESP32_TARGZ_STREAM_ERROR );
       return false;
     }
-
   } else {
     log_v("Wrote %d bytes", buffsize );
   }
@@ -1250,7 +1255,11 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   if (!tgzLogger ) {
     setLoggerCallback( targzPrintLoggerCallback );
   }
-  bool gz_use_dict = true;
+  bool isupdate      = false;
+  bool stream_to_tar = false;
+  bool gz_use_dict   = true;
+  bool show_progress = false;
+
   if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
     size_t free_min_heap_blocks = ESP.getFreeHeap() / 512; // leave 1k heap, eat all the rest !
     if( free_min_heap_blocks <1 ) {
@@ -1307,9 +1316,12 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   fs::File outfile = destFS.open( destFile, "w+" );
   tarGzIO.gz = &gz;
   tarGzIO.output = &outfile;
-  gzWriteCallback = &gzStreamWriteCallback; // for regular unzipping
+  if( gzWriteCallback == nullptr ) {
+    setStreamWriter( gzStreamWriteCallback );
+  }
+  //gzWriteCallback = &gzStreamWriteCallback; // for regular unzipping
 
-  int ret = gzUncompress( false, false, gz_use_dict );
+  int ret = gzUncompress( isupdate, stream_to_tar, gz_use_dict );
 
   outfile.close();
   gz.close();
@@ -1336,6 +1348,71 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
 
   return true;
 }
+
+
+
+// uncompress gz stream (file or HTTP) to any destination (see setStreamWriter)
+bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
+{
+  if( !gzProgressCallback ) {
+    setGzProgressCallback( defaultProgressCallback );
+  }
+  if( !tgzLogger ) {
+    setLoggerCallback( targzPrintLoggerCallback );
+  }
+
+  size_t size = stream->available();
+  if( ! size ) {
+    log_e("Bad stream, aborting");
+    setError( ESP32_TARGZ_STREAM_ERROR );
+    return false;
+  }
+  // TODO: ESP8266 support
+  #if defined ESP8266
+    log_e("gz stream expanding not implemented on ESP8266");
+  #endif
+  #if defined ESP32
+
+    bool show_progress = false;
+    bool use_dict      = true;
+    bool isupdate      = false;
+    bool stream_to_tar = false;
+
+    if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+      // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+      log_w("Insufficient heap to decompress (available:%d, needed:%d), aborting", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+      setError( ESP32_TARGZ_HEAP_TOO_LOW );
+      return false;
+    }
+
+    tarGzIO.gz = stream;
+    if( gzWriteCallback == nullptr ) {
+      setStreamWriter( gzStreamWriteCallback );
+    }
+
+    if( int( gz_size ) < 1 || gz_size == 0 ) {
+      tgzLogger("[GZStreamExpander] unknown binary size\n");
+
+    } else {
+      tgzLogger("[GZStreamExpander] Unzipping\n");
+    }
+    // process with unzipping
+    int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
+    // unzipping ended
+    if( ret!=0 ) {
+      log_e("gzUncompress returned error code %d", ret);
+      setError( (tarGzErrorCode)ret );
+      return false;
+    }
+    setError( (tarGzErrorCode)ret );
+  #endif // ifdef ESP32
+
+  return true;
+}
+
+
+
+
 
 
 // uncompress gz file to flash (expected to be a valid gzipped firmware)
@@ -1477,7 +1554,9 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
   #if defined ESP32
     // unfortunately ESP32 doesn't handle gzipped firmware from the bootloader
     bool show_progress = false;
-    bool use_dict = true;
+    bool use_dict      = true;
+    bool isupdate      = true;
+    bool stream_to_tar = false;
 
     if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
       // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
@@ -1487,7 +1566,10 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
     }
 
     tarGzIO.gz = stream;
-    gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
+    if( gzWriteCallback == nullptr ) {
+      setStreamWriter( gzUpdateWriteCallback );
+    }
+    //gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
 
     if( int( update_size ) < 1 || update_size == UPDATE_SIZE_UNKNOWN ) {
       tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
@@ -1509,7 +1591,7 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
       //show_progress = true;
     }
     // process with unzipping
-    int ret = gzUncompress( true, false, use_dict, show_progress );
+    int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
     // unzipping ended
     if( ret!=0 ) {
       log_e("gzHTTPUpdater returned error code %d", ret);
@@ -1712,7 +1794,10 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
   TAR::tar_error_logger = tgzLogger;
   TAR::tar_debug_logger = tgzLogger; // comment this out if too verbose
 
-  gzWriteCallback       = &gzProcessTarBuffer;
+  if( gzWriteCallback == nullptr ) {
+    setStreamWriter( gzProcessTarBuffer );
+  }
+  //gzWriteCallback       = &gzProcessTarBuffer;
   tarReadGzStreamBytes = 0;
 
   totalFiles = 0;
@@ -1721,7 +1806,10 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
   firstblock = true; // trigger TAR setup from gzUncompress callback
   lastblock  = false;
 
-  int ret = gzUncompress( false, true );
+  bool isupdate      = false;
+  bool stream_to_tar = true;
+
+  int ret = gzUncompress( isupdate, stream_to_tar );
 
   gz.close();
 
@@ -1799,7 +1887,10 @@ bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
   TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
   TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
 
-  gzWriteCallback = &gzProcessTarBuffer;
+  if( gzWriteCallback == nullptr ) {
+    setStreamWriter( gzProcessTarBuffer );
+  }
+  //gzWriteCallback = &gzProcessTarBuffer;
 
   totalFiles = 0;
   totalFolders = 0;
@@ -1807,9 +1898,12 @@ bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
   firstblock = true; // trigger TAR setup from gzUncompress callback
   lastblock  = false;
 
-  bool use_dict = true;
+  bool isupdate      = true;
+  bool stream_to_tar = false;
+  bool use_dict      = true;
+  bool show_progress = false;
 
-  int ret = gzUncompress( true, false, use_dict, false );
+  int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
 
   if( ret!=0 ) {
     log_e("tarGzStreamExpander returned error code %d", ret);
@@ -1863,7 +1957,10 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
   TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
 
-  gzWriteCallback = &gzProcessTarBuffer;
+  if( gzWriteCallback == nullptr ) {
+    setStreamWriter( gzProcessTarBuffer );
+  }
+  //gzWriteCallback = &gzProcessTarBuffer;
 
   totalFiles = 0;
   totalFolders = 0;
@@ -1871,7 +1968,10 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   firstblock = true; // trigger TAR setup from gzUncompress callback
   lastblock  = false;
 
-  bool use_dict = true;
+  bool isupdate      = false;
+  bool stream_to_tar = false;
+  bool use_dict      = true;
+  bool show_progress = false;
 
   #if defined ESP8266
 
@@ -1903,7 +2003,9 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
   #endif
 
-  int ret = gzUncompress( false, false, use_dict, false );
+
+
+  int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
 
   if( ret!=0 ) {
     log_e("tarGzStreamExpander returned error code %d", ret);

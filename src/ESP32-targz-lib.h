@@ -96,6 +96,9 @@ typedef size_t (*fsFreeBytesCb)();
 // must be done from outside the library since FS is an abstraction of an abstraction :(
 typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 
+// overridable gz stream writer
+typedef bool (*gzStreamWriter)( unsigned char* buff, size_t buffsize );
+
 // tar doesn't have a real progress, so provide a status instead
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
 
@@ -227,10 +230,12 @@ struct GzUnpacker : virtual public BaseUnpacker
   GzUnpacker();
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
   //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
   bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
   bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
+  void    setStreamWriter( gzStreamWriter cb ); // optional, use with gzStreamExpander
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
 
