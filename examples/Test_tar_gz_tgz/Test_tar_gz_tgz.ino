@@ -84,6 +84,44 @@ bool test_gzExpander()
 }
 
 
+// test #2.5 gzStreamExpander()
+// Requires: gz stream (file, http) + stream write callback function
+bool test_gzStreamExpander()
+{
+  bool ret = false;
+  const char* gzFile = "/gz_example.jpg.gz";
+  myPackage.folder = "/"; // for md5 tests
+
+  SerialPrintCentered("Testing gzExpander", false, true );
+
+  GzUnpacker *GZUnpacker = new GzUnpacker();
+  GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+  GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+  GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+  GZUnpacker->setGzMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ );
+
+  GZUnpacker->setStreamWriter( myStreamWriter );
+
+  fs::File file = tarGzFS.open( gzFile, "r" );
+
+  if (!file) {
+    Serial.println( OpenLine );
+    SerialPrintfCentered("Can't open file");
+    Serial.println( CloseLine );
+    while(1) { yield(); }
+  }
+  Stream *streamptr = &file;
+
+  if( !GZUnpacker->gzStreamExpander( streamptr, file.size() ) ) {
+    Serial.println( OpenLine );
+    SerialPrintfCentered("test_gzStreamExpander failed with return code #%d", GZUnpacker->tarGzGetError() );
+    Serial.println( CloseLine );
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
 
 // Test #3: tarGzExpander() with intermediate file
 // Requires: targz file, no filename requirements
@@ -111,10 +149,9 @@ bool test_tarGzExpander()
   TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
-
-  TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore "spinner.png" file
-  TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will only unpack "spinner.png" file
-
+  // include/exclude filters, can be set/omitted both or separately
+  TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore files/folders
+  TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will allow files/folders
 
   if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, myPackage.folder ) ) {
     Serial.println( OpenLine );
@@ -372,7 +409,7 @@ void setup()
   switch( testNum )
   {
     case 0: test_succeeded = test_tarExpander(); break;
-    case 1: test_succeeded = test_gzExpander(); break;
+    case 1: test_succeeded = test_gzExpander() && test_gzStreamExpander(); break;
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
