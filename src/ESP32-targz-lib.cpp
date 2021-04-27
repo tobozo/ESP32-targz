@@ -55,6 +55,11 @@ static fs::FS *tarFS = nullptr;
 
 TAR::entry_callbacks_t tarCallbacks;
 
+void* (*tgz_malloc)(size_t size) = nullptr;
+void* (*tgz_calloc)(size_t n, size_t size) = nullptr;
+void* (*tgz_realloc)(void *ptr, size_t size) = nullptr;
+bool tgz_use_psram = false;
+
 void          (*tgzLogger)( const char* format, ...) = nullptr;
 static size_t (*fstotalBytes)() = nullptr;
 static size_t (*fsfreeBytes)()  = nullptr;
@@ -143,7 +148,33 @@ BaseUnpacker::BaseUnpacker()
   gzTarBlockPos = 0;
   tarReadGzStreamBytes = 0;
 
+  tgz_malloc  = malloc;
+  tgz_calloc  = calloc;
+  tgz_realloc = realloc;
+
 }
+
+
+#ifdef ESP32
+bool BaseUnpacker::setPsram( bool enable )
+{
+  if( enable ) {
+    if( psramInit() ) {
+      tgz_malloc  = ps_malloc;
+      tgz_calloc  = ps_calloc;
+      tgz_realloc = ps_realloc;
+      tgz_use_psram = true;
+      return true;
+    }
+  } else {
+    tgz_malloc  = malloc;
+    tgz_calloc  = calloc;
+    tgz_realloc = realloc;
+    return true;
+  }
+  return false;
+}
+#endif
 
 
 void BaseUnpacker::setGeneralError( tarGzErrorCode code )
@@ -950,7 +981,11 @@ void GzUnpacker::setStreamWriter( gzStreamWriter cb )
 void GzUnpacker::gzExpanderCleanup()
 {
   if( uzlib_gzip_dict != nullptr ) {
-    delete( uzlib_gzip_dict );
+    if( tgz_use_psram ) {
+      free( uzlib_gzip_dict );
+    } else {
+      delete( uzlib_gzip_dict );
+    }
     uzlib_gzip_dict = NULL;
   }
 }
@@ -1108,7 +1143,13 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
   GZ::uzlib_init();
 
   if ( use_dict == true ) {
-    uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
+
+    if( tgz_use_psram ) {
+      uzlib_gzip_dict = (unsigned char*)tgz_calloc(1, GZIP_DICT_SIZE);
+    } else {
+      uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
+    }
+
     if( uzlib_gzip_dict == NULL ) {
       log_e("[ERROR] can't alloc %d bytes for gzip dict (%d bytes free)", GZIP_DICT_SIZE, ESP.getFreeHeap() );
       gzExpanderCleanup();
@@ -1148,7 +1189,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   GZ::uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, uzlib_dict_size);
 
-  output_buffer = (unsigned char *)calloc( output_buffer_size+1, sizeof(unsigned char) );
+  output_buffer = (unsigned char *)tgz_calloc( output_buffer_size+1, sizeof(unsigned char) );
   if( output_buffer == NULL ) {
     log_e("[ERROR] can't alloc %d bytes for output buffer", output_buffer_size );
     gzExpanderCleanup();
@@ -1283,7 +1324,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
     if( sourceFileCopy.endsWith(".gz") ) {
       slen -= 3;
       sourceFileCopy = sourceFileCopy.substring( 0, slen );
-      destFile = (const char*)calloc( slen+1, sizeof(char) );
+      destFile = (const char*)tgz_calloc( slen+1, sizeof(char) );
       if( destFile == NULL ) {
         setError( ESP32_TARGZ_HEAP_TOO_LOW );
         return false;

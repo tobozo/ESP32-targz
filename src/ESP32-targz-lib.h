@@ -184,6 +184,9 @@ struct BaseUnpacker
   #ifdef ESP8266
   void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
   #endif
+  #ifdef ESP32
+  bool   setPsram( bool enable );
+  #endif
 
   static void tarNullProgressCallback( uint8_t progress ); // null progress callback
   static void targzNullLoggerCallback( const char* format, ... ); // null logger callback
