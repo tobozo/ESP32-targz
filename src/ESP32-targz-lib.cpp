@@ -1569,7 +1569,10 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
     if( gzWriteCallback == nullptr ) {
       setStreamWriter( gzUpdateWriteCallback );
     }
-    //gzWriteCallback = &gzUpdateWriteCallback; // for unzipping direct to flash
+
+    Update.onProgress([]( size_t done, size_t total ) {
+      gzProgressCallback( (100*done)/total );
+    });
 
     if( int( update_size ) < 1 || update_size == UPDATE_SIZE_UNKNOWN ) {
       tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
@@ -1583,15 +1586,10 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
         setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
         return false;
       }
-      /*
-      Update.onProgress([]( size_t done, size_t total ) {
-        gzProgressCallback( (100*done)/total );
-      });
-      */
-      //show_progress = true;
     }
     // process with unzipping
     int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
+
     // unzipping ended
     if( ret!=0 ) {
       log_e("gzHTTPUpdater returned error code %d", ret);
@@ -1604,6 +1602,7 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
       if ( Update.isFinished() ) {
         // yay
         log_d("Update finished !");
+        gzProgressCallback( 100 );
         if( restart_on_update ) ESP.restart();
       } else {
         log_e( "Update not finished? Something went wrong!" );

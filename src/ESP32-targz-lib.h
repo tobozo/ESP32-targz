@@ -235,6 +235,7 @@ struct GzUnpacker : virtual public BaseUnpacker
   bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
+  //void    setStreamReader( gzStreamReader cb ); // optional, use with gzStreamExpander
   void    setStreamWriter( gzStreamWriter cb ); // optional, use with gzStreamExpander
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
