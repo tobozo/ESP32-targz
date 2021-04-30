@@ -25,6 +25,10 @@
     #include <LITTLEFS.h>
     #define tarGzFS LITTLEFS
     #define FS_NAME "LITTLEFS"
+  #elif defined DEST_FS_USES_PSRAMFS
+    #include <PSRamFS.h> // https://github.com/tobozo/ESP32-PsRamFS
+    #define tarGzFS PSRamFS
+    #define FS_NAME "PSRamFS"
   #else
     #warning "Unspecified filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_FFAT, DEST_FS_USES_SD, DEST_FS_USES_SD_MMC, DEST_FS_USES_LITTLEFS"
     #warning "Defaulting to SPIFFS"
@@ -96,7 +100,7 @@
 // required filesystem helpers are declared outside the main library
 // because ESP32/ESP8266 <FS.h> use different abstraction flavours :)
 size_t targzFreeBytesFn() {
-  #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS
+  #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes() - tarGzFS.usedBytes();
     #elif defined ESP8266
@@ -116,7 +120,7 @@ size_t targzFreeBytesFn() {
   #endif
 }
 size_t targzTotalBytesFn() {
-  #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT
+  #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes();
     #elif defined ESP8266

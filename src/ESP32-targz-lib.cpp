@@ -151,6 +151,7 @@ BaseUnpacker::BaseUnpacker()
   tgz_malloc  = malloc;
   tgz_calloc  = calloc;
   tgz_realloc = realloc;
+  tgz_use_psram = false;
 
 }
 
@@ -164,12 +165,14 @@ bool BaseUnpacker::setPsram( bool enable )
       tgz_calloc  = ps_calloc;
       tgz_realloc = ps_realloc;
       tgz_use_psram = true;
+      log_d("Enabled Psram for uzlib dictionary");
       return true;
     }
   } else {
     tgz_malloc  = malloc;
     tgz_calloc  = calloc;
     tgz_realloc = realloc;
+    log_d("Disabled Psram for uzlib dictionary");
     return true;
   }
   return false;
