@@ -119,6 +119,7 @@ size_t targzFreeBytesFn() {
     #error "No filesystem is declared"
   #endif
 }
+
 size_t targzTotalBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
@@ -139,12 +140,5 @@ size_t targzTotalBytesFn() {
 }
 
 #include "ESP32-targz-lib.h"
-
-/*
-#include "Unpacker/Base.h"
-#include "Unpacker/Tar.h"
-#include "Unpacker/Gz.h"
-#include "Unpacker/TarGz.h"
-*/
 
 #endif

@@ -166,6 +166,7 @@ bool BaseUnpacker::setPsram( bool enable )
       tgz_realloc = ps_realloc;
       tgz_use_psram = true;
       log_d("Enabled Psram for uzlib dictionary");
+      unTarDoHealthChecks = false;
       return true;
     }
   } else {
@@ -476,7 +477,10 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
 
 TarUnpacker::TarUnpacker()
 {
-
+  #if __has_include(<PSRamFS.h>)
+    log_w("Implicitely disabling health checks on PSRamFS");
+    unTarDoHealthChecks = false; // disable that with psramFS
+  #endif
 }
 
 
@@ -519,7 +523,13 @@ void TarUnpacker::setTarIncludeFilter( tarIncludeFilter cb )
 void TarUnpacker::setTarVerify( bool verify )
 {
   log_d("Setting tar verify : %s", verify ? "true" : "false" );
-  unTarDoHealthChecks = verify;
+  #if __has_include(<PSRamFS.h>)
+    log_w("Implicitely ignoring health checks on PSRamFS");
+    unTarDoHealthChecks = false; // disable that with psramFS
+  #else
+    unTarDoHealthChecks = verify;
+  #endif
+
 }
 
 
