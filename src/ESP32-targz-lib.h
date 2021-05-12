@@ -96,8 +96,15 @@ typedef size_t (*fsFreeBytesCb)();
 // must be done from outside the library since FS is an abstraction of an abstraction :(
 typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 
+// overridable gz stream writer
+typedef bool (*gzStreamWriter)( unsigned char* buff, size_t buffsize );
+
 // tar doesn't have a real progress, so provide a status instead
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
+
+// tar has --exclude support, also provide --include
+typedef bool (*tarExcludeFilter)( TAR::header_translated_t *proper );
+typedef bool (*tarIncludeFilter)( TAR::header_translated_t *proper );
 
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
@@ -177,6 +184,9 @@ struct BaseUnpacker
   #ifdef ESP8266
   void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
   #endif
+  #ifdef ESP32
+  bool   setPsram( bool enable );
+  #endif
 
   static void tarNullProgressCallback( uint8_t progress ); // null progress callback
   static void targzNullLoggerCallback( const char* format, ... ); // null logger callback
@@ -200,6 +210,11 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
 
+  // callback setters: handles criterias for allowing or skipping files/folders creation
+  // NOTE: the exclude filter runs first, set to nullptr (default) for disabling
+  void setTarExcludeFilter( tarExcludeFilter cb );
+  void setTarIncludeFilter( tarIncludeFilter cb );
+
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int tarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
   static int tarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
@@ -218,10 +233,13 @@ struct GzUnpacker : virtual public BaseUnpacker
   GzUnpacker();
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
   //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
   bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
   bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
+  //void    setStreamReader( gzStreamReader cb ); // optional, use with gzStreamExpander
+  void    setStreamWriter( gzStreamWriter cb ); // optional, use with gzStreamExpander
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
 

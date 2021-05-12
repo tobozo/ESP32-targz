@@ -20,22 +20,56 @@
 #include <rom/rtc.h> // to get reset reason
 HTTPClient http;
 
-
-// 1) Produce the binaries for both the firmware the spiffs
-// 2) Make sure the firmware binary filename is suffixed by "ino.bin" (rename if necessary)
-// 3) Make sure the spiffs binary filename is suffixed by "spiffs.bin" (rename if necessary)
-// 4) Create the .tar.gz archive:
-//      $ cd /tmp/arduino_build_xxxxxx/ && tar cvzf partitions_bundle.tar.gz Your_Sketch.ino.bin Your_Sketch.spiffs.bin
-// 2) Publish the partitions_bundle.tar.gz file on a web server
-// 3) Edit the value of "const char* bundleURL" in this sketch to match the url to this .tar.gz file
-// 4) Setup WIFI_SSID and WIFI_PASS if necessary
-// 5) Flash this sketch
-
-const char* bundleURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/tarGzStreamUpdater/examples/Test_tar_gz_tgz/SD/partitions_bundle_esp32.tar.gz" ;
-const char *certificate = NULL; // change this as needed, leave as is for no TLS check (yolo security)
-
+// 1) Choose between testing tarGzStreamUpdater or gzStreamUpdater (default is tar.gz)
+//      /!\ tarGzStreamUpdater can update both spiffs *and* the firmware while
+//          gzStreamUpdater can only do spiffs *or* the firmware
+//      The choice is made by uncommenting one of those defines:
+//
+#define TEST_gzStreamUpdater
+//#define TEST_tarGzStreamUpdater
+//
+// 2) Get the binaries of the firmware and/or spiffs partition you want to make available as gz/targz OTA update
+//
+// 3) Depending on the choice, make sure
+//      - the firmware binary filename is suffixed by "ino.bin" (rename if necessary)
+//      - the spiffs binary filename is suffixed by "spiffs.bin" (rename if necessary)
+//
+// 4) Create either:
+//      - the .tar.gz archive:
+//        $ cd /tmp/arduino_build_xxxxxx/ && tar cvzf partitions_bundle.tar.gz Your_Sketch.ino.bin Your_Sketch.spiffs.bin
+//      - the .gz archive:
+//        $ cd /tmp/arduino_build_xxxxxx/ && gzip -c Your_Sketch.spiffs.bin > firmware.gz
+//
+// 5) Publish the archive file on a web server
+//
+// 6) Edit the value of "const char* bundleURL" in this sketch to match the url to this archive file
+//
+// 7) Setup WIFI_SSID and WIFI_PASS if necessary (optional if your ESP32 had a previous successful connection to WiFi)
+//
 //#define WIFI_SSID "blahSSID"
 //#define WIFI_PASS "blahPASSWORD"
+//
+// 8) Flash this sketch
+//
+
+
+#if (defined TEST_tarGzStreamUpdater && defined TEST_gzStreamUpdater ) || (!defined TEST_tarGzStreamUpdater && !defined TEST_gzStreamUpdater )
+
+  #error "Please define either TEST_gzStreamUpdater or TEST_tarGzStreamUpdater"
+
+#elif defined TEST_tarGzStreamUpdater
+
+  const char* bundleURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/tarGzStreamUpdater/examples/Test_tar_gz_tgz/SD/partitions_bundle_esp32.tar.gz" ;
+
+#else // TEST_gzStreamUpdater
+
+  const char* bundleURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/tarGzStreamUpdater/examples/Test_tar_gz_tgz/data/firmware_example_esp32.gz" ;
+
+#endif
+
+
+const char *certificate = NULL; // change this as needed, leave as is for no TLS check (yolo security)
+
 
 void stubbornConnect()
 {
@@ -66,7 +100,8 @@ void stubbornConnect()
 
 WiFiClient *getFirmwareClientPtr( WiFiClientSecure *client, const char* url, const char *cert = NULL )
 {
-  client->setCACert( cert );
+  if( cert == NULL ) client->setInsecure();
+  else client->setCACert( cert );
   const char* UserAgent = "ESP32-HTTP-TarGzUpdater-Client";
   http.setReuse(true); // handle 301 redirects gracefully
   http.setUserAgent( UserAgent );
@@ -111,19 +146,33 @@ void setup()
 
   Serial.begin( 115200 );
   tarGzFS.begin();
-  TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+  #if defined  TEST_tarGzStreamUpdater
+    TarGzUnpacker *Unpacker = new TarGzUnpacker();
 
-  if( rtc_get_reset_reason(0) != 1 ) // software reset or crash
-  {
-    Serial.println("Listing destination Filesystem contents:");
-    TARGZUnpacker->tarGzListDir( tarGzFS, "/", 3 );
-    Serial.println("Press reset to restart test");
-    return;
-  }
+    if( rtc_get_reset_reason(0) != 1 ) // software reset or crash
+    {
+      Serial.println("Listing destination Filesystem contents:");
+      Unpacker->tarGzListDir( tarGzFS, "/", 3 );
+      Serial.println("Press reset to restart test");
+      return;
+    }
 
-  Serial.println("Pre formattings filesystem");
-  tarGzFS.format();
-  Serial.println("Done!");
+    Serial.println("Pre formattings filesystem");
+    tarGzFS.format();
+    Serial.println("Done!");
+
+  #elif defined TEST_gzStreamUpdater
+    GzUnpacker *Unpacker = new GzUnpacker();
+
+    if( rtc_get_reset_reason(0) != 1 ) // software reset or crash
+    {
+      Serial.println("Press reset to restart test");
+      return;
+    }
+
+  #endif
+
+
 
   stubbornConnect();
   WiFiClientSecure *client = new WiFiClientSecure;
@@ -147,17 +196,25 @@ void setup()
   */
 
   if( streamptr != nullptr ) {
-
-    TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
-    TARGZUnpacker->setTarVerify( false ); // disable verify as we're writing to a partition
-    TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // gz progress is irrelevant for this operation
-    TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // print the untarring progress for each individual partition
-    TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
-    TARGZUnpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
-
-    if( !TARGZUnpacker->tarGzStreamUpdater( streamptr ) ) {
-      Serial.printf("tarGzStreamUpdater failed with return code #%d\n", TARGZUnpacker->tarGzGetError() );
-    } else {
+    #if defined  TEST_tarGzStreamUpdater
+      Unpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+      Unpacker->setTarVerify( false ); // disable verify as we're writing to a partition
+      Unpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // gz progress is irrelevant for this operation
+      Unpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // print the untarring progress for each individual partition
+      Unpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+      Unpacker->setTarMessageCallback( BaseUnpacker::targzPrintLoggerCallback ); // tar log verbosity
+      if( !Unpacker->tarGzStreamUpdater( streamptr ) ) {
+        Serial.printf("tarGzStreamUpdater failed with return code #%d\n", Unpacker->tarGzGetError() );
+      }
+    #elif defined TEST_gzStreamUpdater
+      //GzUnpacker *Unpacker = new GzUnpacker();
+      Unpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback );
+      Unpacker->setPsram( true );
+      if( !Unpacker->gzStreamUpdater( streamptr, UPDATE_SIZE_UNKNOWN, 0, false ) ) {
+        Serial.printf("tarGzStreamUpdater failed with return code #%d\n", Unpacker->tarGzGetError() );
+      }
+    #endif
+    else {
       Serial.println("Update successful, now loading the new firmware!");
       ESP.restart();
     }

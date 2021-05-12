@@ -211,3 +211,35 @@ void myTarMessageCallback(const char* format, ...)
 
 }
 
+
+
+
+bool myTarIncludeFilter( TAR::header_translated_t *proper )
+{
+  // unpack files from "img/" and "css/" folders only
+  return (strstr(proper->filename, "img/") != NULL) || (strstr(proper->filename, "css/") != NULL);
+  // only unpack small files
+  // return (proper->filesize < 256*1024);
+}
+
+bool myTarExcludeFilter( TAR::header_translated_t *proper )
+{
+  // exclude "logo.png"
+  return (strstr(proper->filename, "logo.png") != NULL);
+  // don't unpack folders
+  // return (proper->type == TAR::T_DIRECTORY);
+  // ignore dotfiles
+  // return String( basename( proper->filename ) ).startsWith("." );
+}
+
+
+BaseUnpacker *Base = new BaseUnpacker();
+
+bool myStreamWriter( unsigned char* buff, size_t buffsize )
+{
+  Base->hexDumpData( (const char*)buff, buffsize, 32 );
+  return true;
+}
+
+
+
