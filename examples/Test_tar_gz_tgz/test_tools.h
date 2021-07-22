@@ -9,7 +9,11 @@ extern "C" {
 
 #endif
 #if defined ESP32
-  #include <rom/rtc.h>
+  #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
+    #include <esp32/rom/rtc.h>
+  #else
+    #include <rom/rtc.h>
+  #endif
 #endif
 
 
@@ -180,19 +184,23 @@ void myTarMessageCallback(const char* format, ...)
   }
   if( found > -1 ) {
     //delay(100);
-    filePath = String( myPackage.folder ) + "/" + String( myPackage.files[found].path );
+    if( String( myPackage.folder ).endsWith("/") ) {
+      filePath = String( myPackage.folder ) + String( myPackage.files[found].path );
+    } else {
+      filePath = String( myPackage.folder ) + "/" + String( myPackage.files[found].path );
+    }
     if( !tarGzFS.exists( filePath ) ) {
-      log_w("[TAR] %-16s MD5 FAIL! File can't be opened\n", tmp_path );
+      log_w("[TAR] %-16s MD5 FAIL! File can't be opened\n", filePath.c_str() );
       return;
     }
     fs::File tarFile = tarGzFS.open( filePath, "r" );
     if( !tarGzFS.exists( filePath ) ) {
-      log_w("[TAR] %-16s MD5 FAIL! File can't be reached\n", tmp_path );
+      log_w("[TAR] %-16s MD5 FAIL! File can't be reached\n", filePath.c_str() );
       return;
     }
     size_t tarFileSize = tarFile.size();
     if( tarFileSize == 0 ) {
-      log_w("[TAR] %-16s MD5 FAIL! File is empty\n", tmp_path );
+      log_w("[TAR] %-16s MD5 FAIL! File is empty\n", filePath.c_str() );
       return;
     }
     md5sum = MD5Sum::fromFile( tarFile );
@@ -243,3 +251,10 @@ bool myStreamWriter( unsigned char* buff, size_t buffsize )
 
 
 
+#if defined ESP32
+
+
+#include "test_gz_in_irom.h"
+
+
+#endif

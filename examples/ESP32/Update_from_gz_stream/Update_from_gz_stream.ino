@@ -20,13 +20,13 @@
 #include <rom/rtc.h> // to get reset reason
 HTTPClient http;
 
-// 1) Choose between testing tarGzStreamUpdater or gzStreamUpdater (default is tar.gz)
+// 1) Choose between testing tarGzStreamUpdater or gzStreamUpdater
 //      /!\ tarGzStreamUpdater can update both spiffs *and* the firmware while
 //          gzStreamUpdater can only do spiffs *or* the firmware
 //      The choice is made by uncommenting one of those defines:
 //
-#define TEST_gzStreamUpdater
-//#define TEST_tarGzStreamUpdater
+//#define TEST_gzStreamUpdater
+#define TEST_tarGzStreamUpdater
 //
 // 2) Get the binaries of the firmware and/or spiffs partition you want to make available as gz/targz OTA update
 //
