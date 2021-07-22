@@ -36,6 +36,14 @@
     - space: limited filesystems (<512KB spiffs) need tar->gz->filesystem direct streaming
 
 \*/
+
+#ifdef ESP8266
+// stop GCC from whining about unused ESP32 signatures
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
 #include "ESP32-targz-lib.h"
 
 struct TarGzIO
@@ -396,14 +404,14 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
     File file = root.openNextFile();
     while( file ) {
       if( file.isDirectory() ) {
-        Serial.printf( "[DIR]  %s\n", file.name() );
+        Serial.printf( "[DIR]  %s\n", targzFSFilePath(&file) );
         if( levels && levels > 0  ) {
-          tarGzListDir( fs, file.name(), levels -1, hexDump );
+          tarGzListDir( fs, targzFSFilePath(&file), levels -1, hexDump );
         }
       } else {
-        Serial.printf( "[FILE] %-32s %8d bytes - md5:%s\n", file.name(), file.size(), MD5Sum::fromFile( file ) );
+        Serial.printf( "[FILE] %-32s %8d bytes - md5:%s\n", targzFSFilePath(&file), file.size(), MD5Sum::fromFile( file ) );
         if( hexDump ) {
-          hexDumpFile( fs, file.name() );
+          hexDumpFile( fs, targzFSFilePath(&file) );
         }
       }
       file = root.openNextFile();
@@ -428,18 +436,18 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
 
       if (entry.isDirectory()) {
         if( levels > 0 ) {
-          Serial.printf( "[DIR] %s\n", entry.name() );
+          Serial.printf( "[DIR] %s\n", targzFSFilePath(&entry) );
           printDirectory(fs, entry, numTabs + 1, levels-1, hexDump );
         }
       } else {
         if( entry.size() > 0 ) {
-          Serial.printf( "[FILE] %-32s %8d bytes - md5:%s\n", entry.name(), entry.size(), MD5Sum::fromFile( entry ) );
+          Serial.printf( "[FILE] %-32s %8d bytes - md5:%s\n", targzFSFilePath(&entry), entry.size(), MD5Sum::fromFile( entry ) );
         } else {
-          Serial.printf( "[????] %-32s \n", entry.name() );
+          Serial.printf( "[????] %-32s \n", targzFSFilePath(&entry) );
         }
 
         if( hexDump ) {
-          hexDumpFile( fs, entry.name() );
+          hexDumpFile( fs, targzFSFilePath(&entry) );
         }
 
       }
@@ -673,7 +681,7 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
     char tmp_path[256] = {0};
     if( unTarDoHealthChecks ) {
       memset( tmp_path, 0, 256 );
-      snprintf( tmp_path, 256, "%s", untarredFile.name() );
+      snprintf( tmp_path, 256, "%s", targzFSFilePath(&untarredFile) );
       size_t pos = untarredFile.position();
       untarredFile.close();
       // health check 1: file existence
@@ -1959,7 +1967,7 @@ bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
   int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
 
   if( ret!=0 ) {
-    log_e("tarGzStreamExpander returned error code %d", ret);
+    log_e("gzUncompress returned error code %d", ret);
     setError( (tarGzErrorCode)ret );
     return false;
   }
@@ -2072,3 +2080,6 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 
 
+#ifdef ESP8266
+#pragma GCC diagnostic pop
+#endif
