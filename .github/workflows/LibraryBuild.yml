@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         arduino-boards-fqbn:
-          - esp8266: esp8266:esp8266:eesz=4M3M,xtal=80
+          - esp8266: esp8266:esp8266:generic:eesz=4M3M,xtal=80
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
           - esp32: esp32:esp32:FlashFreq=80
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
@@ -27,7 +27,7 @@ jobs:
           - arduino-boards-fqbn: esp32:esp32:FlashFreq=80
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino # Comma separated list of sketch names (no path required) or patterns to use in build
 
-          - arduino-boards-fqbn: esp8266:esp8266:eesz=4M3M,xtal=80
+          - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
             sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino
 
       fail-fast: false
