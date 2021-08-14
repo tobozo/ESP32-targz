@@ -17,8 +17,8 @@ jobs:
       matrix:
 
         arduino-boards-fqbn:
-          - esp8266: esp8266:esp8266:generic:eesz=4M3M,xtal=80
-          - esp32: esp32:esp32:esp32:FlashFreq=80
+          - esp8266:esp8266:generic:eesz=4M3M,xtal=80
+          - esp32:esp32:esp32:FlashFreq=80
 
         include:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashFreq=80
