@@ -5,13 +5,13 @@ on:
     - '**.ino'
     - '**.cpp'
     - '**.h'
-    - '**LibraryBuild.yml'
+    - '**on-push-or-pull-request.yml'
   pull_request:
     paths:
     - '**.ino'
     - '**.cpp'
     - '**.h'
-    - '**LibraryBuild.yml'
+    - '**on-push-or-pull-request.yml'
 jobs:
   build:
     name: Test compiling examples for esp32
