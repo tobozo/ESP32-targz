@@ -187,7 +187,13 @@ struct BaseUnpacker
   #ifdef ESP32
   bool   setPsram( bool enable );
   #endif
-
+  static const char* targzFSFilePath( fs::File *file ) {
+    #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
+      return file->path();
+    #else
+      return file->name();
+    #endif
+  }
   static void tarNullProgressCallback( uint8_t progress ); // null progress callback
   static void targzNullLoggerCallback( const char* format, ... ); // null logger callback
   static void targzNullProgressCallback( uint8_t progress );  // null progress callback, use with setProgressCallback or setTarProgressCallback to silent output

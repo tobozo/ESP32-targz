@@ -7,11 +7,33 @@
 \*/
 // Set **destination** filesystem by uncommenting one of these:
 //#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
-//#define DEST_FS_USES_LITTLEFS
-#define DEST_FS_USES_SD
+#define DEST_FS_USES_LITTLEFS
+//#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
+//#define DEST_FS_USES_PSRAMFS // ESP32 only
 #include <ESP32-targz.h>
+
+#define sourceFS tarGzFS // assume source = destination unless stated otherwise in the test function
+
+#if defined ESP32 && defined BOARD_HAS_PSRAM && defined DEST_FS_USES_PSRAMFS
+
+  #include <LITTLEFS.h> // https://github.com/lorol/LITTLEFS
+  #include <PSRamFS.h> // https://github.com/tobozo/ESP32-PsRamFS
+  #undef tarGzFS
+  #undef FS_NAME
+  #undef sourceFS
+
+  #define sourceFS LITTLEFS
+  #define SOURCE_FS_NAME "LittleFS"
+
+  #define tarGzFS PSRamFS
+  #define FS_NAME "PsRamFS"
+
+  #define SOURCE_AND_DEST_DIFFER
+
+#endif
+
 
 #include "test_tools.h"
 
@@ -42,7 +64,7 @@ bool test_tarExpander()
   TARUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
-  if(  !TARUnpacker->tarExpander(tarGzFS, tarFile, tarGzFS, myPackage.folder ) ) {
+  if(  !TARUnpacker->tarExpander(sourceFS, tarFile, tarGzFS, myPackage.folder ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("tarExpander failed with return code #%d", TARUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
@@ -72,8 +94,11 @@ bool test_gzExpander()
   GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
   GZUnpacker->setGzMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ );
 
+  #ifdef ESP32
+  GZUnpacker->setPsram( true );
+  #endif
 
-  if( !GZUnpacker->gzExpander(tarGzFS, gzFile, tarGzFS ) ) {
+  if( !GZUnpacker->gzExpander(sourceFS, gzFile, tarGzFS ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("gzExpander failed with return code #%d", GZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
@@ -100,9 +125,13 @@ bool test_gzStreamExpander()
   GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
   GZUnpacker->setGzMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ );
 
-  GZUnpacker->setStreamWriter( myStreamWriter );
+  #ifdef ESP32
+  GZUnpacker->setPsram( true );
+  #endif
 
-  fs::File file = tarGzFS.open( gzFile, "r" );
+  GZUnpacker->setStreamWriter( myStreamWriter ); // puke all data in the serial console
+
+  fs::File file = sourceFS.open( gzFile, "r" );
 
   if (!file) {
     Serial.println( OpenLine );
@@ -153,7 +182,11 @@ bool test_tarGzExpander()
   TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore files/folders
   TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will allow files/folders
 
-  if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, myPackage.folder ) ) {
+  #ifdef ESP32
+  TARGZUnpacker->setPsram( true );
+  #endif
+
+  if( !TARGZUnpacker->tarGzExpander(sourceFS, tarGzFile, tarGzFS, myPackage.folder ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("tarGzExpander+intermediate file failed with return code #%d", TARGZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
@@ -193,8 +226,12 @@ bool test_tarGzExpander_no_intermediate()
   TARGZUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
+  #ifdef ESP32
+  TARGZUnpacker->setPsram( true );
+  #endif
+
   Serial.println("Testing tarGzExpander without intermediate file");
-  if( !TARGZUnpacker->tarGzExpander(tarGzFS, tarGzFile, tarGzFS, myPackage.folder, nullptr ) ) {
+  if( !TARGZUnpacker->tarGzExpander(sourceFS, tarGzFile, tarGzFS, myPackage.folder, nullptr ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("tarGzExpander direct expanding failed with return code #%d", TARGZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
@@ -230,7 +267,11 @@ bool test_gzUpdater()
   GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
   GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
 
-  if( ! GZUnpacker->gzUpdater( tarGzFS, firmwareFile, U_FLASH, /*restart on update*/false ) ) {
+  #ifdef ESP32
+  GZUnpacker->setPsram( true );
+  #endif
+
+  if( ! GZUnpacker->gzUpdater( sourceFS, firmwareFile, U_FLASH, /*restart on update*/false ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("gzUpdater failed with return code #%d", GZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
@@ -248,7 +289,7 @@ bool test_tarGzStreamExpander()
 {
   bool ret = false;
   const char* tarGzFile = "/targz_example.tar.gz";
-  myPackage.folder = "/tmp"; // for md5 tests
+  myPackage.folder = "/"; // for md5 tests
 
   SerialPrintCentered("Testing tarGzStreamExpander", false, true );
 
@@ -268,15 +309,27 @@ bool test_tarGzStreamExpander()
   TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
-  fs::File file = tarGzFS.open( tarGzFile, "r" );
+  #ifdef ESP32
+  TARGZUnpacker->setPsram( true );
+  #endif
 
-  if (!file) {
-    Serial.println( OpenLine );
-    SerialPrintfCentered("Can't open file");
-    Serial.println( CloseLine );
-    while(1) { yield(); }
-  }
-  Stream *streamptr = &file;
+
+  #if __has_include(<PSRamFS.h>)
+    TARGZUnpacker->setTarVerify( false ); // disable health checks when working with an exotic stream :-)
+    RomDiskStream memoryStream( data_targz_example_tar_gz, data_targz_example_tar_gz_len );
+    Stream *streamptr = &memoryStream;
+  #else
+    fs::File file = sourceFS.open( tarGzFile, "r" );
+
+    if (!file) {
+      Serial.println( OpenLine );
+      SerialPrintfCentered("Can't open file");
+      Serial.println( CloseLine );
+      while(1) { yield(); }
+    }
+    Stream *streamptr = &file;
+  #endif
+
   if( !TARGZUnpacker->tarGzStreamExpander( streamptr, tarGzFS ) ) {
     Serial.println( OpenLine );
     SerialPrintfCentered("tarGzStreamExpander failed with return code #%d", TARGZUnpacker->tarGzGetError() );
@@ -317,13 +370,17 @@ bool test_tarGzStreamUpdater()
   TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
+  #ifdef ESP32
+  TARGZUnpacker->setPsram( true );
+  #endif
+
   SerialPrintCentered("Pre formattings SPIFFS", true, false );
 
   SPIFFS.format();
 
   SerialPrintCentered("Done!", false, true );
 
-  fs::File file = tarGzFS.open( bundleGzFile, "r" );
+  fs::File file = sourceFS.open( bundleGzFile, "r" );
   if (!file) {
     Serial.println( OpenLine );
     SerialPrintfCentered("Can't open file");
@@ -341,7 +398,11 @@ bool test_tarGzStreamUpdater()
   return ret;
 }
 
+
 #endif
+
+
+
 
 
 
@@ -389,6 +450,15 @@ void setup()
   } else {
     SerialPrintfCentered("%s Mount Successful", FS_NAME);
   }
+  #if defined SOURCE_AND_DEST_DIFFER
+    if (!sourceFS.begin())
+    {
+      SerialPrintfCentered("%s Mount Failed, halting", SOURCE_FS_NAME );
+      while(1) yield();
+    } else {
+      SerialPrintfCentered("%s Mount Successful", SOURCE_FS_NAME);
+    }
+  #endif
 
   if( testNum < max_tests ) {
     Serial.println( MiddleLine );
@@ -409,12 +479,12 @@ void setup()
   switch( testNum )
   {
     case 0: test_succeeded = test_tarExpander(); break;
-    case 1: test_succeeded = test_gzExpander() && test_gzStreamExpander(); break;
+    case 1: test_succeeded = test_gzExpander() /*&& test_gzStreamExpander()*/; break;
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
     case 5: test_succeeded = test_gzUpdater(); break;
-    #if defined ESP32
+    #if defined ESP32 && !__has_include(<PSRamFS.h>)
     case 6: test_succeeded = test_tarGzStreamUpdater(); break;
     #endif
     default:
@@ -425,9 +495,11 @@ void setup()
   if( tests_finished ) {
     EEPROM.write(0, 0 );
     EEPROM.commit();
+    #if !__has_include(<PSRamFS.h>)
     BaseUnpacker *Unpacker = new BaseUnpacker();
     SPIFFS.begin();
-    Unpacker->tarGzListDir( SPIFFS, "/", 3 );
+      Unpacker->tarGzListDir( SPIFFS, "/", 3 );
+    #endif
     SerialPrintCentered("All tests performed, press reset to restart", false, true );
   }
 

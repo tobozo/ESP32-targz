@@ -22,9 +22,17 @@
     #define tarGzFS SD_MMC
     #define FS_NAME "SD_MMC"
   #elif defined DEST_FS_USES_LITTLEFS
-    #include <LITTLEFS.h>
-    #define tarGzFS LITTLEFS
-    #define FS_NAME "LITTLEFS"
+    #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
+      // littlefs is built-in since sdk 2.0.0
+      #include <LittleFS.h>
+      #define tarGzFS LittleFS
+      #define FS_NAME "LittleFS (builtin)"
+    #else
+      // get "littlefs_esp32" from library manager
+      #include <LITTLEFS.h>
+      #define tarGzFS LITTLEFS
+      #define FS_NAME "LITTLEFS (extlib)"
+    #endif
   #elif defined DEST_FS_USES_PSRAMFS
     #include <PSRamFS.h> // https://github.com/tobozo/ESP32-PsRamFS
     #define tarGzFS PSRamFS
@@ -39,6 +47,7 @@
   #endif
 
 #elif defined ESP8266
+
   // ESP8266 has no SD_MMC or FFat.h library, so these are implicitely invalidated
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
@@ -54,26 +63,26 @@
     #if defined DEST_FS_USES_LITTLEFS
       #include <LittleFS.h>
       #define tarGzFS LittleFS
-      #define FS_NAME "LITTLEFS"
+      #define FS_NAME "LITTLEFS (extlib)"
     #elif defined DEST_FS_USES_SPIFFS
       #if defined USE_LittleFS // emulate SPIFFS using LittleFS
         #include <LittleFS.h>
         #define tarGzFS SPIFFS
-        #define FS_NAME "LITTLEFS"
+        #define FS_NAME "LITTLEFS (subst)"
       #else // use core SPIFFS
         #include <FS.h>
         #define tarGzFS SPIFFS
         #define FS_NAME "SPIFFS"
       #endif
     #else // no destination filesystem defined in sketch
-      #warning "Unspecified filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD"
+      #warning "Unspecified or invalid destination filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD, DEST_FS_USES_PSRAMFS"
       // however, check for USE_LittleFS as it is commonly defined since SPIFFS deprecation
       #if defined USE_LittleFS
         #include <LittleFS.h>
         #define tarGzFS LittleFS
         #warning "Defaulting to LittleFS"
         #define DEST_FS_USES_LITTLEFS
-        #define FS_NAME "LITTLEFS"
+        #define FS_NAME "LITTLEFS (defaulted)"
       #else
         #include <FS.h>
         #define tarGzFS SPIFFS
@@ -138,6 +147,7 @@ size_t targzTotalBytesFn() {
     #error "No filesystem is declared"
   #endif
 }
+
 
 #include "ESP32-targz-lib.h"
 

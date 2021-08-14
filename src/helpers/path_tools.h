@@ -19,6 +19,18 @@
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
+
+
+__attribute__((unused))
+static char *_memrchr(const char *m, int c, size_t n)
+{
+  const char *s = m;
+  c = (char)c;
+  while (n--) if (s[n]==c) return (char *)(s+n);
+  return 0;
+}
+
+
 __attribute__((unused))
 static char *dirname(char *path)
 {
@@ -34,7 +46,7 @@ static char *dirname(char *path)
         break;
     /* The '/' is the last character, we have to look further.  */
     if (runp != path)
-      last_slash = (char*)memrchr(path, '/', runp - path);
+      last_slash = (char*)_memrchr(path, '/', runp - path);
   }
   if (last_slash != NULL) {
     /* Determine whether all remaining characters are slashes.  */
@@ -62,8 +74,9 @@ static char *dirname(char *path)
     path = (char *) dot;
   return path;
 }
-
-#define strdupa(a) strcpy((char*)alloca(strlen(a) + 1), a)
+#ifndef strdupa // defined in sdk 2.0
+  #define strdupa(a) strcpy((char*)alloca(strlen(a) + 1), a)
+#endif
 // create traversing directories from a path
 __attribute__((unused))
 static int mkpath(fs::FS *fs, char *dir)
