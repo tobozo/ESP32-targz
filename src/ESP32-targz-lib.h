@@ -103,8 +103,8 @@ typedef bool (*gzStreamWriter)( unsigned char* buff, size_t buffsize );
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
 
 // tar has --exclude support, also provide --include
-typedef bool (*tarExcludeFilter)( TAR::header_translated_t *proper );
-typedef bool (*tarIncludeFilter)( TAR::header_translated_t *proper );
+typedef bool (*tarExcludeFilter)( TAR::header_translated_t *header );
+typedef bool (*tarIncludeFilter)( TAR::header_translated_t *header );
 
 // Callbacks for progress and misc output messages, default is verbose
 typedef void (*genericProgressCallback)( uint8_t progress );
@@ -222,14 +222,14 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarIncludeFilter( tarIncludeFilter cb );
 
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
-  static int tarStreamWriteCallback( TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
-  static int tarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length);
+  static int tarStreamWriteCallback( TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
+  static int tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
 
-  static int tarHeaderCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
-  static int tarEndCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+  static int tarHeaderCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
+  static int tarEndCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
 
-  static int tarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data);
-  static int tarEndUpdateCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data);
+  static int tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
+  static int tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
 
 };
 

@@ -17,14 +17,19 @@
 #define sourceFS tarGzFS // assume source = destination unless stated otherwise in the test function
 
 #if defined ESP32 && defined BOARD_HAS_PSRAM && defined DEST_FS_USES_PSRAMFS
+  #undef sourceFS
 
-  #include <LITTLEFS.h> // https://github.com/lorol/LITTLEFS
+  #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
+    #include <LittleFS.h> // core 2.0.0 has built-in LittleFS
+    #define sourceFS LittleFS
+  #else
+    #include <LITTLEFS.h> // https://github.com/lorol/LITTLEFS
+    #define sourceFS LITTLEFS
+  #endif
   #include <PSRamFS.h> // https://github.com/tobozo/ESP32-PsRamFS
   #undef tarGzFS
   #undef FS_NAME
-  #undef sourceFS
 
-  #define sourceFS LITTLEFS
   #define SOURCE_FS_NAME "LittleFS"
 
   #define tarGzFS PSRamFS

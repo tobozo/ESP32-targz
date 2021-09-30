@@ -442,6 +442,10 @@ Resources
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
 
 
+Alternate links
+---------------
+  - [https://github.com/laukik-hase/esp_compression](https://github.com/laukik-hase/esp_compression) inflate/deflate miniz/uzlib based esp-idf implementation
+
 Credits:
 --------
 

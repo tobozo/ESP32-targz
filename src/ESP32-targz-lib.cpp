@@ -78,8 +78,8 @@ static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
 static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
-static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *proper ) = nullptr;
-static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *proper ) = nullptr;
+static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
+static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
 static bool   tarSkipThisEntry = false;
 
 static const char* tarDestFolder = nullptr;
@@ -543,39 +543,39 @@ void TarUnpacker::setTarVerify( bool verify )
 
 
 
-int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data )
+int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data )
 {
-  dump_header(proper);
+  dump_header(header);
   static size_t totalsize = 0;
   tarSkipThisEntry = false;
 
   if( tarSkipThisEntryOut ) {
-    if( tarSkipThisEntryOut( proper ) ) {
-      tgzLogger("[TAR] Skipping: %s (filter 'Out' matches)\n", proper->filename );
+    if( tarSkipThisEntryOut( header ) ) {
+      tgzLogger("[TAR] Skipping: %s (filter 'Out' matches)\n", header->filename );
       tarSkipThisEntry = true;
     }
   }
 
   if( tarSkipThisEntryIn ) {
-    if( !tarSkipThisEntryIn( proper ) ) {
-      tgzLogger("[TAR] Skipping: %s (filter 'In' does not match)\n", proper->filename );
+    if( !tarSkipThisEntryIn( header ) ) {
+      tgzLogger("[TAR] Skipping: %s (filter 'In' does not match)\n", header->filename );
       tarSkipThisEntry = true;
     }
   }
 
   // https://github.com/tobozo/ESP32-targz/issues/33
-  if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
+  if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
     if( fstotalBytes &&  fsfreeBytes ) {
       size_t freeBytes  = fsfreeBytes();
-      if( freeBytes < proper->filesize ) {
+      if( freeBytes < header->filesize ) {
         // Abort before the partition is smashed!
-        log_e("[TAR ERROR] Not enough space left on device (%llu bytes required / %d bytes available)!", proper->filesize, freeBytes );
+        log_e("[TAR ERROR] Not enough space left on device (%llu bytes required / %d bytes available)!", header->filesize, freeBytes );
         return ESP32_TARGZ_FS_FULL_ERROR;
       }
     } else {
       #if defined WARN_LIMITED_FS
-        log_w("[TAR WARNING] Can't check target medium for free space (required:%llu, free:\?\?), will try to expand anyway", proper->filesize );
+        log_w("[TAR WARNING] Can't check target medium for free space (required:%llu, free:\?\?), will try to expand anyway", header->filesize );
       #endif
     }
 
@@ -591,7 +591,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
       if( file_path[strlen(file_path)-1] != FOLDER_SEPARATOR[0] ) {
         strcat(file_path, FOLDER_SEPARATOR);
       }
-      strcat(file_path, proper->filename);
+      strcat(file_path, header->filename);
 
       if( tarFS->exists( file_path ) ) {
         // file will be truncated
@@ -629,36 +629,36 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
       }
       tarGzIO.output = &untarredFile;
     } else {
-      log_v("[TAR FILTER] Skipped file/folder creation for: %s.", proper->filename);
+      log_v("[TAR FILTER] Skipped file/folder creation for: %s.", header->filename);
     }
 
-    tarCurrentFileSize = proper->filesize; // for progress
+    tarCurrentFileSize = header->filesize; // for progress
     tarCurrentFileSizeProgress = 0; // for progress
 
-    totalsize += proper->filesize;
+    totalsize += header->filesize;
 
     if( tarStatusProgressCallback && !tarSkipThisEntry ) {
-      tarStatusProgressCallback( proper->filename, proper->filesize, totalsize );
+      tarStatusProgressCallback( header->filename, header->filesize, totalsize );
     }
-    if( totalsize == proper->filesize && !tarSkipThisEntry )
+    if( totalsize == header->filesize && !tarSkipThisEntry )
       tarProgressCallback( 0 );
 
   } else {
 
-    switch( proper->type ) {
-      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", proper->filename); break;
-      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", proper->filename); break;
+    switch( header->type ) {
+      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", header->filename); break;
+      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", header->filename); break;
       case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
       case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
-      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", proper->filename);
-        //tarMessageCallback( "Entering %s directory\n", proper->filename );
+      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
+        //tarMessageCallback( "Entering %s directory\n", header->filename );
         if( tarStatusProgressCallback && !tarSkipThisEntry ) {
-          tarStatusProgressCallback( proper->filename, 0, totalsize );
+          tarStatusProgressCallback( header->filename, 0, totalsize );
         }
         totalFolders++;
       break;
       case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
-      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", proper->filename); break;
+      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", header->filename); break;
       case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
       //case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
       case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
@@ -673,7 +673,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *proper,  CC_UNUSED
 
 
 
-int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int entry_index, CC_UNUSED void *context_data)
+int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int entry_index, CC_UNUSED void *context_data)
 {
   int ret = ESP32_TARGZ_OK;
 
@@ -690,8 +690,8 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
         return ESP32_TARGZ_FS_WRITE_ERROR;
       }
       // health check 2: compare stream buffer position with speculated file size
-      if( pos != proper->filesize ) {
-        log_e("[TAR ERROR] File size and data size do not match (%d vs %d)!", (int)pos, (int)proper->filesize);
+      if( pos != header->filesize ) {
+        log_e("[TAR ERROR] File size and data size do not match (%d vs %d)!", (int)pos, (int)header->filesize);
         return ESP32_TARGZ_FS_WRITE_ERROR;
       }
       // health check 3: reopen file to check size on filesystem
@@ -702,8 +702,8 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
         return ESP32_TARGZ_FS_READSIZE_ERROR;
       }
       // health check 4: see if everyone (buffer, stream, filesystem) agree
-      if( tmpsize == 0 || proper->filesize != tmpsize || pos != tmpsize ) {
-        log_e("[TAR ERROR] Byte sizes differ between written file %s (%d), tar headers (%d) and/or stream buffer (%d) !!", tmp_path, (int)tmpsize, (int)proper->filesize, (int)pos );
+      if( (header->filesize>0 && tmpsize == 0) || header->filesize != tmpsize || pos != tmpsize ) {
+        log_e("[TAR ERROR] Byte sizes differ between written file %s (%d), tar headers (%d) and/or stream buffer (%d) !!", tmp_path, (int)tmpsize, (int)header->filesize, (int)pos );
         untarredFile.close();
         return ESP32_TARGZ_FS_ERROR;
       }
@@ -713,20 +713,20 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
     untarredFile.close();
 
     static size_t totalsize = 0;
-    if( proper->type != TAR::T_DIRECTORY ) {
-      totalsize += proper->filesize;
+    if( header->type != TAR::T_DIRECTORY ) {
+      totalsize += header->filesize;
     }
 
     tarProgressCallback( 100 );
     log_d("Total expanded bytes: %d, heap free: %d", (int)totalsize, ESP.getFreeHeap() );
 
-    tarMessageCallback( "%s", proper->filename );
+    tarMessageCallback( "%s", header->filename );
 
   } else {
     if( tarSkipThisEntry ) {
-      log_v("[TAR FILTER] Skipped file close for: %s.", proper->filename);
+      log_v("[TAR FILTER] Skipped file close for: %s.", header->filename);
     } else {
-      log_v("[TAR INFO] tarEndCallBack: nofile for `%s`", proper->filename );
+      log_v("[TAR INFO] tarEndCallBack: nofile for `%s`", header->filename );
     }
   }
   totalFiles++;
@@ -737,59 +737,61 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *proper, CC_UNUSED int
 
 
 
-int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int entry_index,  void *context_data)
+int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
 {
-  dump_header(proper);
+  dump_header(header);
   static size_t totalsize = 0;
   // https://github.com/tobozo/ESP32-targz/issues/33
-  if( proper->type == TAR::T_NORMAL  || proper->type == TAR::T_EXTENDED ) {
+  if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
     int partition = -1;
 
-    if( String( proper->filename ).endsWith("ino.bin") ) {
+    if( String( header->filename ).endsWith("ino.bin") ) {
       // partition = app
       partition = U_FLASH;
-    } else if( String( proper->filename ).endsWith("spiffs.bin")
-            || String( proper->filename ).endsWith("mklittlefs.bin")  ) {
+    } else if( String( header->filename ).endsWith("spiffs.bin")
+            || String( header->filename ).endsWith("littlefs.bin")
+            || String( header->filename ).endsWith("ffat.bin")  ) {
       partition = U_PART;
     } else {
       // not relevant to Update
+      // TODO: provide action callbacks (e.g. file has meta info)
       return ESP32_TARGZ_OK;
     }
 
-    // check that proper->filesize is smaller than partition available size
-    if( !Update.begin( proper->filesize/*UPDATE_SIZE_UNKNOWN*/, partition ) ) {
+    // check that header->filesize is smaller than partition available size
+    if( !Update.begin( header->filesize/*UPDATE_SIZE_UNKNOWN*/, partition ) ) {
       setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
       return (Update.getError()-20);
     }
 
-    tarCurrentFileSize = proper->filesize; // for progress
+    tarCurrentFileSize = header->filesize; // for progress
     tarCurrentFileSizeProgress = 0; // for progress
     tarBlockIsUpdateData = true;
 
-    totalsize += proper->filesize;
+    totalsize += header->filesize;
     if( tarStatusProgressCallback ) {
-      tarStatusProgressCallback( proper->filename, proper->filesize, totalsize );
+      tarStatusProgressCallback( header->filename, header->filesize, totalsize );
     }
-    if( totalsize == proper->filesize )
+    if( totalsize == header->filesize )
       tarProgressCallback( 0 );
 
   }/* else {
 
-    switch( proper->type ) {
-      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", proper->filename); break;
-      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", proper->filename); break;
+    switch( header->type ) {
+      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", header->filename); break;
+      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", header->filename); break;
       case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
       case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
-      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", proper->filename);
-        //tarMessageCallback( "Entering %s directory\n", proper->filename );
+      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
+        //tarMessageCallback( "Entering %s directory\n", header->filename );
         if( tarStatusProgressCallback ) {
-          tarStatusProgressCallback( proper->filename, 0, totalsize );
+          tarStatusProgressCallback( header->filename, 0, totalsize );
         }
         totalFolders++;
       break;
       case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
-      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", proper->filename); break;
+      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", header->filename); break;
       case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
       case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
       case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
@@ -801,7 +803,7 @@ int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *proper,  int 
 }
 
 
-int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *proper, int entry_index, void *context_data)
+int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data)
 {
   int ret = ESP32_TARGZ_OK;
 
@@ -824,7 +826,7 @@ int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *proper, int ent
   tarBlockIsUpdateData = false;
   tarProgressCallback( 100 );
   //log_d("Total expanded bytes: %d, heap free: %d", (int)totalsize, ESP.getFreeHeap() );
-  tarMessageCallback( "%s", proper->filename );
+  tarMessageCallback( "%s", header->filename );
   totalFiles++;
 
   return ret;
@@ -832,7 +834,7 @@ int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *proper, int ent
 
 
 
-int TarUnpacker::tarStreamWriteUpdateCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length)
+int TarUnpacker::tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length)
 {
   if( tarBlockIsUpdateData ) {
     int wlen = Update.write( block, length );
@@ -843,7 +845,7 @@ int TarUnpacker::tarStreamWriteUpdateCallback(TAR::header_translated_t *proper, 
     }
     untarredBytesCount+=wlen;
     // file unpack progress
-    log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
+    log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, header->filename );
     tarCurrentFileSizeProgress += wlen;
     if( tarCurrentFileSize > 0 ) {
       // this is a per-file progress, not an overall progress !
@@ -867,11 +869,11 @@ int TarUnpacker::tarStreamReadCallback( unsigned char* buff, size_t buffsize )
 }
 
 
-int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *proper, int entry_index, void *context_data, unsigned char *block, int length)
+int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length)
 {
 
   if( tarSkipThisEntry ) {
-    log_v("[TAR FILTER] Skipping data bits from: %s.", proper->filename);
+    log_v("[TAR FILTER] Skipping data bits from: %s.", header->filename);
     untarredBytesCount += length;
     tarCurrentFileSizeProgress += length;
     return ESP32_TARGZ_OK;
@@ -886,7 +888,7 @@ int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *proper, int en
     }
     untarredBytesCount+=wlen;
     // file unpack progress
-    log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, proper->filename );
+    log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, header->filename );
     tarCurrentFileSizeProgress += wlen;
     if( tarCurrentFileSize > 0 ) {
       // this is a per-file progress, not an overall progress !
@@ -952,7 +954,7 @@ bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &d
 
   int res = TAR::read_tar( &tarCallbacks, NULL );
   if( res != TAR_OK ) {
-    log_e("[ERROR] operation aborted while expanding tar file %s (return code #%d", fileName, res-30);
+    log_e("[ERROR] operation aborted while expanding tar file %s (return code #%d)", fileName, res-30);
     setError( (tarGzErrorCode)(res-30) );
     return false;
   }
