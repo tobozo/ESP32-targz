@@ -702,7 +702,7 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
         return ESP32_TARGZ_FS_READSIZE_ERROR;
       }
       // health check 4: see if everyone (buffer, stream, filesystem) agree
-      if( tmpsize == 0 || header->filesize != tmpsize || pos != tmpsize ) {
+      if( (header->filesize>0 && tmpsize == 0) || header->filesize != tmpsize || pos != tmpsize ) {
         log_e("[TAR ERROR] Byte sizes differ between written file %s (%d), tar headers (%d) and/or stream buffer (%d) !!", tmp_path, (int)tmpsize, (int)header->filesize, (int)pos );
         untarredFile.close();
         return ESP32_TARGZ_FS_ERROR;
