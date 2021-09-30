@@ -11,8 +11,8 @@
 #endif
 
 // Set **destination** filesystem by uncommenting one of these:
-#define DEST_FS_USES_SPIFFS
-//#define DEST_FS_USES_LITTLEFS
+//#define DEST_FS_USES_SPIFFS
+#define DEST_FS_USES_LITTLEFS
 #include <ESP32-targz.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -76,13 +76,16 @@ void stubbornConnect()
   uint8_t wifi_retry_count = 0;
   uint8_t max_retries = 10;
   unsigned long stubbornness_factor = 3000; // ms to wait between attempts
+
+  Serial.print( "MAC Address: " );
+  Serial.println(WiFi.macAddress());
+
   while (WiFi.status() != WL_CONNECTED && wifi_retry_count < max_retries) {
     #if defined WIFI_SSID && defined WIFI_PASS
       WiFi.begin( WIFI_SSID, WIFI_PASS ); // put your ssid / pass if required, only needed once
     #else
       WiFi.begin();
     #endif
-    Serial.print(WiFi.macAddress());
     Serial.printf(" => WiFi connect - Attempt No. %d\n", wifi_retry_count+1);
     delay( stubbornness_factor );
     wifi_retry_count++;
