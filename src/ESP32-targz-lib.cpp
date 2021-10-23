@@ -1322,7 +1322,6 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   bool isupdate      = false;
   bool stream_to_tar = false;
   bool gz_use_dict   = true;
-  bool show_progress = false;
 
   if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
     size_t free_min_heap_blocks = ESP.getFreeHeap() / 512; // leave 1k heap, eat all the rest !
