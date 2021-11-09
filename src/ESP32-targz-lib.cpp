@@ -98,6 +98,7 @@ static int32_t  untarredBytesCount = 0;
 static size_t   totalFiles = 0;
 static size_t   totalFolders = 0;
 static int64_t  uzlib_bytesleft = 0;
+static int64_t  stream_bytesleft = 0;
 static uint32_t output_position = 0;  //position in output_buffer
 static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static uint16_t gzTarBlockPos = 0;
@@ -151,6 +152,7 @@ BaseUnpacker::BaseUnpacker()
 
   uzlib_gzip_dict = nullptr;
   uzlib_bytesleft = 0;
+  stream_bytesleft = 0;
   output_position = 0;  //position in output_buffer
   blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
   gzTarBlockPos = 0;
@@ -582,16 +584,26 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
     if( !tarSkipThisEntry ) {
 
       char file_path[256] = {0};
+      // check that TAR path does not start with "./" and truncate if necessary
+      if( header->filename[0] == '.' && header->filename[1] == '/' ) {
+        snprintf( file_path, 101, "%s", header->filename ); // TAR paths are limited to 100 chars
+        snprintf( header->filename, 101, "%s", &file_path[2] );
+      }
       memset( file_path, 0, 256 );
-      // avoid double slashing root path
       if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
+        // destination folder isn't root folder, prefix !
         strcat(file_path, tarDestFolder);
+        // append slash if missing
+        if( tarDestFolder[strlen(tarDestFolder)-1] != '/' ) {
+          strcat(file_path, FOLDER_SEPARATOR);
+        }
       }
       // only append slash if destination folder does not end with a slash
       if( file_path[strlen(file_path)-1] != FOLDER_SEPARATOR[0] ) {
         strcat(file_path, FOLDER_SEPARATOR);
       }
-      strcat(file_path, header->filename);
+
+      strcat(file_path, header->filename );
 
       if( tarFS->exists( file_path ) ) {
         // file will be truncated
@@ -1129,6 +1141,9 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
   } else {
     //log_v("read 1 byte: 0x%02x", out[0] );
   }
+  if( tarGzIO.gz_size > 0 ) {
+    stream_bytesleft -= 1;
+  }
   return 0;
 }
 
@@ -1262,9 +1277,17 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       }
 
       if( show_progress ) {
-        uzlib_bytesleft = tarGzIO.output_size - outlen;
-        int32_t progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
-        gzProgressCallback( progress );
+        if( tarGzIO.output_size > 0 ) {
+          uzlib_bytesleft = tarGzIO.output_size - outlen;
+          int32_t progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
+          gzProgressCallback( progress );
+        } else if( tarGzIO.gz_size > 0 ) {
+          //uzlib_bytesleft = tarGzIO.output_size - outlen;
+          //stream_bytesleft = tarGzIO.gz_size -
+          int32_t progress = 100*(tarGzIO.gz_size-stream_bytesleft) / tarGzIO.gz_size;
+          gzProgressCallback( progress );
+        }
+
       }
 
     } while ( res == TINF_OK );
@@ -1455,9 +1478,10 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
 
     if( int( gz_size ) < 1 || gz_size == 0 ) {
       tgzLogger("[GZStreamExpander] unknown binary size\n");
-
+      stream_bytesleft = 0;
     } else {
       tgzLogger("[GZStreamExpander] Unzipping\n");
+      stream_bytesleft = gz_size;
     }
     // process with unzipping
     int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
@@ -1704,6 +1728,8 @@ TarGzUnpacker::TarGzUnpacker() : TarUnpacker(), GzUnpacker()
 // gzWriteCallback
 bool TarGzUnpacker::gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED size_t buffsize )
 {
+  //stream_bytesleft -= buffsize;
+
   if( lastblock ) {
     return true;
   }
@@ -1759,8 +1785,15 @@ int TarGzUnpacker::tarReadGzStream( unsigned char* buff, size_t buffsize )
   tarReadGzStreamBytes += i;
 
   uzlib_bytesleft = tarGzIO.output_size - tarReadGzStreamBytes;
-  int32_t progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
-  gzProgressCallback( progress );
+  // stream_bytesleft -= buffsize;
+  if( tarGzIO.output_size > 0 ) {
+    int32_t progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
+    gzProgressCallback( progress );
+  }
+  // else if( tarGzIO.gz_size>0 ) {
+    //int32_t progress = 100*(tarGzIO.gz_size-stream_bytesleft) / tarGzIO.gz_size;
+    //gzProgressCallback( progress );
+  //}
   return i;
 }
 
@@ -1774,6 +1807,7 @@ int TarGzUnpacker::gzFeedTarBuffer( unsigned char* buff, size_t buffsize )
     setError( ESP32_TARGZ_TAR_ERR_GZDEFL_FAIL );
     return 0;
   }
+  //stream_bytesleft -= buffsize;
   uint32_t blockpos = gzTarBlockPos%blockmod;
   memcpy( buff, output_buffer/*uzlib_buffer*/+(TAR_BLOCK_SIZE*blockpos), TAR_BLOCK_SIZE );
   bytes_fed += TAR_BLOCK_SIZE;
@@ -1979,8 +2013,21 @@ bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
 
 
 // uncompress tar+gz stream (file or HTTP) to filesystem without intermediate tar file
-bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const char* destFolder )
+bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const char* destFolder, int64_t streamSize )
 {
+
+  bool isupdate      = false;
+  bool stream_to_tar = false;
+  bool use_dict      = true;
+  bool show_progress = false;
+
+  // size was provided when passing the stream, enable progress
+  if( streamSize > 0 ) {
+    tarGzIO.gz_size = streamSize;
+    stream_bytesleft = streamSize;
+    show_progress = true;
+    log_w("Enabling progress");
+  }
 
   if( !stream->available() ) {
     log_e("Bad stream, aborting");
@@ -1989,6 +2036,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   }
 
   if( !gzProgressCallback ) {
+    show_progress = false;
     setGzProgressCallback( defaultProgressCallback );
   }
 
@@ -2030,10 +2078,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   firstblock = true; // trigger TAR setup from gzUncompress callback
   lastblock  = false;
 
-  bool isupdate      = false;
-  bool stream_to_tar = false;
-  bool use_dict      = true;
-  bool show_progress = false;
+
 
   #if defined ESP8266
 

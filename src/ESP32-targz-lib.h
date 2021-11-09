@@ -86,6 +86,8 @@ namespace TAR
   }
 }
 
+#include <stdio.h>
+
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
 // to explode during stream writes.
@@ -269,7 +271,7 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
   // requirements: targz archive must contain files with names suffixed by ".ino.bin" and/or ".spiffs.bin"
   bool tarGzStreamUpdater( Stream *stream );
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
-  bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/" );
+  bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/", int64_t streamSize = -1 );
 
   static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );

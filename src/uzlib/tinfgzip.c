@@ -64,13 +64,13 @@ int uzlib_gzip_parse_header(TINF_DATA *d)
 
     /* check id bytes */
     if (uzlib_get_byte(d) != 0x1f || uzlib_get_byte(d) != 0x8b) {
-      d->log("bad id bytes\n");
+      d->log("uzlib_gzip_parse_header: bad id bytes (expecting 1f:8b\n");
       return TINF_DATA_ERROR;
     }
 
     /* check method is deflate */
     if (uzlib_get_byte(d) != 8) {
-      d->log("bad method\n");
+      d->log("uzlib_gzip_parse_header: bad method\n");
       return TINF_DATA_ERROR;
     }
 
@@ -79,7 +79,7 @@ int uzlib_gzip_parse_header(TINF_DATA *d)
 
     /* check that reserved bits are zero */
     if (flg & 0xe0) {
-      d->log("bad reserved bytes\n");
+      d->log("uzlib_gzip_parse_header: bad reserved bytes\n");
       return TINF_DATA_ERROR;
     }
 
