@@ -64,7 +64,11 @@ void stubbornConnect()
 
 WiFiClient *getTarGzHTTPClientPtr( WiFiClientSecure *client, const char* url, const char *cert = NULL )
 {
-  client->setCACert( cert );
+  if( cert == NULL ) {
+    client->setInsecure();
+  } else {
+    client->setCACert( cert );
+  }
   const char* UserAgent = "ESP32-HTTP-GzUpdater-Client";
   http.setReuse(true); // handle 301 redirects gracefully
   http.setUserAgent( UserAgent );
@@ -134,7 +138,7 @@ void setup()
 #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_LITTLEFS
   tarGzFS.format();
 #endif
-  if( !tarGzFS.begin() ) {
+  if( !tarGzFS.begin(4) ) {
     Serial.println("Could not start filesystem");
     while(1);
   }
