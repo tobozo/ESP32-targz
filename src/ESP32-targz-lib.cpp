@@ -175,7 +175,7 @@ bool BaseUnpacker::setPsram( bool enable )
       tgz_calloc  = ps_calloc;
       tgz_realloc = ps_realloc;
       tgz_use_psram = true;
-      log_d("Enabled Psram for uzlib dictionary");
+      log_v("Enabled Psram for uzlib dictionary");
       unTarDoHealthChecks = false;
       return true;
     }
@@ -183,7 +183,7 @@ bool BaseUnpacker::setPsram( bool enable )
     tgz_malloc  = malloc;
     tgz_calloc  = calloc;
     tgz_realloc = realloc;
-    log_d("Disabled Psram for uzlib dictionary");
+    log_v("Disabled Psram for uzlib dictionary");
     return true;
   }
   return false;
@@ -284,7 +284,7 @@ void BaseUnpacker::targzPrintLoggerCallback(const char* format, ...)
 // set totalBytes() function callback
 void BaseUnpacker::setFsTotalBytesCb( fsTotalBytesCb cb )
 {
-  log_d("Assigning setFsTotalBytesCb callback : 0x%8x", (uint)cb );
+  log_v("Assigning setFsTotalBytesCb callback : 0x%8x", (uint)cb );
   fstotalBytes = cb;
 }
 
@@ -292,7 +292,7 @@ void BaseUnpacker::setFsTotalBytesCb( fsTotalBytesCb cb )
 // set freelBytes() function callback
 void BaseUnpacker::setFsFreeBytesCb( fsFreeBytesCb cb )
 {
-  log_d("Assigning setFsFreeBytesCb callback : 0x%8x", (uint)cb );
+  log_v("Assigning setFsFreeBytesCb callback : 0x%8x", (uint)cb );
   fsfreeBytes = cb;
 }
 
@@ -300,7 +300,7 @@ void BaseUnpacker::setFsFreeBytesCb( fsFreeBytesCb cb )
 // set logger callback
 void BaseUnpacker::setLoggerCallback( genericLoggerCallback cb )
 {
-  log_d("Assigning debug logger callback : 0x%8x", (uint)cb );
+  log_v("Assigning debug logger callback : 0x%8x", (uint)cb );
   tgzLogger = cb;
 }
 
@@ -309,10 +309,10 @@ void BaseUnpacker::setLoggerCallback( genericLoggerCallback cb )
 void BaseUnpacker::initFSCallbacks()
 {
   if( fsSetupSizeTools && fstotalBytes && fsfreeBytes ) {
-    log_d("Setting up fs size tools");
+    log_v("Setting up fs size tools");
     fsSetupSizeTools( fstotalBytes, fsfreeBytes );
   } else {
-    log_d("Skipping fs size tools setup");
+    log_v("Skipping fs size tools setup");
   }
 }
 
@@ -323,12 +323,12 @@ void BaseUnpacker::setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf )
   setFsTotalBytesCb( cbt );
   setFsFreeBytesCb( cbf );
   if( fsSetupSizeTools != NULL ) {
-    log_d("deleting fsSetupSizeTools");
+    log_v("deleting fsSetupSizeTools");
     fsSetupSizeTools = NULL;
   }
-  log_d("Assigning lambda to fsSetupSizeTools");
+  log_v("Assigning lambda to fsSetupSizeTools");
   fsSetupSizeTools = []( fsTotalBytesCb cbt, fsFreeBytesCb cbf ) {
-    log_d("Calling fsSetupSizeTools lambda");
+    log_v("Calling fsSetupSizeTools lambda");
     setFsTotalBytesCb( cbt );
     setFsFreeBytesCb( cbf );
   };
@@ -503,7 +503,7 @@ void TarUnpacker::setTarStatusProgressCallback( tarStatusProgressCb cb )
 // set progress callback for TAR
 void TarUnpacker::setTarProgressCallback( genericProgressCallback cb )
 {
-  log_d("Assigning tar progress callback : 0x%8x", (uint)cb );
+  log_v("Assigning tar progress callback : 0x%8x", (uint)cb );
   tarProgressCallback = cb;
 }
 
@@ -511,7 +511,7 @@ void TarUnpacker::setTarProgressCallback( genericProgressCallback cb )
 // set tar unpacker message callback
 void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 {
-  log_d("Assigning tar message callback : 0x%8x", (uint)cb );
+  log_v("Assigning tar message callback : 0x%8x", (uint)cb );
   tarMessageCallback = cb;
 }
 
@@ -519,12 +519,12 @@ void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 // exclude / include based on tar header properties (filename, size, type)
 void TarUnpacker::setTarExcludeFilter( tarExcludeFilter cb )
 {
-  log_d("Assigning tar filename exclude filter callback : 0x%8x", (uint)cb );
+  log_v("Assigning tar filename exclude filter callback : 0x%8x", (uint)cb );
   tarSkipThisEntryOut = cb;
 }
 void TarUnpacker::setTarIncludeFilter( tarIncludeFilter cb )
 {
-  log_d("Assigning tar filename include filter callback : 0x%8x", (uint)cb );
+  log_v("Assigning tar filename include filter callback : 0x%8x", (uint)cb );
   tarSkipThisEntryIn  = cb;
 }
 
@@ -532,9 +532,9 @@ void TarUnpacker::setTarIncludeFilter( tarIncludeFilter cb )
 // safer but slower
 void TarUnpacker::setTarVerify( bool verify )
 {
-  log_d("Setting tar verify : %s", verify ? "true" : "false" );
+  log_v("Setting tar verify : %s", verify ? "true" : "false" );
   #if __has_include(<PSRamFS.h>)
-    log_w("Implicitely ignoring health checks on PSRamFS");
+    log_d("Implicitely ignoring health checks on PSRamFS");
     unTarDoHealthChecks = false; // disable that with psramFS
   #else
     unTarDoHealthChecks = verify;
@@ -630,7 +630,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
           setError( ESP32_TARGZ_TAR_ERR_FILENAME_TOOLONG ); // don't break untar for that
         #endif
       } else {
-        log_d("[TAR] Creating %s", file_path);
+        log_v("[TAR] Creating %s", file_path);
       }
 
       untarredFile = tarFS->open(file_path, FILE_WRITE);
@@ -658,10 +658,10 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
   } else {
 
     switch( header->type ) {
-      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", header->filename); break;
-      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", header->filename); break;
-      case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
-      case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
+      case TAR::T_HARDLINK:       log_v("Ignoring hard link to %s.", header->filename); break;
+      case TAR::T_SYMBOLIC:       log_v("Ignoring sym link to %s.", header->filename); break;
+      case TAR::T_CHARSPECIAL:    log_v("Ignoring special char."); break;
+      case TAR::T_BLOCKSPECIAL:   log_v("Ignoring special block."); break;
       case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
         //tarMessageCallback( "Entering %s directory\n", header->filename );
         if( tarStatusProgressCallback && !tarSkipThisEntry ) {
@@ -669,11 +669,11 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
         }
         totalFolders++;
       break;
-      case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
-      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", header->filename); break;
-      case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
+      case TAR::T_FIFO:           log_v("Ignoring FIFO request."); break;
+      case TAR::T_CONTIGUOUS:     log_v("Ignoring contiguous data to %s.", header->filename); break;
+      case TAR::T_GLOBALEXTENDED: log_v("Ignoring global extended data."); break;
       //case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
-      case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
+      case TAR::T_OTHER: default: log_v("Ignoring unrelevant data.");       break;
     }
 
   }
@@ -991,7 +991,7 @@ GzUnpacker::GzUnpacker()
 // set progress callback for GZ
 void GzUnpacker::setGzProgressCallback( genericProgressCallback cb )
 {
-  log_d("Assigning GZ progress callback : 0x%8x", (uint)cb );
+  log_v("Assigning GZ progress callback : 0x%8x", (uint)cb );
   gzProgressCallback = cb;
 }
 
@@ -1000,7 +1000,7 @@ void GzUnpacker::setGzProgressCallback( genericProgressCallback cb )
 // set logger callback
 void GzUnpacker::setGzMessageCallback( genericLoggerCallback cb )
 {
-  log_d("Assigning debug logger callback : 0x%8x", (uint)cb );
+  log_v("Assigning debug logger callback : 0x%8x", (uint)cb );
   gzMessageCallback = cb;
 }
 
@@ -1078,7 +1078,7 @@ bool GzUnpacker::gzReadHeader( fs::File &gzFile )
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 3)<<8;
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 2)<<16;
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 1)<<24;
-    log_i("[GZ INFO] valid gzip file detected! gz size: %d bytes, expanded size:%d bytes", tarGzIO.gz_size, tarGzIO.output_size);
+    log_v("[GZ INFO] valid gzip file detected! gz size: %d bytes, expanded size:%d bytes", tarGzIO.gz_size, tarGzIO.output_size);
     // Check for free space left on device before writing
     if( fstotalBytes &&  fsfreeBytes ) {
       size_t freeBytes  = fsfreeBytes();
@@ -1087,7 +1087,7 @@ bool GzUnpacker::gzReadHeader( fs::File &gzFile )
         log_e("[GZ ERROR] Target medium will be out of space (required:%d, free:%d), aborting!", tarGzIO.output_size, freeBytes);
         return false;
       } else {
-        log_i("[GZ INFO] Available space:%d bytes", freeBytes);
+        log_v("[GZ INFO] Available space:%d bytes", freeBytes);
       }
     } else {
       #if defined WARN_LIMITED_FS
@@ -1133,7 +1133,7 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
 {
   //if( !BaseUnpacker::tarGzIO.gz->available() ) return -1;
   if (tarGzIO.gz->readBytes( out, 1 ) != 1) {
-    log_d("readSourceByte read error, available is %d.  attempting one-time retry", tarGzIO.gz->available());
+    log_v("readSourceByte read error, available is %d.  attempting one-time retry", tarGzIO.gz->available());
     if (tarGzIO.gz->readBytes( out, 1 ) != 1) {
       log_e("readSourceByte read error, available is %d.  failed at retry", tarGzIO.gz->available());
       return -1;
@@ -1195,7 +1195,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     }
     uzlib_dict_size = GZIP_DICT_SIZE;
     uzLibDecompressor.readDestByte   = NULL;
-    log_d("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, ESP.getFreeHeap());
+    log_v("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, ESP.getFreeHeap());
     //log_w("[%d] alloc() done", ESP.getFreeHeap() );
   } else {
     if( stream_to_tar ) {
@@ -1203,10 +1203,10 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       return ESP32_TARGZ_NEEDS_DICT;
     } else {
       uzLibDecompressor.readDestByte   = gzReadDestByte;
-      log_d("[INFO] gz output is file");
+      log_v("[INFO] gz output is file");
     }
     //output_buffer_size = SPI_FLASH_SEC_SIZE;
-    log_d("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, ESP.getFreeHeap());
+    log_v("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, ESP.getFreeHeap());
     uzlib_gzip_dict = NULL;
     uzlib_dict_size = 0;
   }
@@ -1246,7 +1246,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     // tar will pull bytes from gz for when needed
     //tinyUntarReadCallback = &tarReadGzStream;
     blockmod = output_buffer_size / TAR_BLOCK_SIZE;
-    log_d("[INFO] output_buffer_size=%d blockmod=%d", output_buffer_size, blockmod );
+    log_v("[INFO] output_buffer_size=%d blockmod=%d", output_buffer_size, blockmod );
     untarredBytesCount = 0;
     int ret = TAR::tar_setup(&tarCallbacks, NULL);
     firstblock = false;
@@ -1375,7 +1375,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
         return false;
       }
       snprintf( (char*)destFile, slen+1, "%s", sourceFileCopy.c_str() );
-      log_w("Speculated filename: %s", destFile );
+      log_v("Speculated filename: %s", destFile );
     } else {
       setError( ESP32_TARGZ_TAR_ERR_FILENAME_NOT_GZ );
       return false;
@@ -1396,7 +1396,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   }
 
   if( destFS.exists( destFile ) ) {
-    log_d("[GZ INFO] Deleting %s as it is in the way", destFile);
+    log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
     destFS.remove( destFile );
   }
   fs::File outfile = destFS.open( destFile, "w+" );
@@ -1417,7 +1417,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
     setError( (tarGzErrorCode)ret );
     return false;
   }
-  log_d("uzLib expander finished!");
+  log_v("uzLib expander finished!");
 
   /*
   outfile = destFS.open( destFile, FILE_READ );
@@ -1517,7 +1517,7 @@ bool GzUnpacker::gzUpdater( fs::FS &fs, const char* gz_filename, int partition, 
     setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
     return false;
   }
-  log_d("uzLib SPIFFS Updater start!");
+  log_v("uzLib SPIFFS Updater start!");
   fs::File gz = fs.open( gz_filename, FILE_READ );
   #if defined ESP8266
     int update_size = gz.size();
@@ -1560,7 +1560,7 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
     } else {
       Update.runAsync( true );
       stream_size = update_size;
-      log_d("Stream size is %d", stream_size );
+      log_v("Stream size is %d", stream_size );
     }
 
     if ( !Update.begin( stream_size, partition )) { // U_FLASH or U_PART
@@ -1633,7 +1633,7 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
       return false;
     }
 
-    log_d("Update finished !");
+    log_v("Update finished !");
     if( restart_on_update ) ESP.restart();
   #endif // ifdef ESP8266
 
@@ -1685,10 +1685,10 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
     }
 
     if ( Update.end( true ) ) {
-      log_d( "OTA done!" );
+      log_v( "OTA done!" );
       if ( Update.isFinished() ) {
         // yay
-        log_d("Update finished !");
+        log_v("Update finished !");
         gzProgressCallback( 100 );
         if( restart_on_update ) ESP.restart();
       } else {
@@ -1701,7 +1701,7 @@ bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partit
       setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
       return false;
     }
-    log_d("uzLib filesystem Updater finished!\n");
+    log_v("uzLib filesystem Updater finished!");
     setError( (tarGzErrorCode)ret );
   #endif // ifdef ESP32
 
@@ -1745,7 +1745,7 @@ bool TarGzUnpacker::gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED
   while( gzTarBlockPos < blockmod ) {
     int response = TAR::read_tar_step(); // warn: this may fire more than 1 read_cb()
     if( response == TAR_EXPANDING_DONE ) {
-      log_d("[TAR] Expanding done !");
+      log_v("[TAR] Expanding done !");
       lastblock = true;
       return true;
     }
@@ -1914,7 +1914,7 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
     setError( (tarGzErrorCode)ret );
     return false;
   }
-  log_d("uzLib expander finished!");
+  log_v("uzLib expander finished!");
 
   if( fstotalBytes &&  fsfreeBytes ) {
     log_d("[GZ Info] FreeBytes after expansion=%d", fsfreeBytes() );
