@@ -94,6 +94,7 @@ static bool     firstblock = true; // for gzProcessTarBuffer
 static bool     lastblock = false; // for gzProcessTarBuffer
 static size_t   tarCurrentFileSize = 0;
 static size_t   tarCurrentFileSizeProgress = 0;
+static size_t   tarTotalSize = 0;
 static int32_t  untarredBytesCount = 0;
 static size_t   totalFiles = 0;
 static size_t   totalFolders = 0;
@@ -548,7 +549,7 @@ void TarUnpacker::setTarVerify( bool verify )
 int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data )
 {
   dump_header(header);
-  static size_t totalsize = 0;
+
   tarSkipThisEntry = false;
 
   if( tarSkipThisEntryOut ) {
@@ -647,12 +648,12 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
     tarCurrentFileSize = header->filesize; // for progress
     tarCurrentFileSizeProgress = 0; // for progress
 
-    totalsize += header->filesize;
+    tarTotalSize += header->filesize;
 
     if( tarStatusProgressCallback && !tarSkipThisEntry ) {
-      tarStatusProgressCallback( header->filename, header->filesize, totalsize );
+      tarStatusProgressCallback( header->filename, header->filesize, tarTotalSize );
     }
-    if( totalsize == header->filesize && !tarSkipThisEntry )
+    if( tarTotalSize == header->filesize && !tarSkipThisEntry )
       tarProgressCallback( 0 );
 
   } else {
@@ -665,7 +666,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
       case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
         //tarMessageCallback( "Entering %s directory\n", header->filename );
         if( tarStatusProgressCallback && !tarSkipThisEntry ) {
-          tarStatusProgressCallback( header->filename, 0, totalsize );
+          tarStatusProgressCallback( header->filename, 0, tarTotalSize );
         }
         totalFolders++;
       break;
@@ -724,13 +725,13 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 
     untarredFile.close();
 
-    static size_t totalsize = 0;
+    tarTotalSize = 0;
     if( header->type != TAR::T_DIRECTORY ) {
-      totalsize += header->filesize;
+      tarTotalSize += header->filesize;
     }
 
     tarProgressCallback( 100 );
-    log_d("Total expanded bytes: %d, heap free: %d", (int)totalsize, ESP.getFreeHeap() );
+    log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, ESP.getFreeHeap() );
 
     tarMessageCallback( "%s", header->filename );
 
@@ -752,7 +753,7 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
 {
   dump_header(header);
-  static size_t totalsize = 0;
+
   // https://github.com/tobozo/ESP32-targz/issues/33
   if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
@@ -781,11 +782,11 @@ int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int 
     tarCurrentFileSizeProgress = 0; // for progress
     tarBlockIsUpdateData = true;
 
-    totalsize += header->filesize;
+    tarTotalSize += header->filesize;
     if( tarStatusProgressCallback ) {
-      tarStatusProgressCallback( header->filename, header->filesize, totalsize );
+      tarStatusProgressCallback( header->filename, header->filesize, tarTotalSize );
     }
-    if( totalsize == header->filesize )
+    if( tarTotalSize == header->filesize )
       tarProgressCallback( 0 );
 
   }/* else {
@@ -798,7 +799,7 @@ int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int 
       case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
         //tarMessageCallback( "Entering %s directory\n", header->filename );
         if( tarStatusProgressCallback ) {
-          tarStatusProgressCallback( header->filename, 0, totalsize );
+          tarStatusProgressCallback( header->filename, 0, tarTotalSize );
         }
         totalFolders++;
       break;
@@ -837,7 +838,7 @@ int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *header, int ent
 
   tarBlockIsUpdateData = false;
   tarProgressCallback( 100 );
-  //log_d("Total expanded bytes: %d, heap free: %d", (int)totalsize, ESP.getFreeHeap() );
+  //log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, ESP.getFreeHeap() );
   tarMessageCallback( "%s", header->filename );
   totalFiles++;
 
@@ -916,13 +917,14 @@ int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int en
 
 
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder )
+bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder )
 {
 
   tarGzClearError();
   initFSCallbacks();
   tarFS = &destFS;
   tarDestFolder = destFolder;
+  tarTotalSize = 0;
 
   if (!tgzLogger ) {
     setLoggerCallback( targzPrintLoggerCallback );
@@ -933,8 +935,8 @@ bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &d
   if( !tarMessageCallback ) {
     setTarMessageCallback( targzNullLoggerCallback );
   }
-  if( !sourceFS.exists( fileName ) ) {
-    log_e("Error: file %s does not exist or is not reachable", fileName);
+  if( !stream ) {
+    log_e("Error: stream is not reachable");
     setError( ESP32_TARGZ_FS_ERROR );
     return false;
   }
@@ -942,7 +944,7 @@ bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &d
     destFS.mkdir( tarDestFolder );
   }
 
-  tgzLogger("[TAR] Expanding %s to folder %s\n", fileName, destFolder );
+  tgzLogger("[TAR] Expanding stream to folder %s\n", destFolder );
 
   untarredBytesCount = 0;
 
@@ -952,31 +954,38 @@ bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &d
     tarStreamWriteCallback,
     tarEndCallBack
   };
-  fs::File tarFile = sourceFS.open( fileName, FILE_READ );
-  tarGzIO.tar_size = tarFile.size();
-  tarGzIO.tar = &tarFile;
-  //tinyUntarReadCallback = &tarStreamReadCallback;
+
+  tarGzIO.tar_size = streamSize;
+  tarGzIO.tar = stream;
+
   TAR::tar_error_logger      = tgzLogger;
   TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
 
   totalFiles = 0;
   totalFolders = 0;
 
-  //tarProgressCallback( 0 );
-
   int res = TAR::read_tar( &tarCallbacks, NULL );
   if( res != TAR_OK ) {
-    log_e("[ERROR] operation aborted while expanding tar file %s (return code #%d)", fileName, res-30);
+    log_e("[ERROR] operation aborted while expanding stream (return code #%d)", res-30);
     setError( (tarGzErrorCode)(res-30) );
     return false;
   }
-
-  //tarProgressCallback( 100 );
 
   return true;
 }
 
 
+// unpack sourceFS://fileName.tar contents to destFS::/destFolder/
+bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder )
+{
+  if( !sourceFS.exists( fileName ) ) {
+    log_e("Error: file %s does not exist or is not reachable", fileName);
+    setError( ESP32_TARGZ_FS_ERROR );
+    return false;
+  }
+  fs::File tarFile = sourceFS.open( fileName, FILE_READ );
+  return tarStreamExpander( (Stream*)&tarFile, tarFile.size(), destFS, destFolder );
+}
 
 
 

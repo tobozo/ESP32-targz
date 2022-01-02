@@ -7,8 +7,8 @@
 \*/
 // Set **destination** filesystem by uncommenting one of these:
 //#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
-#define DEST_FS_USES_LITTLEFS
-//#define DEST_FS_USES_SD
+//#define DEST_FS_USES_LITTLEFS
+#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 //#define DEST_FS_USES_PSRAMFS // ESP32 only
@@ -78,6 +78,47 @@ bool test_tarExpander()
   }
   return ret;
 }
+
+
+// Test #1: tarExpander()
+// Requires: tar file
+bool test_tarStreamExpander()
+{
+  bool ret = false;
+  const char* tarFilePath = "/tar_example.tar";
+  myPackage.folder = "/tmp"; // for md5 tests
+
+  SerialPrintCentered("Testing tarExpander", false, true );
+
+  TarUnpacker *TARUnpacker = new TarUnpacker();
+
+  TARUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+
+  #if defined ESP32
+    TARUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
+  #endif
+  #if defined ESP8266
+    TARUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
+  #endif
+
+  TARUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+  //TARUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );  // log verbosity
+  TARUnpacker->setTarProgressCallback( BaseUnpacker::defaultProgressCallback ); // prints the untarring progress for each individual file
+  TARUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
+  TARUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
+
+  fs::File tarFile = sourceFS.open( tarFilePath );
+
+  if(  !TARUnpacker->tarStreamExpander((Stream*)&tarFile, tarFile.size(), tarGzFS, myPackage.folder ) ) {
+    Serial.println( OpenLine );
+    SerialPrintfCentered("tarStreamExpander failed with return code #%d", TARUnpacker->tarGzGetError() );
+    Serial.println( CloseLine );
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
 
 
 
@@ -416,6 +457,7 @@ void setup()
 {
   Serial.begin( 115200 );
   EEPROM.begin(512);
+  SD.begin( 4 );
 
   #ifdef ESP8266
     // WTF on ESP8266 you must include <user_interface.h> and load WiFi in order not to use WiFi :-(
@@ -483,7 +525,7 @@ void setup()
 
   switch( testNum )
   {
-    case 0: test_succeeded = test_tarExpander(); break;
+    case 0: test_succeeded = test_tarExpander() && test_tarStreamExpander(); break;
     case 1: test_succeeded = test_gzExpander() /*&& test_gzStreamExpander()*/; break;
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
