@@ -107,7 +107,7 @@ bool test_tarStreamExpander()
   TARUnpacker->setTarStatusProgressCallback( BaseUnpacker::defaultTarStatusProgressCallback ); // print the filenames as they're expanded
   TARUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
-  fs::File tarFile = sourceFS.open( tarFilePath );
+  File tarFile = sourceFS.open( tarFilePath, "r" );
 
   if(  !TARUnpacker->tarStreamExpander((Stream*)&tarFile, tarFile.size(), tarGzFS, myPackage.folder ) ) {
     Serial.println( OpenLine );
@@ -457,7 +457,9 @@ void setup()
 {
   Serial.begin( 115200 );
   EEPROM.begin(512);
-  SD.begin( 4 );
+  #if defined DEST_FS_USES_SD
+    //SD.begin( 4 );
+  #endif
 
   #ifdef ESP8266
     // WTF on ESP8266 you must include <user_interface.h> and load WiFi in order not to use WiFi :-(
