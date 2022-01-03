@@ -127,7 +127,7 @@ void setup()
   Serial.begin(115200);
 
 #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_LITTLEFS
-  //tarGzFS.format();
+  tarGzFS.format();
 #endif
   if (!tarGzFS.begin(4))
   {
