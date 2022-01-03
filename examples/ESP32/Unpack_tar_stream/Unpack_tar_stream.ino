@@ -6,8 +6,9 @@
  *
 \*/
 
+
 #ifndef ESP32
-#error "gzStreamExpander is only available on ESP32 architecture"
+#error "tarStreamExpander is only available on ESP32 architecture"
 #endif
 
 // Set **destination** filesystem by uncommenting one of these:
@@ -28,11 +29,11 @@ HTTPClient http;
 //
 // 3) Flash this sketch
 
-const char *tgzURL = "https://raw.githubusercontent.com/tobozo/ESP32-targz/master/examples/Test_tar_gz_tgz/data/targz_example.tar.gz";
+const char *tgzURL = "https://host/path_to_tar_file";
 const char *certificate = NULL; // change this as needed, leave as is for no TLS check (yolo security)
 
-#define WIFI_SSID "meshtastic"
-#define WIFI_PASS "meshtastic!"
+#define WIFI_SSID "YOUR_WIFI_NETWORK"
+#define WIFI_PASS "D0G$_AR3_C00L"
 
 void stubbornConnect()
 {
@@ -67,6 +68,7 @@ WiFiClient *getTarGzHTTPClientPtr(WiFiClientSecure *client, const char *url, con
 {
   if (cert == NULL)
   {
+    // New versions don't have setInsecure
     //client->setInsecure();
   }
   else
@@ -119,41 +121,6 @@ WiFiClient *getTarGzHTTPClientPtr(WiFiClientSecure *client, const char *url, con
   return http.getStreamPtr();
 }
 
-void myTarProgressCallback(uint8_t progress)
-{
-  static int8_t myLastProgress = -1;
-  if (myLastProgress != progress)
-  {
-    myLastProgress = progress;
-    if (progress == 0)
-    {
-      Serial.print("Progress: [0% ");
-    }
-    else if (progress == 100)
-    {
-      Serial.println(" 100%]\n");
-    }
-    else
-    {
-      switch (progress)
-      {
-      case 25:
-        Serial.print(" 25% ");
-        break;
-      case 50:
-        Serial.print(" 50% ");
-        break;
-      case 75:
-        Serial.print(" 75% ");
-        break;
-      default:
-        Serial.print("T");
-        break;
-      }
-    }
-  }
-}
-
 void setup()
 {
 
@@ -185,7 +152,16 @@ void setup()
     TARUnpacker->setTarStatusProgressCallback(BaseUnpacker::defaultTarStatusProgressCallback); // print the filenames as they're expanded
     TARUnpacker->setTarMessageCallback(BaseUnpacker::targzPrintLoggerCallback);                // tar log verbosity
 
-    if (!TARUnpacker->tarStreamExpander(streamptr, -1, tarGzFS, "/"))
+    String contentLengthStr = http.header("Content-Length");
+    contentLengthStr.trim();
+    int64_t streamSize = -1;
+    if (contentLengthStr != "")
+    {
+      streamSize = atoi(contentLengthStr.c_str());
+      Serial.printf("Stream size %d\n", streamSize);
+    }
+
+    if (!TARUnpacker->tarStreamExpander(streamptr, streamSize, tarGzFS, "/static"))
     {
       Serial.printf("tarStreamExpander failed with return code #%d\n", TARUnpacker->tarGzGetError());
     }
@@ -205,12 +181,6 @@ void setup()
 
       Serial.println("Done");
 
-      if (!tarGzFS.begin(true))
-      {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-      }
-
       Serial.println("File system contents:");
 
       File root = tarGzFS.open("/");
@@ -226,7 +196,6 @@ void setup()
       }
 
       Serial.println("Done listing file system.");
-
     }
   }
   else
