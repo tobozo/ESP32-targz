@@ -3,6 +3,7 @@
 ## An ESP32/ESP8266 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/ESP32-targz.svg)](https://registry.platformio.org/packages/libraries/tobozo/ESP32-targz)
 
 <p align="center">
 <img src="ESP32-targz.png" alt="ES32-targz logo" width="512" />
@@ -180,7 +181,7 @@ Flash the ESP with contents from `.gz` file
     GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
     GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
 
-    if( ! GZUnpacker->gzUpdater(tarGzFS, firmwareFile, /*don't restart after update*/false ) ) {
+    if( ! GZUnpacker->gzUpdater(tarGzFS, firmwareFile, U_FLASH,/*don't restart after update*/false ) ) {
       Serial.printf("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
     }
 
