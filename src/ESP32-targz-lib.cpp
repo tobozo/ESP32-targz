@@ -587,8 +587,10 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
       char file_path[256] = {0};
       // check that TAR path does not start with "./" and truncate if necessary
       if( header->filename[0] == '.' && header->filename[1] == '/' ) {
-        snprintf( file_path, 101, "%s", header->filename ); // TAR paths are limited to 100 chars
-        snprintf( header->filename, 101, "%s", &file_path[2] );
+        int truncate_res = snprintf( file_path, 101, "%s", header->filename ); // TAR paths are limited to 100 chars
+        if( truncate_res >=0 ) {
+          snprintf( header->filename, 101, "%s", &file_path[2] );
+        }
       }
       memset( file_path, 0, 256 );
       if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
