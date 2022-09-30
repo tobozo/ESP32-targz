@@ -1,6 +1,6 @@
 #include "untar.h"
 
-char *empty_string = "";
+const char *empty_string = "";
 entry_callbacks_t *read_tar_callbacks = NULL;
 unsigned char *read_buffer = NULL;
 header_t header;
@@ -68,7 +68,7 @@ char *trim(char *raw, int length) {
     }
   }
   if(is_empty == 1)
-    return empty_string;
+    return (char*)empty_string;
   // Determine right padding.
   while((raw[j] == 0 || raw[j] == ' ')) {
     j--;

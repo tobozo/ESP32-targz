@@ -44,7 +44,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
-#include "ESP32-targz-lib.h"
+#include "ESP32-targz-lib.hpp"
 
 struct TarGzIO
 {
@@ -587,8 +587,11 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
       char file_path[256] = {0};
       // check that TAR path does not start with "./" and truncate if necessary
       if( header->filename[0] == '.' && header->filename[1] == '/' ) {
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wformat-truncation"
         snprintf( file_path, 101, "%s", header->filename ); // TAR paths are limited to 100 chars
         snprintf( header->filename, 101, "%s", &file_path[2] );
+        #pragma GCC diagnostic pop
       }
       memset( file_path, 0, 256 );
       if( strcmp( tarDestFolder, FOLDER_SEPARATOR ) != 0 ) {
@@ -2132,6 +2135,102 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   return true;
 }
 
+
+
+
+#if defined ESP32
+
+
+/**    GzUpdateClass Class implementation    **/
+
+bool GzUpdateClass::begingz(size_t size, int command, int ledPin, uint8_t ledOn, const char *label)
+{
+  if( !gzProgressCallback ) {
+    log_d("Setting progress cb");
+    gzUnpacker.setGzProgressCallback( gzUnpacker.defaultProgressCallback );
+  }
+  if( !tgzLogger ) {
+    log_d("Setting logger cb");
+    gzUnpacker.setLoggerCallback( gzUnpacker.targzPrintLoggerCallback );
+  }
+  if( gzWriteCallback == nullptr ) {
+    log_d("Setting write cb");
+    gzUnpacker.setStreamWriter( gzUpdateWriteCallback );
+    //gzUnpacker.setStreamWriter( Update.write );
+  }
+
+  mode_gz = true;
+
+  bool ret = begin(size, command, ledPin, ledOn, label);
+
+  return ret;
+}
+
+
+
+bool GzUpdateClass::gzUpdateWriteCallback( unsigned char* buff, size_t buffsize )
+{
+  if( GzUpdateClass::getInstance().write( buff, buffsize ) ) {
+    log_v("Wrote %d bytes", buffsize );
+    return true;
+  }
+  log_e("Failed to write %d bytes", buffsize );
+  return false;
+}
+
+
+void GzUpdateClass::abortgz()
+{
+  abort();
+  gzUnpacker.gzExpanderCleanup();
+  mode_gz = false;
+}
+
+
+bool GzUpdateClass::endgz(bool evenIfRemaining)
+{
+  gzUnpacker.gzExpanderCleanup();
+  mode_gz = false;
+  return end(evenIfRemaining);
+}
+
+
+size_t GzUpdateClass::writeGzStream(Stream &data, size_t len)
+{
+  if (!mode_gz) {
+    log_d("Not in gz mode");
+    return writeStream(data);
+  }
+
+  size_t size = data.available();
+  if( ! size ) {
+    log_e("Bad stream, aborting");
+    //gzUnpacker.setError( ESP32_TARGZ_STREAM_ERROR );
+    return 0;
+  }
+
+  log_d("In gz mode");
+
+  tarGzIO.gz = &data;
+  // process with unzipping
+  bool show_progress = false;
+  bool use_dict      = true;
+  bool isupdate      = true;
+  bool stream_to_tar = false;
+  int ret = gzUnpacker.gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
+  // unzipping ended
+  if( ret!=0 ) {
+    log_e("gzHTTPUpdater returned error code %d", ret);
+    //gzUnpacker.setError( (tarGzErrorCode)ret );
+    return 0;
+  }
+
+  log_d("unpack complete (%d bytes)", tarGzIO.gz_size );
+
+  return len;
+}
+
+#endif
 
 
 
