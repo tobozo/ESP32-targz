@@ -108,7 +108,7 @@
 
 // required filesystem helpers are declared outside the main library
 // because ESP32/ESP8266 <FS.h> use different abstraction flavours :)
-size_t targzFreeBytesFn() {
+__attribute__((unused)) static size_t targzFreeBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes() - tarGzFS.usedBytes();
@@ -129,7 +129,7 @@ size_t targzFreeBytesFn() {
   #endif
 }
 
-size_t targzTotalBytesFn() {
+__attribute__((unused)) static size_t targzTotalBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes();
@@ -149,6 +149,6 @@ size_t targzTotalBytesFn() {
 }
 
 
-#include "ESP32-targz-lib.h"
+#include "ESP32-targz-lib.hpp"
 
 #endif

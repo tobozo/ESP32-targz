@@ -280,6 +280,88 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 };
 
 
+
+
+#if defined ESP32
+
+
+class GzUpdateClass : public UpdateClass {
+
+    GzUpdateClass(){};     // hidden c-tor
+    ~GzUpdateClass(){};    // hidden d-tor
+
+    bool mode_gz = false;  // needed to keep mode state for async writez() calls
+    int command = U_FLASH; // needed to keep track of the destination partition
+    GzUnpacker gzUnpacker;
+
+    /**
+     * @brief callback for GzUnpacker
+     * writes inflated firmware chunk to flash
+     *
+     */
+    //int flash_cb(size_t index, const uint8_t* data, size_t size, bool final);    //> inflate_cb_t
+
+    public:
+        // this is a singleton, no copy's
+        GzUpdateClass(const GzUpdateClass&) = delete;
+        GzUpdateClass& operator=(const GzUpdateClass &) = delete;
+        GzUpdateClass(GzUpdateClass &&) = delete;
+        GzUpdateClass & operator=(GzUpdateClass &&) = delete;
+
+        static GzUpdateClass& getInstance(){
+            static GzUpdateClass flashz;
+            return flashz;
+        }
+
+        /**
+         * @brief initilize GzUnpacker structs and UpdaterClass
+         *
+         * @return true on success
+         * @return false on GzUnpacker mem allocation error or flash free space error
+         */
+        bool begingz(size_t size=UPDATE_SIZE_UNKNOWN, int command = U_FLASH, int ledPin = -1, uint8_t ledOn = LOW, const char *label = NULL);
+
+        /**
+         * @brief Writes a buffer to the flash
+         * Returns true on success
+         *
+         * @param buff
+         * @param buffsize
+         * @return processed bytes
+         */
+        //size_t writez(const uint8_t *data, size_t len, bool final);
+        static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
+
+        /**
+         * @brief Read zlib compressed data from stream, decompress and write it to flash
+         * size of the stream must be known in order to signal zlib inflator last chunk
+         *
+         * @param data Stream object, usually data from a tcp socket
+         * @param len total length of compressed data to read from stream
+         * @return size_t number of bytes processed from a stream
+         */
+        size_t writeGzStream(Stream &data, size_t len);
+
+        /**
+         * @brief abort running inflator and flash update process
+         * also releases inflator memory
+         */
+        void abortgz();
+
+        /**
+         * @brief release inflator memory and run UpdateClass.end()
+         * returns status of end() call
+         *
+         * @return true
+         * @return false
+         */
+        bool endgz(bool evenIfRemaining = true);
+
+};
+
+#endif
+
+
 #ifdef ESP8266
   // some ESP32 => ESP8266 syntax shim
 
