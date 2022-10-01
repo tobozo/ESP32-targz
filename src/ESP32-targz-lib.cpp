@@ -1162,7 +1162,12 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
         log_e("gz stream still unresponsive after %dms timeout, giving up", targz_read_timeout);
         return -1;
       }
-      vTaskDelay(1); // let the app breathe
+      #if defined ESP32
+        vTaskDelay(1); // let the app breathe
+      #endif
+      #if defined ESP8266
+        yield();
+      #endif
     }
     log_w("gz stream was unresponsive during %dms (timeout=%dms)", millis()-now, targz_read_timeout);
     goto _start;
