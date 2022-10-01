@@ -445,6 +445,8 @@ Resources
 
 Alternate links
 ---------------
+  - [https://github.com/vortigont/esp32-flashz](https://github.com/vortigont/esp32-flashz) OTA-Update your ESP32 from zlib compressed binaries (not gzip)
+  - [https://github.com/chrisjoyce911/esp32FOTA](https://github.com/chrisjoyce911/esp32FOTA) OTA-Update your ESP32 from zlib or gzip compressed binaries
   - [https://github.com/laukik-hase/esp_compression](https://github.com/laukik-hase/esp_compression) inflate/deflate miniz/uzlib based esp-idf implementation
 
 Credits:
@@ -458,5 +460,6 @@ Credits:
   - [lbernstone](https://github.com/lbernstone) (motivation and support)
   - [scubachristopher](https://github.com/scubachristopher) (contribution and support)
   - [infrafast](https://github.com/infrafast) (feedback fueler)
+  - [vortigont](https://github.com/vortigont/) (inspiration and support)
 
 
