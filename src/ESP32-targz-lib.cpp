@@ -114,6 +114,7 @@ size_t          min_output_buffer_size = 512;
 #endif
 #if defined ESP8266
   static bool unTarDoHealthChecks = false; // ESP8266 is unstable with health checks
+  void vTaskDelay(int ms) { delay(ms); }   // ESP8266 has no OS
 #endif
 
 
@@ -1162,12 +1163,7 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
         log_e("gz stream still unresponsive after %dms timeout, giving up", targz_read_timeout);
         return -1;
       }
-      #if defined ESP32
-        vTaskDelay(1); // let the app breathe
-      #endif
-      #if defined ESP8266
-        yield();
-      #endif
+      vTaskDelay(1); // let the app breathe
     }
     log_w("gz stream was unresponsive during %dms (timeout=%dms)", millis()-now, targz_read_timeout);
     goto _start;
