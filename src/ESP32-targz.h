@@ -38,12 +38,7 @@
     #define tarGzFS PSRamFS
     #define FS_NAME "PSRamFS"
   #else
-    #warning "Unspecified filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_FFAT, DEST_FS_USES_SD, DEST_FS_USES_SD_MMC, DEST_FS_USES_LITTLEFS"
-    #warning "Defaulting to SPIFFS"
-    #define DEST_FS_USES_SPIFFS
-    #include <SPIFFS.h>
-    #define tarGzFS SPIFFS
-    #define FS_NAME "SPIFFS"
+    // no filesystem, no helpers available, power user ?
   #endif
 
 #elif defined ESP8266
@@ -125,7 +120,8 @@ __attribute__((unused)) static size_t targzFreeBytesFn() {
   #elif defined DEST_FS_USES_FFAT
     return tarGzFS.freeBytes();
   #else
-    #error "No filesystem is declared"
+    // no filesystem, no helpers available, power user ?
+    return 0;
   #endif
 }
 
@@ -144,7 +140,8 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
       #error "Only ESP32 and ESP8266 are supported"
     #endif
   #else
-    #error "No filesystem is declared"
+    // no filesystem, no helpers available, power user ?
+    return 0;
   #endif
 }
 
