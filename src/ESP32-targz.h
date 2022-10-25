@@ -98,20 +98,26 @@
 
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
-  #undef DEST_FS_USES_SPIFFS   // TODO
-  #undef DEST_FS_USES_LITTLEFS // TODO
+  #undef DEST_FS_USES_SPIFFS // unsupported
 
   #if defined DEST_FS_USES_SD
     #include <SD.h>
     #define tarGzFS SDFS
     #define FS_NAME "SD"
+  #elif defined DEST_FS_USES_LITTLEFS
+    //#include <FS.h>
+    #include <LittleFS.h>
+    #define tarGzFS LittleFS
+    #define FS_NAME "LITTLEFS (picolib)"
+  #else
+    #error "Unspecified or invalid destination filesystem, please #define one of these before including the library: DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD"
   #endif
 
   FSInfo fsinfo;
 
 #else
 
-  #error "Only ESP32 and ESP8266 architectures are supported"
+  #error "Only ESP32, ESP8266 and RP2040 architectures are supported"
 
 #endif
 

@@ -651,7 +651,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
 
       untarredFile = tarFS->open(file_path, FILE_WRITE);
       if(!untarredFile) {
-        log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write.", file_path);
+        log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write, filesystem full?", file_path);
         setError( ESP32_TARGZ_FS_ERROR );
         return ESP32_TARGZ_FS_ERROR;
       }

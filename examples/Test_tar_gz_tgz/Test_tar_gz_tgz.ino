@@ -534,10 +534,8 @@ void setup()
       SPI.setSCK( SD_SCK  );
       SPI.setTX(  SD_MOSI );
       SPI.begin();
-      //SDFSConfig fileSystemConfig = SDFSConfig();
-      //fileSystemConfig.setCSPin( SD_CS );
       SDFSConfig fileSystemConfig( SD_CS, SD_SCK_MHZ(20) );
-      // fileSystemConfig.setSPI( 0 ); // default is SPI0
+      // fileSystemConfig.setSPI( SPI0 ); // default is SPI0
       tarGzFS.setConfig( fileSystemConfig );
       if (!tarGzFS.begin())
     #else // ESP32 specific SD settings

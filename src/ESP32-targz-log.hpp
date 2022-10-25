@@ -199,5 +199,7 @@
   };
 
 #else
-  #error "Unsupported architecture"
+
+  #error "Only ESP32, ESP8266 and RP2040 architectures are supported"
+
 #endif
