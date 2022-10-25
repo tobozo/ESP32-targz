@@ -51,6 +51,8 @@
   //  #include <LittleFS.h>
   //#endif
   #include <Updater.h>
+#elif defined ARDUINO_ARCH_RP2040
+  // TODO: RP2040 OTA implementation?
 #else
   #error Unsupported architecture
 #endif
@@ -186,10 +188,10 @@ struct BaseUnpacker
   void   setLoggerCallback( genericLoggerCallback cb );
   void   setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
   #ifdef ESP8266
-  void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
+    void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
   #endif
   #ifdef ESP32
-  bool   setPsram( bool enable );
+    bool   setPsram( bool enable );
   #endif
   static const char* targzFSFilePath( fs::File *file ) {
     #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
@@ -229,13 +231,15 @@ struct TarUnpacker : virtual public BaseUnpacker
 
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int tarStreamWriteCallback( TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
-  static int tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
 
   static int tarHeaderCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
   static int tarEndCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
 
-  static int tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
-  static int tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
+  #if defined HAS_OTA_SUPPORT
+    static int tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
+    static int tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
+    static int tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
+  #endif
 
 };
 
@@ -246,8 +250,6 @@ struct GzUnpacker : virtual public BaseUnpacker
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
   //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
   bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
-  bool    gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
-  bool    gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream (file or http), no progress callbacks
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
   //void    setStreamReader( gzStreamReader cb ); // optional, use with gzStreamExpander
@@ -255,13 +257,16 @@ struct GzUnpacker : virtual public BaseUnpacker
   void    setDestByteReader( gzDestByteReader cb );
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
-
-  static bool         gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzReadHeader(fs::File &gzFile);
   static uint8_t      gzReadByte(fs::File &gzFile, const int32_t addr, fs::SeekMode mode=fs::SeekSet);
   static unsigned int gzReadDestByteFS(int offset, unsigned char *out);
   static unsigned int gzReadSourceByte(struct GZ::TINF_DATA *data, unsigned char *out);
+  #if defined HAS_OTA_SUPPORT
+    bool        gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
+    bool        gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream, no progress callback
+    static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
+  #endif
 };
 
 
@@ -273,21 +278,24 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
   bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
   // same as tarGzExpander but without intermediate file
   bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
-  // requirements: targz archive must contain files with names suffixed by ".ino.bin" and/or ".spiffs.bin"
-  bool tarGzStreamUpdater( Stream *stream );
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
   bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/", int64_t streamSize = -1 );
 
   static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );
   static int gzFeedTarBuffer( unsigned char* buff, size_t buffsize );
+
+  #if defined HAS_OTA_SUPPORT
+    // requirements: targz archive must contain files with names suffixed by ".ino.bin" and/or ".spiffs.bin"
+    bool tarGzStreamUpdater( Stream *stream );
+  #endif
+
 };
 
 
 
 
 #if defined ESP32
-
 
   // this class was inspired by https://github.com/vortigont/esp32-flashz
 
@@ -365,44 +373,6 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
   };
 
-#endif
-
-
-#ifdef ESP8266
-  // some ESP32 => ESP8266 syntax shim
-
-  #define U_PART U_FS
-  #define ARDUHAL_LOG_FORMAT(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", __FILE__, __LINE__, __FUNCTION__
-
-  #if defined DEBUG_ESP_PORT
-    // always show errors/warnings when debug port is there
-    #define log_n(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(N, format), ##__VA_ARGS__);
-    #define log_e(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__);
-    #define log_w(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(W, format), ##__VA_ARGS__);
-
-    #if defined DEBUG_ESP_CORE
-      // be verbose
-      #define log_i(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(I, format), ##__VA_ARGS__);
-      #define log_d(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(D, format), ##__VA_ARGS__);
-      #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
-    #else
-      // don't be verbose, only errors+warnings
-      #define log_i BaseUnpacker::targzNullLoggerCallback
-      #define log_d BaseUnpacker::targzNullLoggerCallback
-      #define log_v BaseUnpacker::targzNullLoggerCallback
-    #endif
-
-  #else
-    #define log_n BaseUnpacker::targzNullLoggerCallback
-    #define log_e BaseUnpacker::targzNullLoggerCallback
-    #define log_w BaseUnpacker::targzNullLoggerCallback
-    #define log_i BaseUnpacker::targzNullLoggerCallback
-    #define log_d BaseUnpacker::targzNullLoggerCallback
-    #define log_v BaseUnpacker::targzNullLoggerCallback
-  #endif
-
-#else
-  #define U_PART U_SPIFFS
 #endif
 
 // md5sum (essentially for debug)

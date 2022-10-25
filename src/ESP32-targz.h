@@ -90,6 +90,25 @@
 
   FSInfo fsinfo;
 
+
+#elif defined ARDUINO_ARCH_RP2040
+
+  #pragma message "Experimental RP2040 support"
+  #include "ESP32-targz-log.hpp"
+
+  #undef DEST_FS_USES_SD_MMC // unsupported
+  #undef DEST_FS_USES_FFAT   // unsupported
+  #undef DEST_FS_USES_SPIFFS   // TODO
+  #undef DEST_FS_USES_LITTLEFS // TODO
+
+  #if defined DEST_FS_USES_SD
+    #include <SD.h>
+    #define tarGzFS SDFS
+    #define FS_NAME "SD"
+  #endif
+
+  FSInfo fsinfo;
+
 #else
 
   #error "Only ESP32 and ESP8266 architectures are supported"
@@ -107,7 +126,7 @@ __attribute__((unused)) static size_t targzFreeBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes() - tarGzFS.usedBytes();
-    #elif defined ESP8266
+    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
       if( tarGzFS.info( fsinfo ) ) {
         return fsinfo.totalBytes - fsinfo.usedBytes;
       } else {
@@ -129,7 +148,7 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes();
-    #elif defined ESP8266
+    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
       if( tarGzFS.info( fsinfo ) ) {
         return fsinfo.totalBytes;
       } else {
@@ -144,6 +163,11 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
     return 0;
   #endif
 }
+
+
+#if defined ESP32 || defined ESP8266
+  #define HAS_OTA_SUPPORT
+#endif
 
 
 #include "ESP32-targz-lib.hpp"

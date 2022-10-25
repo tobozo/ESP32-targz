@@ -40,6 +40,33 @@
 #endif
 
 
+#if defined ARDUINO_ARCH_RP2040
+
+  // SD config based on this gist: https://gist.github.com/tobozo/a68c3f37f5ed0c763e8513c11320f4fd
+
+  /*\
+  *
+  * SD Module  |  RP2040
+  * -----------+-----------
+  *            |
+  *    GND     |   GND
+  *   3.3v     |   3V3
+  *     CS     |   GPIO5
+  *   MOSI     |   GPIO3
+  *    SCK     |   GPIO2
+  *   MISO     |   GPIO4
+  *            |
+  \*/
+
+  const uint8_t SD_SCK  = 2;
+  const uint8_t SD_MOSI = 3;
+  const uint8_t SD_MISO = 4;
+  const uint8_t SD_CS   = 5;
+
+#endif
+
+
+
 #include "test_tools.h"
 
 // Test #1: tarExpander()
@@ -59,7 +86,7 @@ bool test_tarExpander()
   #if defined ESP32
     TARUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
   #endif
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
     TARUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
   #endif
 
@@ -97,7 +124,7 @@ bool test_tarStreamExpander()
   #if defined ESP32
     TARUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
   #endif
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
     TARUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
   #endif
 
@@ -214,7 +241,7 @@ bool test_tarGzExpander()
   #if defined ESP32
     TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
   #endif
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
     TARGZUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
   #endif
   TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
@@ -260,7 +287,7 @@ bool test_tarGzExpander_no_intermediate()
   #if defined ESP32
     TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
   #endif
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
     TARGZUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
     //TARGZUnpacker->setTarStatusProgressCallback( BaseUnpacker::targzNullLoggerCallback ); // print the filenames as they're expanded
   #endif
@@ -291,48 +318,57 @@ bool test_tarGzExpander_no_intermediate()
 }
 
 
+#if defined HAS_OTA_SUPPORT
 
-// Test #5: gzUpdater() and gzStreamUpdater()
-// Requires: gzipped firmware file, filename must end with ".gz"
-bool test_gzUpdater()
-{
-  bool ret = false;
-  #if defined ESP32
-    const char* firmwareFile = "/firmware_example_esp32.gz";
-  #endif
-  #if defined ESP8266
-    const char* firmwareFile = "/firmware_example_esp8266.gz";
-  #endif
+  // Test #5: gzUpdater() and gzStreamUpdater()
+  // Requires: gzipped firmware file, filename must end with ".gz"
+  bool test_gzUpdater()
+  {
+    bool ret = false;
+    #if defined ESP32
+      const char* firmwareFile = "/firmware_example_esp32.gz";
+    #endif
+    #if defined ESP8266
+      const char* firmwareFile = "/firmware_example_esp8266.gz";
+    #endif
 
-  SerialPrintCentered("Testing gzUpdater / gzStreamUpdater", false, true );
+    SerialPrintCentered("Testing gzUpdater / gzStreamUpdater", false, true );
 
-  GzUnpacker *GZUnpacker = new GzUnpacker();
+    GzUnpacker *GZUnpacker = new GzUnpacker();
 
-  GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
-  GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
-  GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
-  GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
+    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
+    GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
+    GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
 
-  #ifdef ESP32
-  GZUnpacker->setPsram( true );
-  #endif
+    #ifdef ESP32
+    GZUnpacker->setPsram( true );
+    #endif
 
-  if( ! GZUnpacker->gzUpdater( sourceFS, firmwareFile, U_FLASH, /*restart on update*/false ) ) {
-    Serial.println( OpenLine );
-    SerialPrintfCentered("gzUpdater failed with return code #%d", GZUnpacker->tarGzGetError() );
-    Serial.println( CloseLine );
-  } else {
-    ret = true;
+    if( ! GZUnpacker->gzUpdater( sourceFS, firmwareFile, U_FLASH, /*restart on update*/false ) ) {
+      Serial.println( OpenLine );
+      SerialPrintfCentered("gzUpdater failed with return code #%d", GZUnpacker->tarGzGetError() );
+      Serial.println( CloseLine );
+    } else {
+      ret = true;
+    }
+    return ret;
   }
-  return ret;
-}
 
+#endif
 
-// NOT (yet?) working on ESP8266
+// NOT (yet?) working on ARDUINO_ARCH_RP2040
 // Test #6 tarGzStreamExpander()
 // Requires: a valid stream (http or file) to a targz file
 bool test_tarGzStreamExpander()
 {
+
+  #if defined ARDUINO_ARCH_RP2040
+    // unsupported yet
+    SerialPrintCentered("tarGzStreamExpander not supported on RP2040", false, true );
+    return true;
+  #endif
+
   bool ret = false;
   const char* tarGzFile = "/targz_example.tar.gz";
   myPackage.folder = "/"; // for md5 tests
@@ -345,7 +381,7 @@ bool test_tarGzStreamExpander()
   #if defined ESP32
     TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
   #endif
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
     TARGZUnpacker->setTarVerify( false ); // true = enables health checks but slows down the overall process
   #endif
   TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
@@ -474,6 +510,10 @@ void setup()
     int max_tests = 7;
   #endif
 
+  #if defined ARDUINO_ARCH_RP2040
+    // compensate for the dumb port detection
+    while(!Serial.available() ) yield();
+  #endif
   delay(1000);
   Serial.println();
 
@@ -484,9 +524,21 @@ void setup()
   Serial.println( MiddleLine );
 
   #if defined DEST_FS_USES_SD
-    #if defined ESP8266
+    #if defined ESP8266 // || defined ARDUINO_ARCH_RP2040
       SDFSConfig sdConf(4, SD_SCK_MHZ(20) );
       tarGzFS.setConfig(sdConf);
+      if (!tarGzFS.begin())
+    #elif defined ARDUINO_ARCH_RP2040
+      SPI.setRX(  SD_MISO );
+      SPI.setCS(  SD_CS   );
+      SPI.setSCK( SD_SCK  );
+      SPI.setTX(  SD_MOSI );
+      SPI.begin();
+      //SDFSConfig fileSystemConfig = SDFSConfig();
+      //fileSystemConfig.setCSPin( SD_CS );
+      SDFSConfig fileSystemConfig( SD_CS, SD_SCK_MHZ(20) );
+      // fileSystemConfig.setSPI( 0 ); // default is SPI0
+      tarGzFS.setConfig( fileSystemConfig );
       if (!tarGzFS.begin())
     #else // ESP32 specific SD settings
       // if (!tarGzFS.begin( TFCARD_CS_PIN, 16000000 ))
@@ -512,12 +564,15 @@ void setup()
     }
   #endif
 
+
+  _test_begin:
+
   if( testNum < max_tests ) {
     Serial.println( MiddleLine );
-    SerialPrintfCentered("System Available heap: %d bytes", ESP.getFreeHeap() );
+    SerialPrintfCentered("System Available heap: %d bytes", HEAP_AVAILABLE() );
     Serial.println( MiddleLine );
 
-    SerialPrintfCentered("ESP ready for test #%d", testNum+1 );
+    SerialPrintfCentered("Device ready for test #%d", testNum+1 );
     Serial.println( MiddleLine );
   }
 
@@ -535,9 +590,11 @@ void setup()
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
-    case 5: test_succeeded = test_gzUpdater(); break;
-    #if defined ESP32 && !__has_include(<PSRamFS.h>)
-    case 6: test_succeeded = test_tarGzStreamUpdater(); break;
+    #if defined HAS_OTA_SUPPORT
+      case 5: test_succeeded = test_gzUpdater(); break;
+      #if defined ESP32 && !__has_include(<PSRamFS.h>)
+        case 6: test_succeeded = test_tarGzStreamUpdater(); break;
+      #endif
     #endif
     default:
       tests_finished = true;
@@ -547,9 +604,9 @@ void setup()
   if( tests_finished ) {
     EEPROM.write(0, 0 );
     EEPROM.commit();
-    #if !__has_include(<PSRamFS.h>)
-    BaseUnpacker *Unpacker = new BaseUnpacker();
-    SPIFFS.begin();
+    #if !__has_include(<PSRamFS.h>) && __has_include(<SPIFFS.h>)
+      BaseUnpacker *Unpacker = new BaseUnpacker();
+      SPIFFS.begin();
       Unpacker->tarGzListDir( SPIFFS, "/", 3 );
     #endif
     SerialPrintCentered("All tests performed, press reset to restart", false, true );
@@ -557,10 +614,13 @@ void setup()
 
   if( test_succeeded ) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("Test #%d succeeded, will restart to proceed to the next test", testNum+1);
+    SerialPrintfCentered("Test #%d succeeded, will proceed to the next test", testNum+1);
     Serial.println( CloseLine );
+
+    testNum++;
+    goto _test_begin;
     // go on with next test
-    ESP.restart();
+    // DEVICE_RESTART();
   }
 
 }

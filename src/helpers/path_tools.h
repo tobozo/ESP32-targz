@@ -1,6 +1,11 @@
 #ifndef _ESP32_TARGZ_PATHTOOLS_
 #define _ESP32_TARGZ_PATHTOOLS_
 
+#if !defined ESP32 || !defined ESP8266
+  #include "ESP32-targz-log.hpp"
+#endif
+
+
 /* dirname - return directory part of PATH.
    Copyright (C) 1996-2014 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
