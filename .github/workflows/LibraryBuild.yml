@@ -30,6 +30,10 @@ jobs:
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
             required-libraries: ESP32-Chimera-Core,LovyanGFX
 
+          - arduino-boards-fqbn: rp2040:rp2040:rpipico
+            sketch-names: Test_tar_gz_tgz.ino
+            platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+
       fail-fast: false
 
     steps:

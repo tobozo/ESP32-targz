@@ -106,15 +106,19 @@ static uint32_t output_position = 0;  //position in output_buffer
 static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static uint16_t gzTarBlockPos = 0;
 static size_t   tarReadGzStreamBytes = 0;
-static bool     tarBlockIsUpdateData = false;
+#if defined HAS_OTA_SUPPORT
+  static bool     tarBlockIsUpdateData = false;
+#endif
 size_t          min_output_buffer_size = 512;
 
 #if defined ESP32
   static bool unTarDoHealthChecks = true; // set to false for faster writes
-#endif
-#if defined ESP8266
+#elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
   static bool unTarDoHealthChecks = false; // ESP8266 is unstable with health checks
   void vTaskDelay(int ms) { delay(ms); }   // ESP8266 has no OS
+#else
+  static bool unTarDoHealthChecks = false;
+  void vTaskDelay(int ms) { delay(ms); }
 #endif
 
 
@@ -647,7 +651,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
 
       untarredFile = tarFS->open(file_path, FILE_WRITE);
       if(!untarredFile) {
-        log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write.", file_path);
+        log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write, filesystem full?", file_path);
         setError( ESP32_TARGZ_FS_ERROR );
         return ESP32_TARGZ_FS_ERROR;
       }
@@ -742,7 +746,7 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
     }
 
     tarProgressCallback( 100 );
-    log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, ESP.getFreeHeap() );
+    log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, HEAP_AVAILABLE() );
 
     tarMessageCallback( "%s", header->filename );
 
@@ -760,129 +764,130 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 
 
 
+#if defined HAS_OTA_SUPPORT
 
-int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
-{
-  dump_header(header);
+  int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
+  {
+    dump_header(header);
 
-  // https://github.com/tobozo/ESP32-targz/issues/33
-  if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
+    // https://github.com/tobozo/ESP32-targz/issues/33
+    if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
-    int partition = -1;
+      int partition = -1;
 
-    if( String( header->filename ).endsWith("ino.bin") ) {
-      // partition = app
-      partition = U_FLASH;
-    } else if( String( header->filename ).endsWith("spiffs.bin")
-            || String( header->filename ).endsWith("littlefs.bin")
-            || String( header->filename ).endsWith("ffat.bin")  ) {
-      partition = U_PART;
-    } else {
-      // not relevant to Update
-      // TODO: provide action callbacks (e.g. file has meta info)
-      return ESP32_TARGZ_OK;
-    }
+      if( String( header->filename ).endsWith("ino.bin") ) {
+        // partition = app
+        partition = U_FLASH;
+      } else if( String( header->filename ).endsWith("spiffs.bin")
+              || String( header->filename ).endsWith("littlefs.bin")
+              || String( header->filename ).endsWith("ffat.bin")  ) {
+        partition = U_PART;
+      } else {
+        // not relevant to Update
+        // TODO: provide action callbacks (e.g. file has meta info)
+        return ESP32_TARGZ_OK;
+      }
 
-    // check that header->filesize is smaller than partition available size
-    if( !Update.begin( header->filesize/*UPDATE_SIZE_UNKNOWN*/, partition ) ) {
+      // check that header->filesize is smaller than partition available size
+      if( !Update.begin( header->filesize/*UPDATE_SIZE_UNKNOWN*/, partition ) ) {
+        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+        return (Update.getError()-20);
+      }
+
+      tarCurrentFileSize = header->filesize; // for progress
+      tarCurrentFileSizeProgress = 0; // for progress
+      tarBlockIsUpdateData = true;
+
+      tarTotalSize += header->filesize;
+      if( tarStatusProgressCallback ) {
+        tarStatusProgressCallback( header->filename, header->filesize, tarTotalSize );
+      }
+      if( tarTotalSize == header->filesize )
+        tarProgressCallback( 0 );
+
+    }/* else {
+
+      switch( header->type ) {
+        case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", header->filename); break;
+        case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", header->filename); break;
+        case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
+        case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
+        case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
+          //tarMessageCallback( "Entering %s directory\n", header->filename );
+          if( tarStatusProgressCallback ) {
+            tarStatusProgressCallback( header->filename, 0, tarTotalSize );
+          }
+          totalFolders++;
+        break;
+        case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
+        case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", header->filename); break;
+        case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
+        case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
+        case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
+      }
+
+    }*/
+
+    return ESP32_TARGZ_OK;
+  }
+
+
+  int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data)
+  {
+    int ret = ESP32_TARGZ_OK;
+
+    if ( !Update.end( true ) ) {
+      Update.printError(Serial);
+      log_e( "Update Error Occurred. Error #: %u", Update.getError() );
       setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
       return (Update.getError()-20);
     }
 
-    tarCurrentFileSize = header->filesize; // for progress
-    tarCurrentFileSizeProgress = 0; // for progress
-    tarBlockIsUpdateData = true;
-
-    tarTotalSize += header->filesize;
-    if( tarStatusProgressCallback ) {
-      tarStatusProgressCallback( header->filename, header->filesize, tarTotalSize );
+    if ( !Update.isFinished() ) {
+      log_e("Update incomplete");
+      setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
+      return ESP32_TARGZ_UPDATE_INCOMPLETE;
     }
-    if( tarTotalSize == header->filesize )
-      tarProgressCallback( 0 );
 
-  }/* else {
+    log_d("Update finished !");
+    Update.end();
 
-    switch( header->type ) {
-      case TAR::T_HARDLINK:       log_d("Ignoring hard link to %s.", header->filename); break;
-      case TAR::T_SYMBOLIC:       log_d("Ignoring sym link to %s.", header->filename); break;
-      case TAR::T_CHARSPECIAL:    log_d("Ignoring special char."); break;
-      case TAR::T_BLOCKSPECIAL:   log_d("Ignoring special block."); break;
-      case TAR::T_DIRECTORY:      log_d("Entering %s directory.", header->filename);
-        //tarMessageCallback( "Entering %s directory\n", header->filename );
-        if( tarStatusProgressCallback ) {
-          tarStatusProgressCallback( header->filename, 0, tarTotalSize );
+    tarBlockIsUpdateData = false;
+    tarProgressCallback( 100 );
+    //log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, HEAP_AVAILABLE() );
+    tarMessageCallback( "%s", header->filename );
+    totalFiles++;
+
+    return ret;
+  }
+
+
+
+  int TarUnpacker::tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length)
+  {
+    if( tarBlockIsUpdateData ) {
+      int wlen = Update.write( block, length );
+      if( wlen != length ) {
+        //tgzLogger("\n");
+        log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
+        return ESP32_TARGZ_FS_ERROR;
+      }
+      untarredBytesCount+=wlen;
+      // file unpack progress
+      log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, header->filename );
+      tarCurrentFileSizeProgress += wlen;
+      if( tarCurrentFileSize > 0 ) {
+        // this is a per-file progress, not an overall progress !
+        int32_t progress = (100*tarCurrentFileSizeProgress) / tarCurrentFileSize;
+        if( progress != 100 && progress != 0 ) {
+          tarProgressCallback( progress );
         }
-        totalFolders++;
-      break;
-      case TAR::T_FIFO:           log_d("Ignoring FIFO request."); break;
-      case TAR::T_CONTIGUOUS:     log_d("Ignoring contiguous data to %s.", header->filename); break;
-      case TAR::T_GLOBALEXTENDED: log_d("Ignoring global extended data."); break;
-      case TAR::T_EXTENDED:       log_d("Ignoring extended data."); break;
-      case TAR::T_OTHER: default: log_d("Ignoring unrelevant data.");       break;
-    }
-
-  }*/
-
-  return ESP32_TARGZ_OK;
-}
-
-
-int TarUnpacker::tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data)
-{
-  int ret = ESP32_TARGZ_OK;
-
-  if ( !Update.end( true ) ) {
-    Update.printError(Serial);
-    log_e( "Update Error Occurred. Error #: %u", Update.getError() );
-    setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-    return (Update.getError()-20);
-  }
-
-  if ( !Update.isFinished() ) {
-    log_e("Update incomplete");
-    setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
-    return ESP32_TARGZ_UPDATE_INCOMPLETE;
-  }
-
-  log_d("Update finished !");
-  Update.end();
-
-  tarBlockIsUpdateData = false;
-  tarProgressCallback( 100 );
-  //log_d("Total expanded bytes: %d, heap free: %d", (int)tarTotalSize, ESP.getFreeHeap() );
-  tarMessageCallback( "%s", header->filename );
-  totalFiles++;
-
-  return ret;
-}
-
-
-
-int TarUnpacker::tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length)
-{
-  if( tarBlockIsUpdateData ) {
-    int wlen = Update.write( block, length );
-    if( wlen != length ) {
-      //tgzLogger("\n");
-      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
-      return ESP32_TARGZ_FS_ERROR;
-    }
-    untarredBytesCount+=wlen;
-    // file unpack progress
-    log_v("[TAR INFO] tarStreamWriteCallback wrote %d bytes to %s", length, header->filename );
-    tarCurrentFileSizeProgress += wlen;
-    if( tarCurrentFileSize > 0 ) {
-      // this is a per-file progress, not an overall progress !
-      int32_t progress = (100*tarCurrentFileSizeProgress) / tarCurrentFileSize;
-      if( progress != 100 && progress != 0 ) {
-        tarProgressCallback( progress );
       }
     }
+    return ESP32_TARGZ_OK;
   }
-  return ESP32_TARGZ_OK;
-}
 
-
+#endif
 
 
 
@@ -1049,17 +1054,21 @@ void GzUnpacker::gzExpanderCleanup()
 }
 
 
-// gzWriteCallback
-bool GzUnpacker::gzUpdateWriteCallback( unsigned char* buff, size_t buffsize )
-{
-  if( Update.write( buff, buffsize ) ) {
-    log_v("Wrote %d bytes", buffsize );
-    return true;
-  } else {
-    log_e("Failed to write %d bytes", buffsize );
+#if defined HAS_OTA_SUPPORT
+
+  // gzWriteCallback
+  bool GzUnpacker::gzUpdateWriteCallback( unsigned char* buff, size_t buffsize )
+  {
+    if( Update.write( buff, buffsize ) ) {
+      log_v("Wrote %d bytes", buffsize );
+      return true;
+    } else {
+      log_e("Failed to write %d bytes", buffsize );
+    }
+    return false;
   }
-  return false;
-}
+
+#endif
 
 
 // gzWriteCallback
@@ -1199,8 +1208,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   #if defined ESP32
     size_t output_buffer_size = SPI_FLASH_SEC_SIZE; // SPI_FLASH_SEC_SIZE = 4Kb
-  #endif
-  #if defined ESP8266
+  #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
     size_t output_buffer_size = min_output_buffer_size; // must be a multiple of 512 (tar block size)
   #endif
 
@@ -1218,14 +1226,14 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     }
 
     if( uzlib_gzip_dict == NULL ) {
-      log_e("[ERROR] can't alloc %d bytes for gzip dict (%d bytes free)", GZIP_DICT_SIZE, ESP.getFreeHeap() );
+      log_e("[ERROR] can't alloc %d bytes for gzip dict (%d bytes free)", GZIP_DICT_SIZE, HEAP_AVAILABLE() );
       gzExpanderCleanup();
       return ESP32_TARGZ_UZLIB_MALLOC_FAIL; // TODO : Number this error
     }
     uzlib_dict_size = GZIP_DICT_SIZE;
     uzLibDecompressor.readDestByte   = NULL;
-    log_v("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, ESP.getFreeHeap());
-    //log_w("[%d] alloc() done", ESP.getFreeHeap() );
+    log_v("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, HEAP_AVAILABLE());
+    //log_w("[%d] alloc() done", HEAP_AVAILABLE() );
   } else {
     if( stream_to_tar ) {
       log_e("[ERROR] gz->tar->filesystem streaming requires a gzip dictionnnary");
@@ -1235,7 +1243,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       log_v("[INFO] gz output is file");
     }
     //output_buffer_size = SPI_FLASH_SEC_SIZE;
-    log_v("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, ESP.getFreeHeap());
+    log_v("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, HEAP_AVAILABLE());
     uzlib_gzip_dict = NULL;
     uzlib_dict_size = 0;
   }
@@ -1375,19 +1383,19 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   bool stream_to_tar = false;
   bool gz_use_dict   = true;
 
-  if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
-    size_t free_min_heap_blocks = ESP.getFreeHeap() / 512; // leave 1k heap, eat all the rest !
+  if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+    size_t free_min_heap_blocks = HEAP_AVAILABLE() / 512; // leave 1k heap, eat all the rest !
     if( free_min_heap_blocks <1 ) {
       setError( ESP32_TARGZ_HEAP_TOO_LOW );
       return false;
     }
     min_output_buffer_size = free_min_heap_blocks * 512;
     if( min_output_buffer_size > GZIP_BUFF_SIZE ) min_output_buffer_size = GZIP_BUFF_SIZE;
-    log_w("Disabling GZIP Dictionary (heap wanted:%d, available: %d, buffer: %d bytes), writes will be slow", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE, min_output_buffer_size );
+    log_w("Disabling GZIP Dictionary (heap wanted:%d, available: %d, buffer: %d bytes), writes will be slow", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE, min_output_buffer_size );
     gz_use_dict = false;
     //
   } else {
-    log_d("Current heap budget (available:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+    log_d("Current heap budget (available:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
   }
 
   if( destFile == nullptr ) {
@@ -1483,20 +1491,19 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
     return false;
   }
   // TODO: ESP8266 support
-  #if defined ESP8266
-    log_e("gz stream expanding not implemented on ESP8266");
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
+    log_e("gz stream expanding not implemented on ESP8266/RP2040");
     return false;
-  #endif
-  #if defined ESP32
+  #elif defined ESP32
 
     bool show_progress = false;
     bool use_dict      = true;
     bool isupdate      = false;
     bool stream_to_tar = false;
 
-    if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
-      // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
-      log_w("Insufficient heap to decompress (available:%d, needed:%d), aborting", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+    if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+      // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+      log_w("Insufficient heap to decompress (available:%d, needed:%d), aborting", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
       setError( ESP32_TARGZ_HEAP_TOO_LOW );
       return false;
     }
@@ -1530,216 +1537,216 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
 
 
 
+#if defined HAS_OTA_SUPPORT
 
+  // uncompress gz file to flash (expected to be a valid gzipped firmware)
+  bool GzUnpacker::gzUpdater( fs::FS &fs, const char* gz_filename, int partition, bool restart_on_update )
+  {
+    tarGzClearError();
+    initFSCallbacks();
+    if (!tgzLogger ) {
+      setLoggerCallback( targzPrintLoggerCallback );
+    }
+    // ESP8266 does not need such check as the unpacker is in the bootloader
 
-// uncompress gz file to flash (expected to be a valid gzipped firmware)
-bool GzUnpacker::gzUpdater( fs::FS &fs, const char* gz_filename, int partition, bool restart_on_update )
-{
-  tarGzClearError();
-  initFSCallbacks();
-  if (!tgzLogger ) {
-    setLoggerCallback( targzPrintLoggerCallback );
-  }
-  // ESP8266 does not need such check as the unpacker is in the bootloader
-
-  if( !fs.exists( gz_filename )  ) {
-    log_e("[ERROR] in gzUpdater: %s does not exist", gz_filename);
-    setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
-    return false;
-  }
-  log_v("uzLib SPIFFS Updater start!");
-  fs::File gz = fs.open( gz_filename, FILE_READ );
-  #if defined ESP8266
-    int update_size = gz.size();
-  #endif
-  #if defined ESP32
-    int update_size = UPDATE_SIZE_UNKNOWN;
-  #endif
-  return gzStreamUpdater( (Stream*)&gz, update_size, partition, restart_on_update );
-}
-
-
-
-
-// uncompress gz stream (file or HTTP) to flash (expected to be a valid Arduino compiled binary sketch)
-bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partition, bool restart_on_update )
-{
-  if( !gzProgressCallback ) {
-    setGzProgressCallback( defaultProgressCallback );
-  }
-  if( !tgzLogger ) {
-    setLoggerCallback( targzPrintLoggerCallback );
+    if( !fs.exists( gz_filename )  ) {
+      log_e("[ERROR] in gzUpdater: %s does not exist", gz_filename);
+      setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
+      return false;
+    }
+    log_v("uzLib SPIFFS Updater start!");
+    fs::File gz = fs.open( gz_filename, FILE_READ );
+    #if defined ESP8266
+      int update_size = gz.size();
+    #endif
+    #if defined ESP32
+      int update_size = UPDATE_SIZE_UNKNOWN;
+    #endif
+    return gzStreamUpdater( (Stream*)&gz, update_size, partition, restart_on_update );
   }
 
-  size_t size = stream->available();
-  if( ! size ) {
-    log_e("Bad stream, aborting");
-    setError( ESP32_TARGZ_STREAM_ERROR );
-    return false;
-  }
 
-  #ifdef ESP8266
-    // ESP8266 has built-in uzlib so no need to uncompress, just update with gzData
-    bool use_buffered_writes = false; // use buffered writes when the gz size is unknown, otherwise use stream writes
-    size_t stream_size = 0;
 
-    if( int( update_size ) < 1 ) {
-      use_buffered_writes = true;
-      stream_size = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-      log_d("Stream size is unknown, aligning update to the partition available size: %d ", stream_size );
-    } else {
-      Update.runAsync( true );
-      stream_size = update_size;
-      log_v("Stream size is %d", stream_size );
+
+  // uncompress gz stream (file or HTTP) to flash (expected to be a valid Arduino compiled binary sketch)
+  bool GzUnpacker::gzStreamUpdater( Stream *stream, size_t update_size, int partition, bool restart_on_update )
+  {
+    if( !gzProgressCallback ) {
+      setGzProgressCallback( defaultProgressCallback );
+    }
+    if( !tgzLogger ) {
+      setLoggerCallback( targzPrintLoggerCallback );
     }
 
-    if ( !Update.begin( stream_size, partition )) { // U_FLASH or U_PART
-      log_e("Can't begin update");
-      setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+    size_t size = stream->available();
+    if( ! size ) {
+      log_e("Bad stream, aborting");
+      setError( ESP32_TARGZ_STREAM_ERROR );
       return false;
     }
 
-    if( !use_buffered_writes ) {
-      // stream method
-      static bool finished = false;
-      // async progress
-      Update.onProgress([]( size_t done, size_t total ) {
-        size_t progress = (100*done)/total;
-        if(! finished ) gzProgressCallback( progress );
-        if( progress == 100 ) finished = true;
-      });
-      // walk stream
-      while( stream->available() ) {
-        if(! Update.writeStream( *stream ) ) {
-          log_e("Update couldn't read stream");
-          setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-          return false;
-        }
-        if( finished ) break;
-        yield();
-      }
-    } else {
-      // buffered writes method, uses 4KB ram
-      // TODO: make this adjustable
-      size_t buffsize = 4096;
-      uint8_t *buffer = new uint8_t[4096];
-      if( !buffer) {
-        log_e("Could not allocate %d bytes for stream read", buffsize );
-        setError( ESP32_TARGZ_HEAP_TOO_LOW );
-        return false;
-      }
-      uint8_t progress = 0;
-      gzProgressCallback( progress );
+    #ifdef ESP8266
+      // ESP8266 has built-in uzlib so no need to uncompress, just update with gzData
+      bool use_buffered_writes = false; // use buffered writes when the gz size is unknown, otherwise use stream writes
+      size_t stream_size = 0;
 
-      while( stream->available() ) {
-        size_t len = stream->readBytes( buffer, buffsize );
-        if( len < 1 ) break; // end of stream
-        if (Update.write(buffer, len) != len) {
-          log_e("Updater could not write %d bytes", len );
-          setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-          return false;
-        } else {
-          progress = (Update.progress()*100)/Update.size();
-          gzProgressCallback( progress );
-        }
-        yield();
-      }
-      if( progress != 100 ) {
-        gzProgressCallback( 100 );
-      }
-      delete buffer;
-    }
-
-    if ( !Update.end( true ) ) {
-      Update.printError(Serial);
-      log_e( "Update Error Occurred. Error #: %u", Update.getError() );
-      setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-      return false;
-    }
-
-    if ( !Update.isFinished() ) {
-      log_e("Update incomplete");
-      setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
-      return false;
-    }
-
-    log_v("Update finished !");
-    if( restart_on_update ) ESP.restart();
-  #endif // ifdef ESP8266
-
-
-  #if defined ESP32
-    // unfortunately ESP32 doesn't handle gzipped firmware from the bootloader
-    bool show_progress = false;
-    bool use_dict      = true;
-    bool isupdate      = true;
-    bool stream_to_tar = false;
-
-    if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
-      // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
-      log_w("Insufficient heap to decompress (available:%d, needed:%d), aborting", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
-      setError( ESP32_TARGZ_HEAP_TOO_LOW );
-      return false;
-    }
-
-    tarGzIO.gz = stream;
-    if( gzWriteCallback == nullptr ) {
-      setStreamWriter( gzUpdateWriteCallback );
-    }
-
-    Update.onProgress([]( size_t done, size_t total ) {
-      gzProgressCallback( (100*done)/total );
-    });
-
-    if( int( update_size ) < 1 || update_size == UPDATE_SIZE_UNKNOWN ) {
-      tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
-      if( !Update.begin( UPDATE_SIZE_UNKNOWN, partition ) ) {
-        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-        return false;
-      }
-    } else {
-      tgzLogger("[GZUpdater] Starting update\n");
-      if( !Update.begin( ( ( update_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ), partition ) ) {
-        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-        return false;
-      }
-    }
-    // process with unzipping
-    int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
-
-    // unzipping ended
-    if( ret!=0 ) {
-      log_e("gzHTTPUpdater returned error code %d", ret);
-      setError( (tarGzErrorCode)ret );
-      return false;
-    }
-
-    if ( Update.end( true ) ) {
-      log_v( "OTA done!" );
-      if ( Update.isFinished() ) {
-        // yay
-        log_v("Update finished !");
-        gzProgressCallback( 100 );
-        if( restart_on_update ) ESP.restart();
+      if( int( update_size ) < 1 ) {
+        use_buffered_writes = true;
+        stream_size = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        log_d("Stream size is unknown, aligning update to the partition available size: %d ", stream_size );
       } else {
-        log_e( "Update not finished? Something went wrong!" );
+        Update.runAsync( true );
+        stream_size = update_size;
+        log_v("Stream size is %d", stream_size );
+      }
+
+      if ( !Update.begin( stream_size, partition )) { // U_FLASH or U_PART
+        log_e("Can't begin update");
+        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+        return false;
+      }
+
+      if( !use_buffered_writes ) {
+        // stream method
+        static bool finished = false;
+        // async progress
+        Update.onProgress([]( size_t done, size_t total ) {
+          size_t progress = (100*done)/total;
+          if(! finished ) gzProgressCallback( progress );
+          if( progress == 100 ) finished = true;
+        });
+        // walk stream
+        while( stream->available() ) {
+          if(! Update.writeStream( *stream ) ) {
+            log_e("Update couldn't read stream");
+            setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+            return false;
+          }
+          if( finished ) break;
+          yield();
+        }
+      } else {
+        // buffered writes method, uses 4KB ram
+        // TODO: make this adjustable
+        size_t buffsize = 4096;
+        uint8_t *buffer = new uint8_t[4096];
+        if( !buffer) {
+          log_e("Could not allocate %d bytes for stream read", buffsize );
+          setError( ESP32_TARGZ_HEAP_TOO_LOW );
+          return false;
+        }
+        uint8_t progress = 0;
+        gzProgressCallback( progress );
+
+        while( stream->available() ) {
+          size_t len = stream->readBytes( buffer, buffsize );
+          if( len < 1 ) break; // end of stream
+          if (Update.write(buffer, len) != len) {
+            log_e("Updater could not write %d bytes", len );
+            setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+            return false;
+          } else {
+            progress = (Update.progress()*100)/Update.size();
+            gzProgressCallback( progress );
+          }
+          yield();
+        }
+        if( progress != 100 ) {
+          gzProgressCallback( 100 );
+        }
+        delete buffer;
+      }
+
+      if ( !Update.end( true ) ) {
+        Update.printError(Serial);
+        log_e( "Update Error Occurred. Error #: %u", Update.getError() );
+        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+        return false;
+      }
+
+      if ( !Update.isFinished() ) {
+        log_e("Update incomplete");
         setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
         return false;
       }
-    } else {
-      log_e( "Update Error Occurred. Error #: %u", Update.getError() );
-      setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
-      return false;
-    }
-    log_v("uzLib filesystem Updater finished!");
-    setError( (tarGzErrorCode)ret );
-  #endif // ifdef ESP32
 
-  return true;
-}
+      log_v("Update finished !");
+      if( restart_on_update ) ESP.restart();
+    #endif // ifdef ESP8266
 
 
+    #if defined ESP32
+      // unfortunately ESP32 doesn't handle gzipped firmware from the bootloader
+      bool show_progress = false;
+      bool use_dict      = true;
+      bool isupdate      = true;
+      bool stream_to_tar = false;
 
+      if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+        // log_w("Disabling gzip dictionnary (havailable:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+        log_w("Insufficient heap to decompress (available:%d, needed:%d), aborting", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+        setError( ESP32_TARGZ_HEAP_TOO_LOW );
+        return false;
+      }
+
+      tarGzIO.gz = stream;
+      if( gzWriteCallback == nullptr ) {
+        setStreamWriter( gzUpdateWriteCallback );
+      }
+
+      Update.onProgress([]( size_t done, size_t total ) {
+        gzProgressCallback( (100*done)/total );
+      });
+
+      if( int( update_size ) < 1 || update_size == UPDATE_SIZE_UNKNOWN ) {
+        tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
+        if( !Update.begin( UPDATE_SIZE_UNKNOWN, partition ) ) {
+          setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+          return false;
+        }
+      } else {
+        tgzLogger("[GZUpdater] Starting update\n");
+        if( !Update.begin( ( ( update_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ), partition ) ) {
+          setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+          return false;
+        }
+      }
+      // process with unzipping
+      int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
+
+      // unzipping ended
+      if( ret!=0 ) {
+        log_e("gzHTTPUpdater returned error code %d", ret);
+        setError( (tarGzErrorCode)ret );
+        return false;
+      }
+
+      if ( Update.end( true ) ) {
+        log_v( "OTA done!" );
+        if ( Update.isFinished() ) {
+          // yay
+          log_v("Update finished !");
+          gzProgressCallback( 100 );
+          if( restart_on_update ) ESP.restart();
+        } else {
+          log_e( "Update not finished? Something went wrong!" );
+          setError( ESP32_TARGZ_UPDATE_INCOMPLETE );
+          return false;
+        }
+      } else {
+        log_e( "Update Error Occurred. Error #: %u", Update.getError() );
+        setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
+        return false;
+      }
+      log_v("uzLib filesystem Updater finished!");
+      setError( (tarGzErrorCode)ret );
+    #endif // ifdef ESP32
+
+    return true;
+  }
+
+
+#endif // defined HAS_OTA_SUPPORT
 
 
 
@@ -1876,12 +1883,12 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
     setGzProgressCallback( targzNullProgressCallback );
   }
 
-  if( ESP.getFreeHeap() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
-    log_e("Insufficient heap to decompress (available:%d, needed:%d), aborting", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+  if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+    log_e("Insufficient heap to decompress (available:%d, needed:%d), aborting", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
     setError( ESP32_TARGZ_HEAP_TOO_LOW );
     return false;
   } else {
-    log_d("Current heap budget (available:%d, needed:%d)", ESP.getFreeHeap(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+    log_d("Current heap budget (available:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
   }
   if( !sourceFS.exists( sourceFile ) ) {
     log_e("gzip file %s does not exist", sourceFile);
@@ -1967,7 +1974,7 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
     mkdirp( &destFS, tempFile );
 
     if( gzExpander(sourceFS, sourceFile, destFS, tempFile) ) {
-      log_d("[INFO] heap before tar-expanding: %d)", ESP.getFreeHeap());
+      log_d("[INFO] heap before tar-expanding: %d)", HEAP_AVAILABLE());
       if( tarExpander(destFS, tempFile, destFS, destFolder) ) {
         // yay
       }
@@ -1988,58 +1995,63 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
   }
 }
 
-bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
-{
-  if( !stream->available() ) {
-    log_e("Bad stream, aborting");
-    setError( ESP32_TARGZ_STREAM_ERROR );
-    return false;
+
+#if defined HAS_OTA_SUPPORT
+
+  bool TarGzUnpacker::tarGzStreamUpdater( Stream *stream )
+  {
+    if( !stream->available() ) {
+      log_e("Bad stream, aborting");
+      setError( ESP32_TARGZ_STREAM_ERROR );
+      return false;
+    }
+    if( !gzProgressCallback ) {
+      setGzProgressCallback( defaultProgressCallback );
+    }
+    tarGzIO.gz = stream;
+    tarFS = nullptr;
+    untarredBytesCount = 0;
+    gzTarBlockPos = 0;
+
+    tarCallbacks = {
+      tarHeaderUpdateCallBack,
+      gzFeedTarBuffer,
+      tarStreamWriteUpdateCallback,
+      tarEndUpdateCallBack
+    };
+
+    TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
+    TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
+
+    if( gzWriteCallback == nullptr ) {
+      setStreamWriter( gzProcessTarBuffer );
+    }
+    //gzWriteCallback = &gzProcessTarBuffer;
+
+    totalFiles = 0;
+    totalFolders = 0;
+
+    firstblock = true; // trigger TAR setup from gzUncompress callback
+    lastblock  = false;
+
+    bool isupdate      = true;
+    bool stream_to_tar = false;
+    bool use_dict      = true;
+    bool show_progress = false;
+
+    int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
+
+    if( ret!=0 ) {
+      log_e("gzUncompress returned error code %d", ret);
+      setError( (tarGzErrorCode)ret );
+      return false;
+    }
+
+    return true;
+
   }
-  if( !gzProgressCallback ) {
-    setGzProgressCallback( defaultProgressCallback );
-  }
-  tarGzIO.gz = stream;
-  tarFS = nullptr;
-  untarredBytesCount = 0;
-  gzTarBlockPos = 0;
 
-  tarCallbacks = {
-    tarHeaderUpdateCallBack,
-    gzFeedTarBuffer,
-    tarStreamWriteUpdateCallback,
-    tarEndUpdateCallBack
-  };
-
-  TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
-  TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
-
-  if( gzWriteCallback == nullptr ) {
-    setStreamWriter( gzProcessTarBuffer );
-  }
-  //gzWriteCallback = &gzProcessTarBuffer;
-
-  totalFiles = 0;
-  totalFolders = 0;
-
-  firstblock = true; // trigger TAR setup from gzUncompress callback
-  lastblock  = false;
-
-  bool isupdate      = true;
-  bool stream_to_tar = false;
-  bool use_dict      = true;
-  bool show_progress = false;
-
-  int ret = gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
-
-  if( ret!=0 ) {
-    log_e("gzUncompress returned error code %d", ret);
-    setError( (tarGzErrorCode)ret );
-    return false;
-  }
-
-  return true;
-
-}
+#endif // defined HAS_OTA_SUPPORT
 
 
 // uncompress tar+gz stream (file or HTTP) to filesystem without intermediate tar file
@@ -2110,13 +2122,13 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 
 
-  #if defined ESP8266
+  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
 
     // calculate minimal ram for gzip
-    int available_heap = (ESP.getFreeHeap()-(GZIP_DICT_SIZE+min_output_buffer_size+2048)); // leave 1k heap for the stack
+    int available_heap = (HEAP_AVAILABLE()-(GZIP_DICT_SIZE+min_output_buffer_size+2048)); // leave 1k heap for the stack
     if( available_heap < 0 ) {
       use_dict = false;
-      available_heap = (ESP.getFreeHeap()-(min_output_buffer_size+2048)); // leave 1k heap for the stack
+      available_heap = (HEAP_AVAILABLE()-(min_output_buffer_size+2048)); // leave 1k heap for the stack
       if( available_heap < 0 ) {
         setError( ESP32_TARGZ_HEAP_TOO_LOW );
         return false;
@@ -2133,7 +2145,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     min_output_buffer_size = free_min_heap_blocks * 1024;
     if( min_output_buffer_size > GZIP_BUFF_SIZE ) min_output_buffer_size = GZIP_BUFF_SIZE; // cap to 4096
 
-    min_output_buffer_size = 4096;
+    //min_output_buffer_size = 4096;
 
     blockmod = min_output_buffer_size / TAR_BLOCK_SIZE;
     tgzLogger("tarGzStreamExpander will unpack stream to %s folder using %d buffered bytes and %s dictionary\n", destFolder, min_output_buffer_size, use_dict ? "36Kb for the" : "NO" );
@@ -2237,7 +2249,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     int ret = gzUnpacker.gzUncompress( true/*isupdate*/, false/*stream_to_tar*/, true/*use_dict*/, false/*show_progress*/ );
 
     if( ret!=0 ) {
-      log_e("gzUncompress returned error code %d (free heap=%d bytes)", ret, ESP.getFreeHeap() );
+      log_e("gzUncompress returned error code %d (free heap=%d bytes)", ret, HEAP_AVAILABLE() );
       //gzUnpacker.setError( (tarGzErrorCode)ret );
       return 0;
     }

@@ -1,6 +1,6 @@
 # 🗜️ ESP32-targz
 
-## An ESP32/ESP8266 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
+## An ESP32/ESP8266/RP2040 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/ESP32-targz.svg)](https://registry.platformio.org/packages/libraries/tobozo/ESP32-targz)
@@ -54,7 +54,8 @@ Support Matrix
 | ESP32   | 1.0     |  1.0.5    |  1.0.5 |  1.0    |  1.0  |
 |         |         |           |        |         |       |
 | ESP8266 | builtin |  0.1.0    |  0.1.0 |  n/a    |  n/a  |
-
+|         |         |           |        |         |       |
+| RP2040  | n/a     |  n/a      |  2.0.0 |  n/a    |  n/a  |
 
 
 
