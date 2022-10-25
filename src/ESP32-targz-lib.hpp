@@ -100,6 +100,8 @@ typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
 
 // overridable gz stream writer
 typedef bool (*gzStreamWriter)( unsigned char* buff, size_t buffsize );
+// overridable gz byte reader (used when no dictionary set)
+typedef unsigned int (*gzDestByteReader)(int offset, unsigned char *out);
 
 // tar doesn't have a real progress, so provide a status instead
 typedef void (*tarStatusProgressCb)( const char* name, size_t size, size_t total_unpacked );
@@ -205,6 +207,7 @@ struct BaseUnpacker
   static void setFsTotalBytesCb( fsTotalBytesCb cb ); // filesystem helpers totalBytes
   static void setFsFreeBytesCb( fsFreeBytesCb cb ); // filesystem helpers freeBytes
   static void setGeneralError( tarGzErrorCode code ); // alias to static setError
+  static void setReadTimeout( uint32_t read_timeout ); // read timeout: set high value (e.g. 10000ms) network and low value for filesystems
 };
 
 
@@ -249,6 +252,7 @@ struct GzUnpacker : virtual public BaseUnpacker
   void    setGzMessageCallback( genericLoggerCallback cb );
   //void    setStreamReader( gzStreamReader cb ); // optional, use with gzStreamExpander
   void    setStreamWriter( gzStreamWriter cb ); // optional, use with gzStreamExpander
+  void    setDestByteReader( gzDestByteReader cb );
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
 
@@ -256,7 +260,7 @@ struct GzUnpacker : virtual public BaseUnpacker
   static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzReadHeader(fs::File &gzFile);
   static uint8_t      gzReadByte(fs::File &gzFile, const int32_t addr, fs::SeekMode mode=fs::SeekSet);
-  static unsigned int gzReadDestByte(int offset, unsigned char *out);
+  static unsigned int gzReadDestByteFS(int offset, unsigned char *out);
   static unsigned int gzReadSourceByte(struct GZ::TINF_DATA *data, unsigned char *out);
 };
 
@@ -285,79 +289,81 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 #if defined ESP32
 
 
-class GzUpdateClass : public UpdateClass {
+  // this class was inspired by https://github.com/vortigont/esp32-flashz
 
-    GzUpdateClass(){};     // hidden c-tor
-    ~GzUpdateClass(){};    // hidden d-tor
+  class GzUpdateClass : public UpdateClass {
 
-    bool mode_gz = false;  // needed to keep mode state for async writez() calls
-    int command = U_FLASH; // needed to keep track of the destination partition
-    GzUnpacker gzUnpacker;
+      GzUpdateClass(){};     // hidden c-tor
+      ~GzUpdateClass(){};    // hidden d-tor
 
-    /**
-     * @brief callback for GzUnpacker
-     * writes inflated firmware chunk to flash
-     *
-     */
-    //int flash_cb(size_t index, const uint8_t* data, size_t size, bool final);    //> inflate_cb_t
+      bool mode_gz = false;  // needed to keep mode state for async writez() calls
+      int command = U_FLASH; // needed to keep track of the destination partition
+      GzUnpacker gzUnpacker;
 
-    public:
-        // this is a singleton, no copy's
-        GzUpdateClass(const GzUpdateClass&) = delete;
-        GzUpdateClass& operator=(const GzUpdateClass &) = delete;
-        GzUpdateClass(GzUpdateClass &&) = delete;
-        GzUpdateClass & operator=(GzUpdateClass &&) = delete;
+      /**
+      * @brief callback for GzUnpacker
+      * writes inflated firmware chunk to flash
+      *
+      */
+      //int flash_cb(size_t index, const uint8_t* data, size_t size, bool final);    //> inflate_cb_t
 
-        static GzUpdateClass& getInstance(){
-            static GzUpdateClass flashz;
-            return flashz;
-        }
+      public:
+          // this is a singleton, no copy's
+          GzUpdateClass(const GzUpdateClass&) = delete;
+          GzUpdateClass& operator=(const GzUpdateClass &) = delete;
+          GzUpdateClass(GzUpdateClass &&) = delete;
+          GzUpdateClass & operator=(GzUpdateClass &&) = delete;
 
-        /**
-         * @brief initilize GzUnpacker structs and UpdaterClass
-         *
-         * @return true on success
-         * @return false on GzUnpacker mem allocation error or flash free space error
-         */
-        bool begingz(size_t size=UPDATE_SIZE_UNKNOWN, int command = U_FLASH, int ledPin = -1, uint8_t ledOn = LOW, const char *label = NULL);
+          static GzUpdateClass& getInstance(){
+              static GzUpdateClass flashz;
+              return flashz;
+          }
 
-        /**
-         * @brief Writes a buffer to the flash
-         * Returns true on success
-         *
-         * @param buff
-         * @param buffsize
-         * @return processed bytes
-         */
-        //size_t writez(const uint8_t *data, size_t len, bool final);
-        static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
+          /**
+          * @brief initilize GzUnpacker structs and UpdaterClass
+          *
+          * @return true on success
+          * @return false on GzUnpacker mem allocation error or flash free space error
+          */
+          bool begingz(size_t size=UPDATE_SIZE_UNKNOWN, int command = U_FLASH, int ledPin = -1, uint8_t ledOn = LOW, const char *label = NULL);
 
-        /**
-         * @brief Read zlib compressed data from stream, decompress and write it to flash
-         * size of the stream must be known in order to signal zlib inflator last chunk
-         *
-         * @param data Stream object, usually data from a tcp socket
-         * @param len total length of compressed data to read from stream
-         * @return size_t number of bytes processed from a stream
-         */
-        size_t writeGzStream(Stream &data, size_t len);
+          /**
+          * @brief Writes a buffer to the flash
+          * Returns true on success
+          *
+          * @param buff
+          * @param buffsize
+          * @return processed bytes
+          */
+          //size_t writez(const uint8_t *data, size_t len, bool final);
+          static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
 
-        /**
-         * @brief abort running inflator and flash update process
-         * also releases inflator memory
-         */
-        void abortgz();
+          /**
+          * @brief Read zlib compressed data from stream, decompress and write it to flash
+          * size of the stream must be known in order to signal zlib inflator last chunk
+          *
+          * @param data Stream object, usually data from a tcp socket
+          * @param len total length of compressed data to read from stream
+          * @return size_t number of bytes processed from a stream
+          */
+          size_t writeGzStream(Stream &data, size_t len);
 
-        /**
-         * @brief release inflator memory and run UpdateClass.end()
-         * returns status of end() call
-         *
-         * @return true
-         * @return false
-         */
-        bool endgz(bool evenIfRemaining = true);
+          /**
+          * @brief abort running inflator and flash update process
+          * also releases inflator memory
+          */
+          void abortgz();
 
-};
+          /**
+          * @brief release inflator memory and run UpdateClass.end()
+          * returns status of end() call
+          *
+          * @return true
+          * @return false
+          */
+          bool endgz(bool evenIfRemaining = true);
+
+  };
 
 #endif
 

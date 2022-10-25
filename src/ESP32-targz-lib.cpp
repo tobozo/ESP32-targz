@@ -78,6 +78,7 @@ static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
 static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
+static unsigned int (*gzReadDestByte)(int offset, unsigned char *out);
 static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
 static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
 static bool   tarSkipThisEntry = false;
@@ -92,6 +93,7 @@ static tarGzErrorCode _error = ESP32_TARGZ_OK;
 static bool     targz_halt_on_error = false;
 static bool     firstblock = true; // for gzProcessTarBuffer
 static bool     lastblock = false; // for gzProcessTarBuffer
+static uint32_t targz_read_timeout = 10000; // ms, should be larger than stream timeout
 static size_t   tarCurrentFileSize = 0;
 static size_t   tarCurrentFileSizeProgress = 0;
 static size_t   tarTotalSize = 0;
@@ -112,6 +114,7 @@ size_t          min_output_buffer_size = 512;
 #endif
 #if defined ESP8266
   static bool unTarDoHealthChecks = false; // ESP8266 is unstable with health checks
+  void vTaskDelay(int ms) { delay(ms); }   // ESP8266 has no OS
 #endif
 
 
@@ -166,6 +169,11 @@ BaseUnpacker::BaseUnpacker()
 
 }
 
+
+void BaseUnpacker::setReadTimeout( uint32_t read_timeout )
+{
+  targz_read_timeout = read_timeout;
+}
 
 #ifdef ESP32
 bool BaseUnpacker::setPsram( bool enable )
@@ -1023,7 +1031,10 @@ void GzUnpacker::setStreamWriter( gzStreamWriter cb )
   gzWriteCallback = cb;
 }
 
-
+void GzUnpacker::setDestByteReader( gzDestByteReader cb )
+{
+  gzReadDestByte = cb;
+}
 
 void GzUnpacker::gzExpanderCleanup()
 {
@@ -1116,7 +1127,7 @@ bool GzUnpacker::gzReadHeader( fs::File &gzFile )
 // read a byte from the decompressed destination file, at 'offset' from the current position.
 // offset will be the negative offset back into the written output stream.
 // note: this does not ever write to the output stream; it simply reads from it.
-unsigned int GzUnpacker::gzReadDestByte(int offset, unsigned char *out)
+unsigned int GzUnpacker::gzReadDestByteFS(int offset, unsigned char *out)
 {
   unsigned char data;
   //delta between our position in output_buffer, and the desired offset in the output stream
@@ -1143,13 +1154,19 @@ unsigned int GzUnpacker::gzReadDestByte(int offset, unsigned char *out)
 // returns 0 on success, or -1 on error.
 unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, unsigned char *out)
 {
-  //if( !BaseUnpacker::tarGzIO.gz->available() ) return -1;
+  _start: // using goto to avoid repeated code blocks
   if (tarGzIO.gz->readBytes( out, 1 ) != 1) {
-    log_v("readSourceByte read error, available is %d.  attempting one-time retry", tarGzIO.gz->available());
-    if (tarGzIO.gz->readBytes( out, 1 ) != 1) {
-      log_e("readSourceByte read error, available is %d.  failed at retry", tarGzIO.gz->available());
-      return -1;
+    uint32_t now = millis();
+    uint32_t timeout = now + targz_read_timeout;
+    while( !tarGzIO.gz->available() ) {
+      if( millis()>timeout ) {
+        log_e("gz stream still unresponsive after %dms timeout, giving up", targz_read_timeout);
+        return -1;
+      }
+      vTaskDelay(1); // let the app breathe
     }
+    log_d("gz stream was unresponsive during %dms (timeout=%dms)", millis()-now, targz_read_timeout);
+    goto _start;
   } else {
     //log_v("read 1 byte: 0x%02x", out[0] );
   }
@@ -1214,7 +1231,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       log_e("[ERROR] gz->tar->filesystem streaming requires a gzip dictionnnary");
       return ESP32_TARGZ_NEEDS_DICT;
     } else {
-      uzLibDecompressor.readDestByte   = gzReadDestByte;
+      uzLibDecompressor.readDestByte   = gzReadDestByte ? gzReadDestByte : gzReadDestByteFS;
       log_v("[INFO] gz output is file");
     }
     //output_buffer_size = SPI_FLASH_SEC_SIZE;
@@ -1468,6 +1485,7 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
   // TODO: ESP8266 support
   #if defined ESP8266
     log_e("gz stream expanding not implemented on ESP8266");
+    return false;
   #endif
   #if defined ESP32
 
@@ -2140,95 +2158,94 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 #if defined ESP32
 
+  /**    GzUpdateClass Class implementation    **/
 
-/**    GzUpdateClass Class implementation    **/
+  bool GzUpdateClass::begingz(size_t size, int command, int ledPin, uint8_t ledOn, const char *label)
+  {
+    if( !gzProgressCallback ) {
+      log_d("Setting progress cb");
+      gzUnpacker.setGzProgressCallback( gzUnpacker.defaultProgressCallback );
+    }
+    if( !tgzLogger ) {
+      log_d("Setting logger cb");
+      gzUnpacker.setLoggerCallback( gzUnpacker.targzPrintLoggerCallback );
+    }
+    if( gzWriteCallback == nullptr ) {
+      log_d("Setting write cb");
+      gzUnpacker.setStreamWriter( this->gzUpdateWriteCallback );
+    }
 
-bool GzUpdateClass::begingz(size_t size, int command, int ledPin, uint8_t ledOn, const char *label)
-{
-  if( !gzProgressCallback ) {
-    log_d("Setting progress cb");
-    gzUnpacker.setGzProgressCallback( gzUnpacker.defaultProgressCallback );
-  }
-  if( !tgzLogger ) {
-    log_d("Setting logger cb");
-    gzUnpacker.setLoggerCallback( gzUnpacker.targzPrintLoggerCallback );
-  }
-  if( gzWriteCallback == nullptr ) {
-    log_d("Setting write cb");
-    gzUnpacker.setStreamWriter( gzUpdateWriteCallback );
-    //gzUnpacker.setStreamWriter( Update.write );
-  }
+    mode_gz = true;
 
-  mode_gz = true;
+    bool ret = begin(size, command, ledPin, ledOn, label);
 
-  bool ret = begin(size, command, ledPin, ledOn, label);
-
-  return ret;
-}
-
-
-
-bool GzUpdateClass::gzUpdateWriteCallback( unsigned char* buff, size_t buffsize )
-{
-  if( GzUpdateClass::getInstance().write( buff, buffsize ) ) {
-    log_v("Wrote %d bytes", buffsize );
-    return true;
-  }
-  log_e("Failed to write %d bytes", buffsize );
-  return false;
-}
-
-
-void GzUpdateClass::abortgz()
-{
-  abort();
-  gzUnpacker.gzExpanderCleanup();
-  mode_gz = false;
-}
-
-
-bool GzUpdateClass::endgz(bool evenIfRemaining)
-{
-  gzUnpacker.gzExpanderCleanup();
-  mode_gz = false;
-  return end(evenIfRemaining);
-}
-
-
-size_t GzUpdateClass::writeGzStream(Stream &data, size_t len)
-{
-  if (!mode_gz) {
-    log_d("Not in gz mode");
-    return writeStream(data);
+    return ret;
   }
 
-  size_t size = data.available();
-  if( ! size ) {
-    log_e("Bad stream, aborting");
-    //gzUnpacker.setError( ESP32_TARGZ_STREAM_ERROR );
-    return 0;
+
+
+  bool GzUpdateClass::gzUpdateWriteCallback( unsigned char* buff, size_t buffsize )
+  {
+    int written = GzUpdateClass::getInstance().write( buff, buffsize );
+    if( written ) {
+      log_v("Wrote %d bytes", written );
+      return true;
+    }
+    log_e("Failed to write %d bytes", buffsize );
+    return false;
   }
 
-  log_d("In gz mode");
 
-  tarGzIO.gz = &data;
-  // process with unzipping
-  bool show_progress = false;
-  bool use_dict      = true;
-  bool isupdate      = true;
-  bool stream_to_tar = false;
-  int ret = gzUnpacker.gzUncompress( isupdate, stream_to_tar, use_dict, show_progress );
-  // unzipping ended
-  if( ret!=0 ) {
-    log_e("gzHTTPUpdater returned error code %d", ret);
-    //gzUnpacker.setError( (tarGzErrorCode)ret );
-    return 0;
+  void GzUpdateClass::abortgz()
+  {
+    abort();
+    gzUnpacker.gzExpanderCleanup();
+    mode_gz = false;
   }
 
-  log_d("unpack complete (%d bytes)", tarGzIO.gz_size );
 
-  return len;
-}
+  bool GzUpdateClass::endgz(bool evenIfRemaining)
+  {
+    gzUnpacker.gzExpanderCleanup();
+    mode_gz = false;
+    return end(evenIfRemaining);
+  }
+
+
+  size_t GzUpdateClass::writeGzStream(Stream &data, size_t len)
+  {
+    if (!mode_gz) {
+      log_d("Not in gz mode");
+      return writeStream(data);
+    }
+
+    uint32_t timeout = millis() + targz_read_timeout;
+
+    while( !data.available() ) {
+      if(millis()>timeout) {
+        log_e("stream still not responsive after %dms timeout, giving up", targz_read_timeout);
+        return 0;
+      }
+      vTaskDelay(1);
+    }
+
+    log_d("In gz mode");
+
+    tarGzIO.gz = &data;
+
+    // process with decompressing
+    int ret = gzUnpacker.gzUncompress( true/*isupdate*/, false/*stream_to_tar*/, true/*use_dict*/, false/*show_progress*/ );
+
+    if( ret!=0 ) {
+      log_e("gzUncompress returned error code %d (free heap=%d bytes)", ret, ESP.getFreeHeap() );
+      //gzUnpacker.setError( (tarGzErrorCode)ret );
+      return 0;
+    }
+
+    //log_d("unpack complete (%d bytes)", use_dict ? tarGzIO.gz_size : GzUpdateClass_Write_Offset );
+
+    return len;
+  }
 
 #endif
 
