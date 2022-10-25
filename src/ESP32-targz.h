@@ -51,7 +51,7 @@
   #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
   #if defined DEST_FS_USES_SD
-    #include <SDFS.h>
+    #include <SD.h>
     #define tarGzFS SDFS
     #define FS_NAME "SDFS"
   #else

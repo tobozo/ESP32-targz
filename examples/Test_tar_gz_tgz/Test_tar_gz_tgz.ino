@@ -460,8 +460,8 @@ void setup()
 
 
   #if defined DEST_FS_USES_SD
-    //SD.begin( 4 );
-    SD.begin();
+    SD.begin( 4 );
+    //SD.begin();
   #endif
 
   #ifdef ESP8266
