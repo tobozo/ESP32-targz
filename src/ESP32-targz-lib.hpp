@@ -42,15 +42,16 @@
 
 #include <FS.h>
 
-
 #if defined( ESP32 )
   #include <Update.h>
+  #define HAS_OTA_SUPPORT
 #elif defined( ESP8266 )
   //#ifdef USE_LittleFS
   //  #define SPIFFS LittleFS
   //  #include <LittleFS.h>
   //#endif
   #include <Updater.h>
+  #define HAS_OTA_SUPPORT
 #elif defined ARDUINO_ARCH_RP2040
   // TODO: RP2040 OTA implementation?
 #else

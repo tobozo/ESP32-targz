@@ -106,7 +106,9 @@ static uint32_t output_position = 0;  //position in output_buffer
 static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE;
 static uint16_t gzTarBlockPos = 0;
 static size_t   tarReadGzStreamBytes = 0;
-static bool     tarBlockIsUpdateData = false;
+#if defined HAS_OTA_SUPPORT
+  static bool     tarBlockIsUpdateData = false;
+#endif
 size_t          min_output_buffer_size = 512;
 
 #if defined ESP32

@@ -165,11 +165,6 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
 }
 
 
-#if defined ESP32 || defined ESP8266
-  #define HAS_OTA_SUPPORT
-#endif
-
-
 #include "ESP32-targz-lib.hpp"
 
 #endif

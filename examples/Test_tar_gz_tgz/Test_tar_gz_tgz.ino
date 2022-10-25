@@ -614,7 +614,7 @@ void setup()
 
   if( test_succeeded ) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("Test #%d succeeded, will proceed to the next test", testNum+1);
+    SerialPrintfCentered("Test #%d finished, will proceed to the next test", testNum+1);
     Serial.println( CloseLine );
 
     testNum++;
