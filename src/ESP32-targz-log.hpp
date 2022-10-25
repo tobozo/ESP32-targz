@@ -35,7 +35,7 @@
 
 
 #if defined ESP8266 || defined ESP32
-
+  // those have OTA and common device API
   #define HEAP_AVAILABLE() ESP.getFreeHeap()
   #define DEVICE_RESTART() ESP.restart()
 
@@ -76,14 +76,10 @@
     #define U_PART U_SPIFFS
   #endif
 
-#else
-
-  #if defined ARDUINO_ARCH_RP2040
-    #define DEVICE_RESTART() rp2040.restart()
-    #define HEAP_AVAILABLE() rp2040.getFreeHeap()
-  #else
-    #error "Unsupported architecture"
-  #endif
+#elif defined ARDUINO_ARCH_RP2040
+  // no OTA support
+  #define DEVICE_RESTART() rp2040.restart()
+  #define HEAP_AVAILABLE() rp2040.getFreeHeap()
 
   // ESP like log functions turned to macros to allow gathering of file name, log level, etc
   #define log_v(format, ...) TGZ::LOG(__FILE__, __LINE__, TGZ::LogLevelVerbose, format, ##__VA_ARGS__)
@@ -202,4 +198,6 @@
 
   };
 
+#else
+  #error "Unsupported architecture"
 #endif
