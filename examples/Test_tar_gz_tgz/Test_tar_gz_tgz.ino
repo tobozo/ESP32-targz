@@ -457,8 +457,11 @@ void setup()
 {
   Serial.begin( 115200 );
   EEPROM.begin(512);
+
+
   #if defined DEST_FS_USES_SD
     //SD.begin( 4 );
+    SD.begin();
   #endif
 
   #ifdef ESP8266

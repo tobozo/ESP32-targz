@@ -1165,7 +1165,7 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
       }
       vTaskDelay(1); // let the app breathe
     }
-    log_w("gz stream was unresponsive during %dms (timeout=%dms)", millis()-now, targz_read_timeout);
+    log_d("gz stream was unresponsive during %dms (timeout=%dms)", millis()-now, targz_read_timeout);
     goto _start;
   } else {
     //log_v("read 1 byte: 0x%02x", out[0] );
@@ -2220,14 +2220,13 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     }
 
     uint32_t timeout = millis() + targz_read_timeout;
-    while( millis()<timeout && !data.available() ) {
-      vTaskDelay(1);
-    }
 
-    if( ! data.available() ) {
-      log_e("Bad stream, aborting");
-      //gzUnpacker.setError( ESP32_TARGZ_STREAM_ERROR );
-      return 0;
+    while( !data.available() ) {
+      if(millis()>timeout) {
+        log_e("stream still not responsive after %dms timeout, giving up", targz_read_timeout);
+        return 0;
+      }
+      vTaskDelay(1);
     }
 
     log_d("In gz mode");
