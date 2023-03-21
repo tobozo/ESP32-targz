@@ -59,7 +59,12 @@
 #endif
 
 #define GZIP_DICT_SIZE 32768
-#define GZIP_BUFF_SIZE 4096
+
+#if defined ESP8266
+  #define GZIP_BUFF_SIZE 1024
+#else
+  #define GZIP_BUFF_SIZE 4096
+#endif
 
 #define FOLDER_SEPARATOR "/"
 
@@ -126,7 +131,7 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_OK                         =   0,   // yay
   // general library errors
   ESP32_TARGZ_FS_ERROR                   =  -1,   // Filesystem error
-  ESP32_TARGZ_STREAM_ERROR               =  -6,   // same a Filesystem error
+  ESP32_TARGZ_STREAM_ERROR               =  -6,   // same as Filesystem error
   ESP32_TARGZ_UPDATE_INCOMPLETE          =  -7,   // Update not finished? Something went wrong
   ESP32_TARGZ_TAR_ERR_GZDEFL_FAIL        =  -38,  // Library error during deflating
   ESP32_TARGZ_TAR_ERR_GZREAD_FAIL        =  -39,  // Library error during gzip read
@@ -217,6 +222,7 @@ struct BaseUnpacker
 struct TarUnpacker : virtual public BaseUnpacker
 {
   TarUnpacker();
+  ~TarUnpacker();
   bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
   bool tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder );
   //TODO: tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );

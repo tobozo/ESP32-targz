@@ -194,11 +194,10 @@ int translate_header(header_t *raw_header, header_translated_t *parsed) {
   return TAR_OK;
 }
 
-int read_block(unsigned char *buffer) {
-  char message[200];
-  int num_read;
 
-  //log_debug("Will read block");
+int read_block(unsigned char *buffer) {
+
+  int num_read;
 
   if( read_tar_callbacks->read_cb == NULL ) {
     log_error("read_cb() has NOT been defined" );
@@ -209,14 +208,8 @@ int read_block(unsigned char *buffer) {
   num_read = read_tar_callbacks->read_cb(buffer, TAR_BLOCK_SIZE);
 
   if(num_read < TAR_BLOCK_SIZE) {
-    snprintf(message,
-      200,
-      "Read has stopped short at (%d) count "
-      "rather than (%d). Quitting under error.",
-      num_read, TAR_BLOCK_SIZE
-    );
     tar_error = TAR_ERR_READBLOCK_FAIL;
-    log_error(message);
+    if(tar_error_logger) tar_error_logger("[TAR ERROR] Stopped after %d reads rather than %d. Quitting under error.", num_read, TAR_BLOCK_SIZE);
     return TAR_ERROR;
   }
   return TAR_OK;

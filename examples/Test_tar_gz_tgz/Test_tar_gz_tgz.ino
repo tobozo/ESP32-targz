@@ -6,9 +6,9 @@
  *
 \*/
 // Set **destination** filesystem by uncommenting one of these:
-//#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
+#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
 //#define DEST_FS_USES_LITTLEFS
-#define DEST_FS_USES_SD
+//#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 //#define DEST_FS_USES_PSRAMFS // ESP32 only
@@ -103,6 +103,9 @@ bool test_tarExpander()
   } else {
     ret = true;
   }
+
+  delete TARUnpacker;
+
   return ret;
 }
 
@@ -143,6 +146,10 @@ bool test_tarStreamExpander()
   } else {
     ret = true;
   }
+
+  tarFile.close();
+  delete TARUnpacker;
+
   return ret;
 }
 
@@ -178,6 +185,9 @@ bool test_gzExpander()
   } else {
     ret = true;
   }
+
+  delete GZUnpacker;
+
   return ret;
 }
 
@@ -221,6 +231,10 @@ bool test_gzStreamExpander()
   } else {
     ret = true;
   }
+
+  file.close();
+  delete GZUnpacker;
+
   return ret;
 }
 
@@ -266,6 +280,7 @@ bool test_tarGzExpander()
   } else {
     ret = true;
   }
+  delete TARGZUnpacker;
   return ret;
 }
 
@@ -314,6 +329,7 @@ bool test_tarGzExpander_no_intermediate()
     //TARGZUnpacker->tarGzListDir( tarGzFS, myPackage.folder, 3 );
     #endif
   }
+  delete TARGZUnpacker;
   return ret;
 }
 
@@ -352,6 +368,7 @@ bool test_tarGzExpander_no_intermediate()
     } else {
       ret = true;
     }
+    delete GZUnpacker;
     return ret;
   }
 
@@ -419,6 +436,10 @@ bool test_tarGzStreamExpander()
   } else {
     ret = true;
   }
+  #if ! __has_include(<PSRamFS.h>)
+    file.close();
+  #endif
+  delete TARGZUnpacker;
   return ret;
 }
 
@@ -477,6 +498,8 @@ bool test_tarGzStreamUpdater()
   } else {
     ret = true;
   }
+  file.close();
+  delete TARGZUnpacker;
   return ret;
 }
 
@@ -616,9 +639,9 @@ void setup()
     Serial.println( CloseLine );
 
     testNum++;
-    goto _test_begin;
+    //goto _test_begin;
     // go on with next test
-    // DEVICE_RESTART();
+    DEVICE_RESTART();
   }
 
 }
