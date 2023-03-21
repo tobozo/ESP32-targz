@@ -6,9 +6,9 @@
  *
 \*/
 // Set **destination** filesystem by uncommenting one of these:
-#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
+//#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
 //#define DEST_FS_USES_LITTLEFS
-//#define DEST_FS_USES_SD
+#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 //#define DEST_FS_USES_PSRAMFS // ESP32 only
