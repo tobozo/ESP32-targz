@@ -639,9 +639,12 @@ void setup()
     Serial.println( CloseLine );
 
     testNum++;
-    //goto _test_begin;
-    // go on with next test
-    DEVICE_RESTART();
+    #if defined ESP32
+      goto _test_begin;
+    #else
+      // go on with next test
+      DEVICE_RESTART();
+    #endif
   }
 
 }
