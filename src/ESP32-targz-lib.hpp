@@ -274,6 +274,8 @@ struct GzUnpacker : virtual public BaseUnpacker
     bool        gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream, no progress callback
     static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
   #endif
+  bool nodict = false;
+  inline void noDict( bool force_disable_dict = true ) { nodict = force_disable_dict; };
 };
 
 

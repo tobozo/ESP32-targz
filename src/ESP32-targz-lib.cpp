@@ -72,16 +72,19 @@ void          (*tgzLogger)( const char* format, ...) = nullptr;
 static size_t (*fstotalBytes)() = nullptr;
 static size_t (*fsfreeBytes)()  = nullptr;
 static void   (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf ) = nullptr;
+
 static void   (*tarProgressCallback)( uint8_t progress ) = nullptr;
 static void   (*tarMessageCallback)( const char* format, ...) = nullptr;
-static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
+static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
+static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
 static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
+static bool   tarSkipThisEntry = false;
+
+static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
 static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
 static unsigned int (*gzReadDestByte)(int offset, unsigned char *out);
-static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
-static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
-static bool   tarSkipThisEntry = false;
+
 
 static const char* tarDestFolder = nullptr;
 static unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
@@ -1086,7 +1089,7 @@ bool GzUnpacker::gzStreamWriteCallback( unsigned char* buff, size_t buffsize )
   if( ! tarGzIO.output->write( buff, buffsize ) ) {
     log_w("[GZ WARNING] failed to write %d bytes, will try a second time", buffsize );
     if( ! tarGzIO.output->write( buff, buffsize ) ) {
-      log_e("[GZ ERROR] failed to write %d bytes", buffsize );
+      log_e("[GZ ERROR] failed to write %d bytes (pos=%d)", buffsize, ((fs::File*)(tarGzIO.output))->position() );
       setError( ESP32_TARGZ_STREAM_ERROR );
       return false;
     }
@@ -1226,7 +1229,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   GZ::uzlib_init();
 
-  if ( use_dict == true ) {
+  if ( use_dict == true && nodict == false ) {
 
     if( tgz_use_psram ) {
       uzlib_gzip_dict = (unsigned char*)tgz_calloc(1, GZIP_DICT_SIZE);
@@ -1393,7 +1396,9 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   bool gz_use_dict   = true;
   bool needs_free    = false;
 
-  if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+  if( nodict == true ) {
+    gz_use_dict = false;
+  } else if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
     size_t free_min_heap_blocks = HEAP_AVAILABLE() / 512; // leave 1k heap, eat all the rest !
     if( free_min_heap_blocks <1 ) {
       setError( ESP32_TARGZ_HEAP_TOO_LOW );
@@ -1449,6 +1454,14 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
     destFS.remove( destFile );
   }
   fs::File outfile = destFS.open( destFile, "w+" );
+  if(!outfile) {
+    log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
+    gz.close();
+    if( needs_free ) free( (char*)destFile );
+    setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
+    return false;
+  }
+
   tarGzIO.gz = &gz;
   tarGzIO.output = &outfile;
   if( gzWriteCallback == nullptr ) {
@@ -1704,9 +1717,9 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
       }
 
       tarGzIO.gz = stream;
-      if( gzWriteCallback == nullptr ) {
+      //if( gzWriteCallback == nullptr ) {
         setStreamWriter( gzUpdateWriteCallback );
-      }
+      //}
 
       Update.onProgress([]( size_t done, size_t total ) {
         gzProgressCallback( (100*done)/total );
@@ -1897,7 +1910,11 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
     setGzProgressCallback( targzNullProgressCallback );
   }
 
-  if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+  if( nodict == true ) {
+    log_e("Function explicitely disabled by ::noDict(), aborting");
+    setError( ESP32_TARGZ_HEAP_TOO_LOW );
+    return false;
+  } else if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
     log_e("Insufficient heap to decompress (available:%d, needed:%d), aborting", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
     setError( ESP32_TARGZ_HEAP_TOO_LOW );
     return false;
@@ -2071,6 +2088,11 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
 // uncompress tar+gz stream (file or HTTP) to filesystem without intermediate tar file
 bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const char* destFolder, int64_t streamSize )
 {
+  if( nodict == true ) { // leave 1k heap for the stack
+    log_e("[GZ] Function explicely disabled by ::noDict()" );
+    setError( ESP32_TARGZ_HEAP_TOO_LOW );
+    return false;
+  }
 
   bool isupdate      = false;
   bool stream_to_tar = false;
@@ -2123,9 +2145,9 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   TAR::tar_error_logger      = tgzLogger; // targzPrintLoggerCallback or tgzLogger
   TAR::tar_debug_logger      = tgzLogger; // comment this out if too verbose
 
-  if( gzWriteCallback == nullptr ) {
+  //if( gzWriteCallback == nullptr ) {
     setStreamWriter( gzProcessTarBuffer );
-  }
+  //}
   //gzWriteCallback = &gzProcessTarBuffer;
 
   totalFiles = 0;
