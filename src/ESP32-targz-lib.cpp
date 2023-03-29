@@ -269,6 +269,7 @@ void BaseUnpacker::defaultProgressCallback( uint8_t progress )
 void BaseUnpacker::tarNullProgressCallback( CC_UNUSED uint8_t progress )
 {
   // print( message );
+  yield(); // Fix for wdt error on esp8266 when no logger callback is assigned
 }
 
 
@@ -276,6 +277,7 @@ void BaseUnpacker::tarNullProgressCallback( CC_UNUSED uint8_t progress )
 void BaseUnpacker::targzNullProgressCallback( CC_UNUSED uint8_t progress )
 {
   // printf("Progress: %d", progress );
+  yield(); // Fix for wdt error on esp8266 when no logger callback is assigned
 }
 
 
@@ -286,6 +288,7 @@ void BaseUnpacker::targzNullLoggerCallback( CC_UNUSED const char* format, ...)
   //va_start(args, format);
   //vprintf(format, args);
   //va_end(args);
+  yield(); // Fix for wdt error on esp8266 when no logger callback is assigned
 }
 
 
