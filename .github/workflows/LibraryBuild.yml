@@ -53,7 +53,7 @@ jobs:
           #build-properties: ${{ toJson(matrix.build-properties) }}
 
 
-      - name: Create spiffs image (ESP32)
+      - name: Create littlefs image (ESP32)
         if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
         run: |
           sketch_folder=examples/Test_tar_gz_tgz
@@ -71,6 +71,7 @@ jobs:
         uses: tobozo/esp32-qemu-sim@main
         with:
           # Set the build folder and file names for esp32-qemu-sim
+          debug: true
           build-folder: examples/Test_tar_gz_tgz/build
           partitions-csv: partitions.csv
           firmware-bin: Test_tar_gz_tgz.ino.bin
