@@ -57,7 +57,7 @@ jobs:
         if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
         run: |
           sketch_folder=examples/Test_tar_gz_tgz
-          MKLITTLEFS_BIN=`find /home/runner/arduino_ide -type f -name 'mklittlefs'`
+          MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
           if [[ -d "$sketch_folder/data" ]]; then
             echo "MKLITTLEFS_BIN = $MKLITTLEFS_BIN"
             echo "Data folder = $sketch_folder/data"
