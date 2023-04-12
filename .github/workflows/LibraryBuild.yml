@@ -49,7 +49,21 @@ jobs:
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           sketch-names: ${{ matrix.sketch-names }}
+          set-build-path: true # build in the sketch folder
           #build-properties: ${{ toJson(matrix.build-properties) }}
+
+
+      - name: Create spiffs image (ESP32)
+        if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
+        run: |
+          mklittlefs=`find /home/runner/arduino_ide -type f -name 'mklittlefs'`
+          if [[ -f "$mklittlefs" ]]; then
+            echo "[ERROR] mklittlefs not found"
+            ls /home/runner/arduino_ide -la
+            ls ~ -la
+            exit 1
+          fi
+          $mklittlefs -s 1441792 -b 4096 -p 256 -c examples/Test_tar_gz_tgz/data examples/Test_tar_gz_tgz/Test_tar_gz_tgz.ino.spiffs.bin
 
       - name: Run ESP32 project in QEmu
         if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
