@@ -7,8 +7,8 @@
 \*/
 // Set **destination** filesystem by uncommenting one of these:
 //#define DEST_FS_USES_SPIFFS // WARN: SPIFFS is full of bugs
-//#define DEST_FS_USES_LITTLEFS
-#define DEST_FS_USES_SD
+#define DEST_FS_USES_LITTLEFS
+//#define DEST_FS_USES_SD
 //#define DEST_FS_USES_FFAT   // ESP32 only
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 //#define DEST_FS_USES_PSRAMFS // ESP32 only
@@ -266,11 +266,14 @@ bool test_tarGzExpander()
   TARGZUnpacker->setTarMessageCallback( myTarMessageCallback/*BaseUnpacker::targzPrintLoggerCallback*/ ); // tar log verbosity
 
   // include/exclude filters, can be set/omitted both or separately
-  TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore files/folders
-  TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will allow files/folders
+  //TARGZUnpacker->setTarExcludeFilter( myTarExcludeFilter ); // will ignore files/folders
+  //TARGZUnpacker->setTarIncludeFilter( myTarIncludeFilter ); // will allow files/folders
 
   #ifdef ESP32
   TARGZUnpacker->setPsram( true );
+  #endif
+  #ifdef ESP8266
+    TARGZUnpacker->noDict(); // use crc-based instead of dictionary-based decompression, saves ~30Kb but is much slower
   #endif
 
   if( !TARGZUnpacker->tarGzExpander(sourceFS, tarGzFile, tarGzFS, myPackage.folder ) ) {
@@ -352,7 +355,7 @@ bool test_tarGzExpander_no_intermediate()
 
     GzUnpacker *GZUnpacker = new GzUnpacker();
 
-    GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+    GZUnpacker->haltOnError( false ); // stop on fail (manual restart/reset required)
     GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
     GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
     GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
@@ -363,10 +366,11 @@ bool test_tarGzExpander_no_intermediate()
 
     if( ! GZUnpacker->gzUpdater( sourceFS, firmwareFile, U_FLASH, /*restart on update*/false ) ) {
       Serial.println( OpenLine );
-      SerialPrintfCentered("gzUpdater failed with return code #%d", GZUnpacker->tarGzGetError() );
+      SerialPrintfCentered("gzUpdater failed updating from %s with return code #%d", firmwareFile, GZUnpacker->tarGzGetError() );
       Serial.println( CloseLine );
     } else {
       ret = true;
+      ESP.restart();
     }
     delete GZUnpacker;
     return ret;
@@ -431,7 +435,7 @@ bool test_tarGzStreamExpander()
 
   if( !TARGZUnpacker->tarGzStreamExpander( streamptr, tarGzFS ) ) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("tarGzStreamExpander failed with return code #%d", TARGZUnpacker->tarGzGetError() );
+    SerialPrintfCentered("tarGzStreamExpander failed updating from %s with return code #%d", tarGzFile, TARGZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
   } else {
     ret = true;
@@ -453,6 +457,11 @@ bool test_tarGzStreamExpander()
 
 bool test_tarGzStreamUpdater()
 {
+  #if defined DEST_FS_USES_LITTLEFS && sourceFS==LittleFS
+    SerialPrintCentered("Source and destination FS collide, skipping test", false, true );
+    return true;
+  #endif
+
   bool ret = false;
   #if defined ESP32
     const char* bundleGzFile = "/partitions_bundle_esp32.tar.gz"; // archive containing both partitions for app and spiffs
@@ -465,7 +474,7 @@ bool test_tarGzStreamUpdater()
   SerialPrintCentered("Testing tarGzStreamUpdater", false, true );
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
-  TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
+  TARGZUnpacker->haltOnError( false ); // stop on fail (manual restart/reset required)
   TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
   // TARGZUnpacker->setupFSCallbacks( nullptr, nullptr ); // Update.h already takes care of that
   TARGZUnpacker->setGzProgressCallback( BaseUnpacker::targzNullProgressCallback ); // don't care about gz progress

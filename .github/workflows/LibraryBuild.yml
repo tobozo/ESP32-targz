@@ -61,9 +61,9 @@ jobs:
           if [[ -d "$sketch_folder/data" ]]; then
             echo "MKLITTLEFS_BIN = $MKLITTLEFS_BIN"
             echo "Data folder = $sketch_folder/data"
-            ls /home/runner/arduino_ide -la
             [[ ! -f "$MKLITTLEFS_BIN" ]] && { echo "[ERROR] mklittlefs not found"; exit 1; }
             $MKLITTLEFS_BIN -s 1441792 -b 4096 -p 256 -c $sketch_folder/data $sketch_folder/Test_tar_gz_tgz.ino.spiffs.bin
+            ls $sketch_folder/Test_tar_gz_tgz.ino.spiffs.bin -la
           fi
 
       - name: Run ESP32 project in QEmu
