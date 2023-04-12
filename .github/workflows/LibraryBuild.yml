@@ -56,14 +56,12 @@ jobs:
       - name: Create spiffs image (ESP32)
         if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
         run: |
-          mklittlefs=`find /home/runner/arduino_ide -type f -name 'mklittlefs'`
-          if [[ -f "$mklittlefs" ]]; then
-            echo "[ERROR] mklittlefs not found"
-            ls /home/runner/arduino_ide -la
-            ls ~ -la
-            exit 1
+          sketch_folder=examples/Test_tar_gz_tgz
+          MKLITTLEFS_BIN=`find /home/runner/arduino_ide -type f -name 'mklittlefs'`
+          if [[ -d "$sketch_folder/data" ]]; then
+            [[ ! -f "$MKLITTLEFS_BIN" ]] && { echo "[ERROR] mklittlefs not found"; exit 1; }
+            $MKLITTLEFS_BIN -s 1441792 -b 4096 -p 256 -c $sketch_folder/data $sketch_folder/Test_tar_gz_tgz.ino.spiffs.bin
           fi
-          $mklittlefs -s 1441792 -b 4096 -p 256 -c examples/Test_tar_gz_tgz/data examples/Test_tar_gz_tgz/Test_tar_gz_tgz.ino.spiffs.bin
 
       - name: Run ESP32 project in QEmu
         if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
