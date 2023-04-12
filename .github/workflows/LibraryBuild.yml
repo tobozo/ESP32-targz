@@ -19,6 +19,7 @@ jobs:
         arduino-boards-fqbn:
           - esp8266:esp8266:generic:eesz=4M3M,xtal=80
           - esp32:esp32:esp32:FlashFreq=80
+          - rp2040:rp2040:rpipico
 
         include:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashFreq=80
@@ -45,9 +46,20 @@ jobs:
         uses: ArminJo/arduino-test-compile@v3
         with:
           arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
-          #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           sketch-names: ${{ matrix.sketch-names }}
-          #sketches-exclude: ${{ matrix.sketches-exclude }}
-          build-properties: ${{ toJson(matrix.build-properties) }}
+          #build-properties: ${{ toJson(matrix.build-properties) }}
+
+      - name: Run ESP32 project in QEmu
+        if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
+        uses: tobozo/esp32-qemu-sim@main
+        with:
+          # Set the build folder and file names for esp32-qemu-sim
+          build-folder: examples/Test_tar_gz_tgz/build
+          partitions-csv: partitions.csv
+          firmware-bin: Test_tar_gz_tgz.ino.bin
+          bootloader-bin: Test_tar_gz_tgz.ino.bootloader.bin
+          partitions-bin: Test_tar_gz_tgz.ino.partitions.bin
+          spiffs-bin: Test_tar_gz_tgz.ino.spiffs.bin
+
