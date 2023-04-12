@@ -18,21 +18,24 @@ jobs:
 
         arduino-boards-fqbn:
           - esp8266:esp8266:generic:eesz=4M3M,xtal=80
-          - esp32:esp32:esp32:FlashFreq=80
+          - esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
           - rp2040:rp2040:rpipico
 
         include:
-          - arduino-boards-fqbn: esp32:esp32:esp32:FlashFreq=80
+          - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino # Comma separated list of sketch names (no path required) or patterns to use in build
+            board-name: esp32
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
             sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+            board-name: esp8266
 
           - arduino-boards-fqbn: rp2040:rp2040:rpipico
             sketch-names: Test_tar_gz_tgz.ino
             platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+            board-name: rp2040
 
       fail-fast: false
 
@@ -54,7 +57,7 @@ jobs:
 
 
       - name: Create littlefs image (ESP32)
-        if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
+        if: matrix.board-name == 'esp32'
         run: |
           sketch_folder=examples/Test_tar_gz_tgz
           MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
@@ -67,7 +70,7 @@ jobs:
           fi
 
       - name: Run ESP32 project in QEmu
-        if: matrix.arduino-boards-fqbn == 'esp32:esp32:esp32:FlashFreq=80'
+        if: matrix.board-name == 'esp32'
         uses: tobozo/esp32-qemu-sim@main
         with:
           # Set the build folder and file names for esp32-qemu-sim
