@@ -3,6 +3,7 @@
 
 // Figure out the fs::FS library to load for the **destination** filesystem
 
+
 #if defined ESP32
 
   #if defined DEST_FS_USES_SPIFFS
@@ -125,6 +126,8 @@
 #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT
   #define WARN_LIMITED_FS
 #endif
+
+#include <stddef.h> // platformio whines about missing definition for 'size_t' 🤦
 
 // required filesystem helpers are declared outside the main library
 // because ESP32/ESP8266 <FS.h> use different abstraction flavours :)

@@ -360,7 +360,7 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
           * size of the stream must be known in order to signal zlib inflator last chunk
           *
           * @param data Stream object, usually data from a tcp socket
-          * @param len total length of compressed data to read from stream
+          * @param len total length of compressed data to read from stream (actually ignored)
           * @return size_t number of bytes processed from a stream
           */
           size_t writeGzStream(Stream &data, size_t len);

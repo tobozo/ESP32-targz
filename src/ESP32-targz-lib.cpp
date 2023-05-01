@@ -2280,6 +2280,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     }
 
     //log_d("unpack complete (%d bytes)", use_dict ? tarGzIO.gz_size : GzUpdateClass_Write_Offset );
+    // TODO: return actual uncompressed length
 
     return len;
   }
