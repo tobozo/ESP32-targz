@@ -18,21 +18,24 @@ jobs:
 
         arduino-boards-fqbn:
           - esp8266:esp8266:generic:eesz=4M3M,xtal=80
-          - esp32:esp32:esp32:FlashFreq=80
+          - esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
+          - rp2040:rp2040:rpipico
 
         include:
-          - arduino-boards-fqbn: esp32:esp32:esp32:FlashFreq=80
+          - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino # Comma separated list of sketch names (no path required) or patterns to use in build
+            board-name: esp32
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
             sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
-            required-libraries: ESP32-Chimera-Core,LovyanGFX
+            board-name: esp8266
 
           - arduino-boards-fqbn: rp2040:rp2040:rpipico
             sketch-names: Test_tar_gz_tgz.ino
             platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+            board-name: rp2040
 
       fail-fast: false
 
@@ -46,9 +49,37 @@ jobs:
         uses: ArminJo/arduino-test-compile@v3
         with:
           arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
-          #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           sketch-names: ${{ matrix.sketch-names }}
-          #sketches-exclude: ${{ matrix.sketches-exclude }}
-          build-properties: ${{ toJson(matrix.build-properties) }}
+          set-build-path: true # build in the sketch folder
+          #build-properties: ${{ toJson(matrix.build-properties) }}
+
+
+      - name: Create littlefs image (ESP32)
+        if: matrix.board-name == 'esp32'
+        run: |
+          sketch_folder=examples/Test_tar_gz_tgz
+          MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
+          if [[ -d "$sketch_folder/data" ]]; then
+            echo "MKLITTLEFS_BIN = $MKLITTLEFS_BIN"
+            echo "Data folder = $sketch_folder/data"
+            [[ ! -f "$MKLITTLEFS_BIN" ]] && { echo "[ERROR] mklittlefs not found"; exit 1; }
+            $MKLITTLEFS_BIN -s 1441792 -b 4096 -p 256 -c $sketch_folder/data $sketch_folder/build/Test_tar_gz_tgz.ino.spiffs.bin
+            ls $sketch_folder/build/Test_tar_gz_tgz.ino.spiffs.bin -la
+          fi
+
+      - name: Run ESP32 project in QEmu
+        if: matrix.board-name == 'esp32'
+        uses: tobozo/esp32-qemu-sim@main
+        with:
+          # Set the build folder and file names for esp32-qemu-sim
+          debug: true
+          qemu-timeout: 999
+          build-folder: examples/Test_tar_gz_tgz/build
+          partitions-csv: partitions.csv
+          firmware-bin: Test_tar_gz_tgz.ino.bin
+          bootloader-bin: Test_tar_gz_tgz.ino.bootloader.bin
+          partitions-bin: Test_tar_gz_tgz.ino.partitions.bin
+          spiffs-bin: Test_tar_gz_tgz.ino.spiffs.bin
+

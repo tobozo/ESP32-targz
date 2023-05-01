@@ -41,7 +41,6 @@
 
   #ifdef ESP8266
     // some ESP32 => ESP8266 syntax shim
-
     #define U_PART U_FS
     #define ARDUHAL_LOG_FORMAT(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", __FILE__, __LINE__, __FUNCTION__
 
@@ -55,7 +54,11 @@
         // be verbose
         #define log_i(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(I, format), ##__VA_ARGS__);
         #define log_d(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(D, format), ##__VA_ARGS__);
-        #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
+        #if defined DEBUG_ESP_VERBOSE
+          #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
+        #else
+          #define log_v(format, ...) BaseUnpacker::targzNullLoggerCallback
+        #endif
       #else
         // don't be verbose, only errors+warnings
         #define log_i BaseUnpacker::targzNullLoggerCallback
@@ -64,8 +67,8 @@
       #endif
 
     #else
-      #define log_n BaseUnpacker::targzNullLoggerCallback
-      #define log_e BaseUnpacker::targzNullLoggerCallback
+      #define log_n(format, ...) Serial.printf(ARDUHAL_LOG_FORMAT(N, format), ##__VA_ARGS__);
+      #define log_e(format, ...) Serial.printf(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__);
       #define log_w BaseUnpacker::targzNullLoggerCallback
       #define log_i BaseUnpacker::targzNullLoggerCallback
       #define log_d BaseUnpacker::targzNullLoggerCallback

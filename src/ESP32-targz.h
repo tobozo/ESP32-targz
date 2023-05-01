@@ -3,6 +3,7 @@
 
 // Figure out the fs::FS library to load for the **destination** filesystem
 
+
 #if defined ESP32
 
   #if defined DEST_FS_USES_SPIFFS
@@ -117,7 +118,7 @@
 
 #else
 
-  #error "Only ESP32, ESP8266 and RP2040 architectures are supported"
+  #error "Only ESP32, ESP8266 and RP2040/Pico architectures are supported"
 
 #endif
 
@@ -125,6 +126,8 @@
 #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT
   #define WARN_LIMITED_FS
 #endif
+
+#include <stddef.h> // platformio whines about missing definition for 'size_t' 🤦
 
 // required filesystem helpers are declared outside the main library
 // because ESP32/ESP8266 <FS.h> use different abstraction flavours :)
@@ -140,7 +143,7 @@ __attribute__((unused)) static size_t targzFreeBytesFn() {
         return 0;
       }
     #else
-      #error "Only ESP32 and ESP8266 are supported"
+      #error "Only ESP32, ESP8266 and RP2040/Pico are supported"
     #endif
   #elif defined DEST_FS_USES_FFAT
     return tarGzFS.freeBytes();
@@ -162,7 +165,7 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
         return 0;
       }
     #else
-      #error "Only ESP32 and ESP8266 are supported"
+      #error "Only ESP32, ESP8266 and RP2040/Pico are supported"
     #endif
   #else
     // no filesystem, no helpers available, power user ?

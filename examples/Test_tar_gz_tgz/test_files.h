@@ -1,4 +1,4 @@
-fileMeta myFiles[15] = 
+fileMeta myFiles[15] =
 {
   { 279200      , "2297aacd9380d9b438490d6002bc83be", "firmware_example_esp32" },
   { 120188      , "42ad7a973640e95f1cbfbd7b45a94ef1", "firmware_example_esp32.gz" },
@@ -15,8 +15,9 @@ fileMeta myFiles[15] =
   { 7172        , "cf1f1f596ab7a726334ffcee1100a912", "zombo.com/img/spinner.png" },
   { 2040        , "808a446d1885a65202fc8f7dc5fb7341", "zombo.com/index.html" },
   { 7925        , "22ed447b5be77f1bd7a8c3f08f9b702a", "zombo.com/snd/inrozxa.swf" },
+
 };
-packageMeta myPackage = 
+packageMeta myPackage =
 {
   nullptr, 15, myFiles
 };
