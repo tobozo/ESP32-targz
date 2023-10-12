@@ -382,7 +382,7 @@ void BaseUnpacker::hexDumpData( const char* buff, size_t buffsize, uint32_t outp
     }
   }
   Serial.println( byteToStr + bytesStr + " " + binaryStr );
-  delete byteToStr;
+  delete[] byteToStr;
 }
 
 
@@ -401,7 +401,7 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
       hexDumpData( buff, bytes_read, output_size );
       bytes_read = binFile.readBytes( buff, output_size );
     }
-    delete buff;
+    delete[] buff;
   } else {
     Serial.printf("Ignoring file %s (%d bytes)", filename, binFile.size() );
   }
@@ -1359,7 +1359,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       output_position = 0;
     }
 
-    if( isupdate && outlen > 0 ) {
+    if( isupdate && outlen > 0 ) { // Update requirement: written output size must be a multiple of SPI_FLASH_SEC_SIZE
       size_t updatable_size = ( outlen + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 );
       size_t zerofill_size  = updatable_size - outlen;
       if( zerofill_size <= SPI_FLASH_SEC_SIZE ) {
