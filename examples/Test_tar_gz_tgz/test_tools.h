@@ -9,13 +9,14 @@ extern "C" {
 
 #endif
 #if defined ESP32
-  #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
+  #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MAJOR < 5
     #include <esp32/rom/rtc.h>
   #else
     #include <rom/rtc.h>
   #endif
 #endif
 
+#pragma GCC diagnostic ignored "-Wswitch"
 
 bool isManualReset()
 {
@@ -89,7 +90,7 @@ void SerialPrintCentered(const char *s, bool open = false, bool close = false )
   if( open )  Serial.println( OpenLine );
   Serial.println( out );
   if( close ) Serial.println( CloseLine );
-  delete out;
+  delete[] out;
 }
 
 void SerialPrintfCentered(const char* format, ... )
