@@ -8,6 +8,11 @@ void setup()
     Serial.println("Could not start filesystem");
     while(1) yield();
   }
+
+  TarUnpacker *TARUnpacker     = new TarUnpacker();
+  GzUnpacker *GZUnpacker       = new GzUnpacker();
+  TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
 }
 
 

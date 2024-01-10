@@ -1567,7 +1567,7 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
 
 
 
-#if defined HAS_OTA_SUPPORT
+#if defined ESP32 || defined ESP8266
 
   // uncompress gz file to flash (expected to be a valid gzipped firmware)
   bool GzUnpacker::gzUpdater( fs::FS &fs, const char* gz_filename, int partition, bool restart_on_update )
@@ -2193,7 +2193,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 
 
-#if defined ESP32
+#if defined ESP32 && defined HAS_OTA_SUPPORT
 
   /**    GzUpdateClass Class implementation    **/
 
