@@ -2193,7 +2193,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 
 
-#if defined ESP32
+#if defined ESP32 && defined HAS_OTA_SUPPORT
 
   /**    GzUpdateClass Class implementation    **/
 

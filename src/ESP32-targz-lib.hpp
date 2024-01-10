@@ -37,26 +37,13 @@
 
 \*/
 
+#pragma once
+
 #ifndef _ESP_TGZ_H
-#define _ESP_TGZ_H
-
-#include <FS.h>
-
-#if defined( ESP32 )
-  #include <Update.h>
-  #define HAS_OTA_SUPPORT
-#elif defined( ESP8266 )
-  //#ifdef USE_LittleFS
-  //  #define SPIFFS LittleFS
-  //  #include <LittleFS.h>
-  //#endif
-  #include <Updater.h>
-  #define HAS_OTA_SUPPORT
-#elif defined ARDUINO_ARCH_RP2040
-  // TODO: RP2040 OTA implementation?
-#else
-  #error Unsupported architecture
+  #define _ESP_TGZ_H
 #endif
+
+#include <FS.h> // platformio retarded lib_ldf_mode needs this even though <FS.h> was already included by ESP32-targz.h
 
 #define GZIP_DICT_SIZE 32768
 
@@ -304,7 +291,7 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
 
 
-#if defined ESP32
+#if defined ESP32 && defined HAS_OTA_SUPPORT
 
   // this class was inspired by https://github.com/vortigont/esp32-flashz
 
@@ -390,4 +377,4 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 #include "helpers/path_tools.h"
 
 
-#endif // #ifdef _ESP_TGZ_H
+//#endif // #ifdef _ESP_TGZ_H

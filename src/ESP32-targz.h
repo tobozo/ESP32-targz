@@ -1,11 +1,15 @@
+#pragma once
+
 #ifndef _TGZ_FSFOOLS_
 #define _TGZ_FSFOOLS_
-
-// Figure out the fs::FS library to load for the **destination** filesystem
-
+#endif
 
 #if defined ESP32
 
+  #include <Update.h>
+  #define HAS_OTA_SUPPORT
+
+  // Figure out the chosen fs::FS library to load for the **destination** filesystem
   #if defined DEST_FS_USES_SPIFFS
     #include <SPIFFS.h>
     #define tarGzFS SPIFFS
@@ -44,12 +48,17 @@
 
 #elif defined ESP8266
 
+  #include <Updater.h>
+  #define HAS_OTA_SUPPORT
+
   // ESP8266 has no SD_MMC or FFat.h library, so these are implicitely invalidated
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
   // the fuck with spamming the console
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
+  // Figure out the chosen fs::FS library to load for the **destination** filesystem
 
   #if defined DEST_FS_USES_SD
     #include <SD.h>
@@ -101,6 +110,7 @@
   #undef DEST_FS_USES_FFAT   // unsupported
   #undef DEST_FS_USES_SPIFFS // unsupported
 
+  // Figure out the chosen fs::FS library to load for the **destination** filesystem
   #if defined DEST_FS_USES_SD
     #include <SD.h>
     #define tarGzFS SDFS
@@ -173,7 +183,4 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
   #endif
 }
 
-
 #include "ESP32-targz-lib.hpp"
-
-#endif
