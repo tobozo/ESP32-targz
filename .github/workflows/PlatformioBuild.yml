@@ -25,6 +25,7 @@ jobs:
       matrix:
         pio-env:
           - esp8266
+          - esp32
           - esp32s3
           - pico
 
