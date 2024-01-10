@@ -1,12 +1,14 @@
-name: LibraryBuild
+name: ArduinoBuild
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
     - '**.ino'
     - '**.cpp'
     - '**.h'
-    - '**LibraryBuild.yml'
+    - '**ArduinoBuild.yml.yml'
   pull_request:
+  workflow_dispatch:
+
 jobs:
   build:
     name: ${{ matrix.arduino-boards-fqbn }} - test compiling examples
