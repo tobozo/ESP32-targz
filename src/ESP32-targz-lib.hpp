@@ -381,7 +381,7 @@ struct TarUnpacker : virtual public BaseUnpacker
   ~TarUnpacker();
   bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
   bool tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder );
-  bool tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );
+  //TODO: tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );
   void setTarStatusProgressCallback( tarStatusProgressCb cb );
   void setTarProgressCallback( genericProgressCallback cb ); // for tar
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
@@ -411,7 +411,7 @@ struct GzUnpacker : virtual public BaseUnpacker
 {
   GzUnpacker();
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
-  //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
   bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
