@@ -1502,7 +1502,98 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   return true;
 }
 
+bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile ) {
+    tarGzClearError();
+    initFSCallbacks();
+    if (!tgzLogger ) {
+        setLoggerCallback( targzPrintLoggerCallback );
+    }
+    bool isupdate      = false;
+    bool stream_to_tar = false;
+    bool gz_use_dict   = true;
+    bool needs_free    = false;
+    
+    if( nodict == true ) {
+        gz_use_dict = false;
+    } else if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
+        size_t free_min_heap_blocks = HEAP_AVAILABLE() / 512; // leave 1k heap, eat all the rest !
+        if( free_min_heap_blocks <1 ) {
+        setError( ESP32_TARGZ_HEAP_TOO_LOW );
+        return false;
+        }
+        min_output_buffer_size = free_min_heap_blocks * 512;
+        if( min_output_buffer_size > GZIP_BUFF_SIZE ) min_output_buffer_size = GZIP_BUFF_SIZE;
+        log_w("Disabling GZIP Dictionary (heap wanted:%d, available: %d, buffer: %d bytes), writes will be slow", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE, min_output_buffer_size );
+        gz_use_dict = false;
+        //
+    } else {
+        log_d("Current heap budget (available:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
+    }
+    
+    if( destFile == nullptr ) {
+        return false;
+    }
 
+    tgzLogger("[GZ] Expanding Stream to %s\n", destFile );
+
+    if( !gzProgressCallback ) {
+        setGzProgressCallback( defaultProgressCallback );
+    }
+
+    size_t size = sourceStream->available();
+    if( ! size ) {
+        log_e("Bad stream, aborting");
+        setError( ESP32_TARGZ_STREAM_ERROR );
+        return false;
+    }
+
+    if( destFS.exists( destFile ) ) {
+        log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
+        destFS.remove( destFile );
+    }
+    fs::File outFile = destFS.open(destFile, "w+");
+    if(!outFile) {
+        log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
+        setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
+        return false;
+    }
+
+    tarGzIO.gz = sourceStream;
+    tarGzIO.output = &outFile;
+
+    if( gzWriteCallback == nullptr ) {
+        setStreamWriter( gzStreamWriteCallback );
+    }
+    //gzWriteCallback = &gzStreamWriteCallback; // for regular unzipping
+
+    int ret = gzUncompress( isupdate, stream_to_tar, gz_use_dict );
+
+    outFile.close();
+
+    if( ret!=0 ) {
+        log_e("gzUncompress returned error code %d", ret);
+        if( needs_free ) free( (char*)destFile );
+        setError( (tarGzErrorCode)ret );
+        return false;
+    }
+    log_v("uzLib expander finished!");
+
+    /*
+    outfile = destFS.open( destFile, FILE_READ );
+    log_d("Expanded %s to %s (%d bytes)", sourceFile, destFile, outfile.size() );
+    outfile.close();
+    */
+    if( gzMessageCallback ) {
+        gzMessageCallback("%s", destFile );
+    }
+
+    if( needs_free ) free( (char*)destFile );
+
+    if( fstotalBytes &&  fsfreeBytes ) {
+        log_d("[GZ Info] FreeBytes after expansion=%d", fsfreeBytes() );
+    }
+    return true;
+}
 
 // uncompress gz stream (file or HTTP) to any destination (see setStreamWriter)
 bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
