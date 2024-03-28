@@ -411,7 +411,7 @@ struct GzUnpacker : virtual public BaseUnpacker
 {
   GzUnpacker();
   bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
-  //TODO: gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
   bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
