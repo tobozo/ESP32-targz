@@ -29,10 +29,11 @@ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "uzlib.h"
 #include "defl_static.h"
 
 #define snew(type) ( (type *) malloc(sizeof(type)) )
@@ -52,14 +53,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * compressing a large file under no significant time constraint,
  * but when you're compressing little bits in real time, things get
  * hairier.
- * 
+ *
  * I suppose it's possible that I could compute Huffman trees based
  * on the frequencies in the _previous_ block, as a sort of
  * heuristic, but I'm not confident that the gain would balance out
  * having to transmit the trees.
  */
 
-void outbits(struct Outbuf *out, unsigned long bits, int nbits)
+void outbits(struct uzlib_comp *out, unsigned long bits, int nbits)
 {
     assert(out->noutbits + nbits <= 32);
     out->outbits |= bits << out->noutbits;
@@ -67,9 +68,18 @@ void outbits(struct Outbuf *out, unsigned long bits, int nbits)
     while (out->noutbits >= 8) {
         if (out->outlen >= out->outsize) {
             out->outsize = out->outlen + 64;
-            out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
+            if( ! out->writeDestByte ) // only use realloc if no byte writer is attached
+                out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
         }
-        out->outbuf[out->outlen++] = (unsigned char) (out->outbits & 0xFF);
+        if( out->writeDestByte )
+        {
+            out->writeDestByte( out, (unsigned char) (out->outbits & 0xFF) );
+            out->outlen++;
+        }
+        else
+        {
+            out->outbuf[out->outlen++] = (unsigned char) (out->outbits & 0xFF);
+        }
         out->outbits >>= 8;
         out->noutbits -= 8;
     }
@@ -111,43 +121,51 @@ static const unsigned char mirrorbytes[256] = {
 };
 
 typedef struct {
-    short code, extrabits;
-    int min, max;
-} coderecord;
+    uint8_t extrabits;
+    uint8_t min, max;
+} len_coderecord;
 
-static const coderecord lencodes[] = {
-    {257, 0, 3, 3},
-    {258, 0, 4, 4},
-    {259, 0, 5, 5},
-    {260, 0, 6, 6},
-    {261, 0, 7, 7},
-    {262, 0, 8, 8},
-    {263, 0, 9, 9},
-    {264, 0, 10, 10},
-    {265, 1, 11, 12},
-    {266, 1, 13, 14},
-    {267, 1, 15, 16},
-    {268, 1, 17, 18},
-    {269, 2, 19, 22},
-    {270, 2, 23, 26},
-    {271, 2, 27, 30},
-    {272, 2, 31, 34},
-    {273, 3, 35, 42},
-    {274, 3, 43, 50},
-    {275, 3, 51, 58},
-    {276, 3, 59, 66},
-    {277, 4, 67, 82},
-    {278, 4, 83, 98},
-    {279, 4, 99, 114},
-    {280, 4, 115, 130},
-    {281, 5, 131, 162},
-    {282, 5, 163, 194},
-    {283, 5, 195, 226},
-    {284, 5, 227, 257},
-    {285, 0, 258, 258},
+typedef struct {
+    uint8_t code, extrabits;
+    uint16_t min, max;
+} dist_coderecord;
+
+#define TO_LCODE(x, y) x - 3, y - 3
+#define FROM_LCODE(x) (x + 3)
+
+static const len_coderecord lencodes[] = {
+    {0, TO_LCODE(3, 3)},
+    {0, TO_LCODE(4, 4)},
+    {0, TO_LCODE(5, 5)},
+    {0, TO_LCODE(6, 6)},
+    {0, TO_LCODE(7, 7)},
+    {0, TO_LCODE(8, 8)},
+    {0, TO_LCODE(9, 9)},
+    {0, TO_LCODE(10, 10)},
+    {1, TO_LCODE(11, 12)},
+    {1, TO_LCODE(13, 14)},
+    {1, TO_LCODE(15, 16)},
+    {1, TO_LCODE(17, 18)},
+    {2, TO_LCODE(19, 22)},
+    {2, TO_LCODE(23, 26)},
+    {2, TO_LCODE(27, 30)},
+    {2, TO_LCODE(31, 34)},
+    {3, TO_LCODE(35, 42)},
+    {3, TO_LCODE(43, 50)},
+    {3, TO_LCODE(51, 58)},
+    {3, TO_LCODE(59, 66)},
+    {4, TO_LCODE(67, 82)},
+    {4, TO_LCODE(83, 98)},
+    {4, TO_LCODE(99, 114)},
+    {4, TO_LCODE(115, 130)},
+    {5, TO_LCODE(131, 162)},
+    {5, TO_LCODE(163, 194)},
+    {5, TO_LCODE(195, 226)},
+    {5, TO_LCODE(227, 257)},
+    {0, TO_LCODE(258, 258)},
 };
 
-static const coderecord distcodes[] = {
+static const dist_coderecord distcodes[] = {
     {0, 0, 1, 1},
     {1, 0, 2, 2},
     {2, 0, 3, 3},
@@ -180,7 +198,7 @@ static const coderecord distcodes[] = {
     {29, 13, 24577, 32768},
 };
 
-void zlib_literal(struct Outbuf *out, unsigned char c)
+void zlib_literal(struct uzlib_comp *out, unsigned char c)
 {
     if (out->comp_disabled) {
         /*
@@ -199,10 +217,12 @@ void zlib_literal(struct Outbuf *out, unsigned char c)
     }
 }
 
-void zlib_match(struct Outbuf *out, int distance, int len)
+void zlib_match(struct uzlib_comp *out, int distance, int len)
 {
-    const coderecord *d, *l;
+    const dist_coderecord *d;
+    const len_coderecord *l;
     int i, j, k;
+    int lcode;
 
     assert(!out->comp_disabled);
 
@@ -213,7 +233,7 @@ void zlib_match(struct Outbuf *out, int distance, int len)
          * We can transmit matches of lengths 3 through 258
          * inclusive. So if len exceeds 258, we must transmit in
          * several steps, with 258 or less in each step.
-         * 
+         *
          * Specifically: if len >= 261, we can transmit 258 and be
          * sure of having at least 3 left for the next step. And if
          * len <= 258, we can just transmit len. But if len == 259
@@ -231,9 +251,9 @@ void zlib_match(struct Outbuf *out, int distance, int len)
         while (1) {
             assert(j - i >= 2);
             k = (j + i) / 2;
-            if (thislen < lencodes[k].min)
+            if (thislen < FROM_LCODE(lencodes[k].min))
                 j = k;
-            else if (thislen > lencodes[k].max)
+            else if (thislen > FROM_LCODE(lencodes[k].max))
                 i = k;
             else {
                 l = &lencodes[k];
@@ -241,22 +261,24 @@ void zlib_match(struct Outbuf *out, int distance, int len)
             }
         }
 
+        lcode = l - lencodes + 257;
+
         /*
          * Transmit the length code. 256-279 are seven bits
          * starting at 0000000; 280-287 are eight bits starting at
          * 11000000.
          */
-        if (l->code <= 279) {
-            outbits(out, mirrorbytes[(l->code - 256) * 2], 7);
+        if (lcode <= 279) {
+            outbits(out, mirrorbytes[(lcode - 256) * 2], 7);
         } else {
-            outbits(out, mirrorbytes[0xc0 - 280 + l->code], 8);
+            outbits(out, mirrorbytes[0xc0 - 280 + lcode], 8);
         }
 
         /*
          * Transmit the extra bits.
          */
         if (l->extrabits)
-            outbits(out, thislen - l->min, l->extrabits);
+            outbits(out, thislen - FROM_LCODE(l->min), l->extrabits);
 
         /*
          * Binary-search to find which distance code we're
@@ -290,14 +312,14 @@ void zlib_match(struct Outbuf *out, int distance, int len)
     }
 }
 
-void zlib_start_block(struct Outbuf *out)
+void zlib_start_block(struct uzlib_comp *out)
 {
 //    outbits(out, 0x9C78, 16);
     outbits(out, 1, 1); /* Final block */
     outbits(out, 1, 2); /* Static huffman block */
 }
 
-void zlib_finish_block(struct Outbuf *out)
+void zlib_finish_block(struct uzlib_comp *out)
 {
     outbits(out, 0, 7); /* close block */
     outbits(out, 0, 7); /* Make sure all bits are flushed */

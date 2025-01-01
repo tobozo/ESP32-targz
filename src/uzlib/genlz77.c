@@ -29,7 +29,6 @@
  */
 #include <stdint.h>
 #include <string.h>
-#include <stdio.h>
 #include "uzlib.h"
 
 #if 0
@@ -64,6 +63,8 @@ static inline int HASH(struct uzlib_comp *data, const uint8_t *p) {
 
 #ifdef DUMP_LZTXT
 
+#include <stdio.h>
+
 /* Counter for approximate compressed length in LZTXT mode. */
 /* Literal is counted as 1, copy as 2 bytes. */
 unsigned approx_compressed_len;
@@ -95,30 +96,58 @@ static inline void copy(void *data, unsigned offset, unsigned len)
 #endif
 
 
+// pointer increment with callback for crc
+const uint8_t *uzlib_walk_buf(struct uzlib_comp *data, const uint8_t *buf, size_t bytes)
+{
+    if( data->checksum_cb )
+    {
+        data->checksum = data->checksum_cb(buf, bytes, data->checksum);
+    }
+    buf += bytes;
+    return buf;
+}
+
+
+
 void uzlib_compress(struct uzlib_comp *data, const uint8_t *src, unsigned slen)
 {
     const uint8_t *top = src + slen - MIN_MATCH;
+
+    if( data->progress )
+        data->progress(0, slen);
+
     while (src < top) {
+
+        if( data->progress )
+            data->progress(slen-(top-src), slen);
+
         int h = HASH(data, src);
         const uint8_t **bucket = &data->hash_table[h & (HASH_SIZE - 1)];
         const uint8_t *subs = *bucket;
         *bucket = src;
         if (subs && src > subs && (src - subs) <= MAX_OFFSET && !memcmp(src, subs, MIN_MATCH)) {
-            src += MIN_MATCH;
+            src = uzlib_walk_buf(data,src,MIN_MATCH);
             const uint8_t *m = subs + MIN_MATCH;
             int len = MIN_MATCH;
             while (*src == *m && len < MAX_MATCH && src < top) {
-                src++; m++; len++;
+                src = uzlib_walk_buf(data,src,1);
+                m++; len++;
             }
             copy(data, src - len - subs, len);
         } else {
-            literal(data, *src++);
+            literal(data, *src);
+            src = uzlib_walk_buf(data,src,1);
         }
     }
     // Process buffer tail, which is less than MIN_MATCH
     // (and so it doesn't make sense to look for matches there)
     top += MIN_MATCH;
     while (src < top) {
-        literal(data, *src++);
+        literal(data, *src);
+        src = uzlib_walk_buf(data,src,1);
     }
+
+    if( data->progress )
+        data->progress(slen, slen);
 }
+
