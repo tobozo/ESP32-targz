@@ -1512,7 +1512,7 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const ch
     bool stream_to_tar = false;
     bool gz_use_dict   = true;
     bool needs_free    = false;
-    
+
     if( nodict == true ) {
         gz_use_dict = false;
     } else if( HEAP_AVAILABLE() < GZIP_DICT_SIZE+GZIP_BUFF_SIZE ) {
@@ -1529,7 +1529,7 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const ch
     } else {
         log_d("Current heap budget (available:%d, needed:%d)", HEAP_AVAILABLE(), GZIP_DICT_SIZE+GZIP_BUFF_SIZE );
     }
-    
+
     if( destFile == nullptr ) {
         return false;
     }
@@ -2377,6 +2377,82 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
   }
 
 #endif
+
+
+
+namespace LZPacker
+{
+
+  void lzProgressCallback( size_t progress, size_t total )
+  {
+    assert(total>0);
+    static uint8_t lastprogress = 0xff;
+    uint8_t pg = 100*(float(progress) / float(total));
+    if( pg != lastprogress )
+    {
+        printf("progress: %d\n", pg);
+        lastprogress = pg;
+    }
+  }
+
+
+  static Stream* dstStream = nullptr;
+
+  unsigned int lzCompDestByteWrite(struct GZ::uzlib_comp *out, unsigned char byte)
+  {
+    if(!LZPacker::dstStream) return 0;
+    return LZPacker::dstStream->write(byte);
+  }
+
+
+  size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream )
+  {
+    assert(srcBuf);
+    assert(srcBufLen>0);
+    assert(dstStream);
+
+    // LAME: copy stream pointer to make it available to lzCompDestByteWrite()
+    LZPacker::dstStream = dstStream;
+
+    struct GZ::uzlib_comp comp;
+    memset((uint8_t*)&comp, 0, sizeof(GZ::uzlib_comp));
+
+    comp.dict_size = 32768;
+    comp.hash_bits = 12;
+    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << comp.hash_bits);
+    comp.hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
+
+    // attach stream writer
+    comp.writeDestByte  = LZPacker::lzCompDestByteWrite;
+    // attach progress callback
+    comp.progress = LZPacker::lzProgressCallback;
+
+    // compute checksum while compressing
+    comp.checksum_cb = GZ::uzlib_crc32;
+    // comp.checksum_cb = uzlib_adler32;
+    comp.checksum = ~0;
+
+    dstStream->write((uint8_t)0x1f);
+    dstStream->write((uint8_t)0x8b);
+    dstStream->write((uint8_t)0x08);
+    dstStream->write((uint8_t)0x00); // FLG
+    int mtime = millis()/1000;
+    dstStream->write((uint8_t*)&mtime, sizeof(mtime));
+    dstStream->write((uint8_t)0x04); // XFL
+    dstStream->write((uint8_t)0x03); // OS
+
+    GZ::zlib_start_block(&comp);
+    GZ::uzlib_compress(&comp, srcBuf, srcBufLen);
+    GZ::zlib_finish_block(&comp);
+
+    unsigned crc = ~comp.checksum;
+    dstStream->write((uint8_t*)&crc, sizeof(crc));
+    dstStream->write((uint8_t*)&srcBufLen, sizeof(srcBufLen));
+
+    return comp.outlen;
+  }
+};
+
 
 
 

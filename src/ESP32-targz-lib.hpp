@@ -460,6 +460,34 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
 
 
+
+
+namespace LZPacker
+{
+  // NOTE: LZ77 support from uzlib
+
+  // 1) source is a buffer and destination is a stream
+  size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
+  // TODO:
+  // // 2) both source and destination are memory buffers. destination buffer is increased with realloc(), alignment may suffer
+  // size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t* dstBuf );
+  // // 3) both source and destination are streams
+  // size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
+  // // 4) source is a stream and destination is a buffer. destination buffer is increased with realloc(), alignment may suffer
+  // size_t compress( Stream* srcStream, size_t srcLen, uint8_t* dstBuf );
+
+  void lzProgressCallback( size_t progress, size_t total );
+  unsigned int lzCompDestByteWrite(struct GZ::uzlib_comp *out, unsigned char byte);
+
+};
+
+
+
+
+
+
+
+
 #if defined ESP32 && defined HAS_OTA_SUPPORT
 
   // this class was inspired by https://github.com/vortigont/esp32-flashz
