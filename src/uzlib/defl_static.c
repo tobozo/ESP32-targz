@@ -68,18 +68,20 @@ void outbits(struct uzlib_comp *out, unsigned long bits, int nbits)
     while (out->noutbits >= 8) {
         if (out->outlen >= out->outsize) {
             out->outsize = out->outlen + 64;
-            if( ! out->writeDestByte ) // only use realloc if no byte writer is attached
+            if( out->outbuf ) { // compressing to memory: resize buffer
                 out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
+                assert(out->outbuf); // TODO: OOM error handling
+            }
         }
-        if( out->writeDestByte )
-        {
-            out->writeDestByte( out, (unsigned char) (out->outbits & 0xFF) );
-            out->outlen++;
-        }
-        else
-        {
-            out->outbuf[out->outlen++] = (unsigned char) (out->outbits & 0xFF);
-        }
+
+        unsigned char outval = (out->outbits & 0xFF);
+
+        if( out->outbuf ) // compressing to memory: write 1 byte
+            out->outbuf[out->outlen] = outval;
+        else if( out->writeDestByte ) // compressing to stream: write 1 byte
+            out->writeDestByte( out, outval );
+
+        out->outlen++;
         out->outbits >>= 8;
         out->noutbits -= 8;
     }
@@ -287,6 +289,11 @@ void zlib_match(struct uzlib_comp *out, int distance, int len)
         i = -1;
         j = sizeof(distcodes) / sizeof(*distcodes);
         while (1) {
+            if( j - i < 2 ) {
+                printf("assert will fail with %d - %d >= 2, halting instead of crashing\n", j,  i );
+                while(1);
+            }
+
             assert(j - i >= 2);
             k = (j + i) / 2;
             if (distance < distcodes[k].min)

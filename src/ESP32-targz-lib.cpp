@@ -2380,8 +2380,6 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 
 
 
-namespace LZPacker
-{
 
   void lzProgressCallback( size_t progress, size_t total )
   {
@@ -2390,13 +2388,192 @@ namespace LZPacker
     uint8_t pg = 100*(float(progress) / float(total));
     if( pg != lastprogress )
     {
-        printf("progress: %d\n", pg);
+        printf("Compressed: %3d%s (progress=%d, total=%d)\n", pg, "%", progress, total);
         lastprogress = pg;
     }
   }
 
 
-  static Stream* dstStream = nullptr;
+
+  struct GZ::uzlib_comp LZPacker::_comp;
+  void (*LZPacker::lzProgressCb)( size_t progress, size_t total ) = nullptr;
+  Stream* LZPacker::dstStream = nullptr;
+  Stream* LZPacker::srcStream = nullptr;
+
+  void LZPacker::setProgressCallBack(totalProgressCallback cb)
+  {
+    LZPacker::lzProgressCb = cb;
+  }
+
+  void LZPacker::_init()
+  {
+    Serial.println("INIT");
+
+    auto c = &LZPacker::_comp;
+    memset((uint8_t*)c, 0, sizeof(GZ::uzlib_comp));
+    c->dict_size = 32768;
+    c->hash_bits = 12;
+    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
+    // TODO: check if already allocated
+    c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
+    if( c->hash_table == NULL ) {
+      printf("lz77 error: unable to allocate %d bytes for hash table, halting\n", hash_size );
+      while(1);
+    }
+    c->checksum_cb = GZ::uzlib_crc32;
+    // comp.checksum_cb = uzlib_adler32;
+    c->checksum = ~0;
+    c->progress = LZPacker::lzProgressCb;
+    c->outbuf = NULL;
+
+  }
+
+
+
+  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf )
+  {
+    LZPacker::_init();
+    assert(srcBuf);
+    assert(srcBufLen>0);
+
+    auto c = &LZPacker::_comp;
+
+    c->outbuf = (uint8_t*)malloc( 64 ); // space for header
+    assert(c->outbuf);
+    c->outsize = 64;
+    c->outlen = 0;
+
+    // write header (10 bytes)
+    c->outbuf[c->outlen++] = ((uint8_t)0x1f);
+    c->outbuf[c->outlen++] = ((uint8_t)0x8b);
+    c->outbuf[c->outlen++] = ((uint8_t)0x08);
+    c->outbuf[c->outlen++] = ((uint8_t)0x00); // FLG
+    for(int i=0;i<sizeof(int);i++)
+      c->outbuf[c->outlen++] = 0; // mtime
+    c->outbuf[c->outlen++] = ((uint8_t)0x04); // XFL
+    c->outbuf[c->outlen++] = ((uint8_t)0x03); // OS
+
+    // lz-compress data
+    GZ::zlib_start_block(c);
+    GZ::uzlib_compress(c, srcBuf, srcBufLen);
+    GZ::zlib_finish_block(c);
+
+    // write footer (8 bytes + terminator)
+    if (c->outlen + 9 >= c->outsize) {
+      c->outsize = c->outlen + 64;
+      c->outbuf = (unsigned char*)realloc(c->outbuf, c->outsize * sizeof(unsigned char) );
+      assert(c->outbuf);
+    }
+
+    unsigned crc = ~c->checksum;
+    for(int i=0;i<sizeof(crc);i++)
+      c->outbuf[c->outlen++] = ((uint8_t*)&crc)[i];
+    for(int i=0;i<sizeof(srcBufLen);i++)
+      c->outbuf[c->outlen++] = ((uint8_t*)&srcBufLen)[i];
+
+    c->outbuf[c->outlen++] = 0; // terminate
+
+    *dstBuf = c->outbuf;
+
+    free(c->hash_table);
+
+    return c->outlen;
+  }
+
+
+
+  // // Callback function to read the next byte from the file
+  unsigned int lzStreamReadCb(GZ::uzlib_comp *data, unsigned char * out, size_t num_bytes)
+  {
+      assert(LZPacker::srcStream);
+      assert(num_bytes>0);
+      size_t bytes_read = LZPacker::srcStream->readBytes(out, num_bytes);
+      static size_t total_read = 0;
+      total_read += bytes_read;
+      //printf("Read %d/%d bytes from stream (total %d/%d, buffer pos:%d, ram free:%ld)\n", bytes_read, num_bytes, total_read, data->streamReader->pos+1, data->streamReader->bpos, ESP.getFreeHeap());
+      if( data->progress )
+        data->progress( data->streamReader->pos, data->streamReader->slen );
+      return bytes_read;
+  }
+
+  // size_t LZPacker::compress( Stream* srcStream, size_t srcLen, Stream* dstStream )
+  // {
+  //   assert(srcStream);
+  //   assert(srcLen>0);
+  //   assert(dstStream);
+  //
+  //   size_t ret = 0;
+  //   unsigned crc;
+  //   int mtime;
+  //
+  //   LZPacker::dstStream = dstStream;
+  //   LZPacker::srcStream = srcStream;
+  //   LZPacker::_init();
+  //   auto c = &LZPacker::_comp;
+  //
+  //   struct GZ::uzlib_stream_reader reader;
+  //   memset((uint8_t*)&reader, 0, sizeof(GZ::uzlib_stream_reader));
+  //
+  //   reader.buflen = 1024;
+  //
+  //   reader.buf1 = (uint8_t*)calloc(reader.buflen, sizeof(uint8_t));
+  //   if( reader.buf1 == NULL )
+  //   {
+  //     printf("lz77 error: unable to allocate %d bytes for primary stream buffer\n", reader.buflen );
+  //     return 0;
+  //   }
+  //   reader.buf2 = (uint8_t*)calloc(reader.buflen, sizeof(uint8_t));
+  //   if( reader.buf2 == NULL )
+  //   {
+  //     printf("lz77 error: unable to allocate %d bytes for secondary stream buffer\n", reader.buflen );
+  //     goto _free_buf_1;
+  //   }
+  //
+  //   reader.buf  = reader.buf1;
+  //   reader.slen = srcLen;
+  //
+  //   // enable stream reader
+  //   c->streamReader = &reader;
+  //   // attach stream read callback
+  //   c->readSourceBytes = lzStreamReadCb;
+  //   // attach stream writer
+  //   c->writeDestByte  = lzCompDestByteWrite;
+  //
+  //   // write header
+  //   dstStream->write((uint8_t)0x1f);
+  //   dstStream->write((uint8_t)0x8b);
+  //   dstStream->write((uint8_t)0x08);
+  //   dstStream->write((uint8_t)0x00); // FLG
+  //   mtime = millis()/1000;
+  //   dstStream->write((uint8_t*)&mtime, sizeof(mtime));
+  //   dstStream->write((uint8_t)0x04); // XFL
+  //   dstStream->write((uint8_t)0x03); // OS
+  //   c->outlen += 10;
+  //
+  //   // read<-compress->write
+  //   GZ::zlib_start_block(c);
+  //   GZ::uzlib_stream_compress(c);
+  //   GZ::zlib_finish_block(c);
+  //   // printf("Data read offset = %d\n", c->readOffset);
+  //
+  //   // write footer
+  //   crc = ~c->checksum;
+  //   dstStream->write((uint8_t*)&crc, sizeof(crc));
+  //   dstStream->write((uint8_t*)&srcLen, sizeof(srcLen));
+  //   c->outlen += 8;
+  //
+  //   ret = c->outlen;
+  //
+  //   free(c->hash_table);
+  //   free(reader.buf2);
+  //   _free_buf_1:
+  //   free(reader.buf1);
+  //
+  //   return ret;
+  // }
+
+
+
 
   unsigned int lzCompDestByteWrite(struct GZ::uzlib_comp *out, unsigned char byte)
   {
@@ -2405,32 +2582,20 @@ namespace LZPacker
   }
 
 
-  size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream )
+  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream )
   {
     assert(srcBuf);
     assert(srcBufLen>0);
     assert(dstStream);
 
+    LZPacker::_init();
+
     // LAME: copy stream pointer to make it available to lzCompDestByteWrite()
     LZPacker::dstStream = dstStream;
-
-    struct GZ::uzlib_comp comp;
-    memset((uint8_t*)&comp, 0, sizeof(GZ::uzlib_comp));
-
-    comp.dict_size = 32768;
-    comp.hash_bits = 12;
-    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << comp.hash_bits);
-    comp.hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
+    auto c = &LZPacker::_comp;
 
     // attach stream writer
-    comp.writeDestByte  = LZPacker::lzCompDestByteWrite;
-    // attach progress callback
-    comp.progress = LZPacker::lzProgressCallback;
-
-    // compute checksum while compressing
-    comp.checksum_cb = GZ::uzlib_crc32;
-    // comp.checksum_cb = uzlib_adler32;
-    comp.checksum = ~0;
+    c->writeDestByte  = lzCompDestByteWrite;
 
     dstStream->write((uint8_t)0x1f);
     dstStream->write((uint8_t)0x8b);
@@ -2441,17 +2606,21 @@ namespace LZPacker
     dstStream->write((uint8_t)0x04); // XFL
     dstStream->write((uint8_t)0x03); // OS
 
-    GZ::zlib_start_block(&comp);
-    GZ::uzlib_compress(&comp, srcBuf, srcBufLen);
-    GZ::zlib_finish_block(&comp);
+    GZ::zlib_start_block(c);
+    GZ::uzlib_compress(c, srcBuf, srcBufLen);
+    GZ::zlib_finish_block(c);
 
-    unsigned crc = ~comp.checksum;
+    printf("Data read offset = %d\n", c->readOffset);
+
+    unsigned crc = ~c->checksum;
     dstStream->write((uint8_t*)&crc, sizeof(crc));
     dstStream->write((uint8_t*)&srcBufLen, sizeof(srcBufLen));
 
-    return comp.outlen;
+    free(c->hash_table);
+
+    return c->outlen+18; // compressed size + header size + footer size
   }
-};
+
 
 
 

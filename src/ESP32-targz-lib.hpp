@@ -275,6 +275,7 @@ typedef bool (*tarExcludeFilter)( TAR::header_translated_t *header );
 typedef bool (*tarIncludeFilter)( TAR::header_translated_t *header );
 
 // Callbacks for progress and misc output messages, default is verbose
+typedef void (*totalProgressCallback)(size_t progress, size_t total);
 typedef void (*genericProgressCallback)( uint8_t progress );
 typedef void (*genericLoggerCallback)( const char* format, ... );
 
@@ -460,24 +461,31 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
 
 
+void lzProgressCallback( size_t progress, size_t total );
+unsigned int lzCompDestByteWrite(struct GZ::uzlib_comp *out, unsigned char byte);
+unsigned int lzStreamReadCb(GZ::uzlib_comp *data, unsigned char * out, size_t num_bytes);
 
 
-namespace LZPacker
+struct LZPacker  // NOTE: LZ77 support from uzlib
 {
-  // NOTE: LZ77 support from uzlib
+  // buffer to stream
+  static size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
+  // buffer to buffer, uses realloc()
+  static size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf );
+  // stream to stream (work in progress)
+  // static size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
+  // stream to buffer (work in progress)
+  // static size_t compress( Stream* srcStream, size_t srcLen, uint8_t* dstBuf );
 
-  // 1) source is a buffer and destination is a stream
-  size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
   // TODO:
-  // // 2) both source and destination are memory buffers. destination buffer is increased with realloc(), alignment may suffer
-  // size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t* dstBuf );
-  // // 3) both source and destination are streams
-  // size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
-  // // 4) source is a stream and destination is a buffer. destination buffer is increased with realloc(), alignment may suffer
-  // size_t compress( Stream* srcStream, size_t srcLen, uint8_t* dstBuf );
+  static void setProgressCallBack(totalProgressCallback cb);
 
-  void lzProgressCallback( size_t progress, size_t total );
-  unsigned int lzCompDestByteWrite(struct GZ::uzlib_comp *out, unsigned char byte);
+  static Stream* dstStream;
+  static Stream* srcStream;
+  static void (*lzProgressCb)( size_t progress, size_t total );
+
+  static void _init();
+  static struct GZ::uzlib_comp _comp;
 
 };
 

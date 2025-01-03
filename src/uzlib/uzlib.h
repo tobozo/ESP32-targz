@@ -14,11 +14,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "uzlib_conf.h"
-#if UZLIB_CONF_DEBUG_LOG
-#include <stdio.h>
-#endif
 
 /* calling convention */
 #ifndef TINFCC
@@ -142,7 +140,10 @@ int TINFCC uzlib_gzip_parse_header(TINF_DATA *d);
 typedef const uint8_t *uzlib_hash_entry_t;
 
 
-struct uzlib_comp {
+struct uzlib_stream_reader;
+
+struct uzlib_comp
+{
     unsigned char *outbuf;
     int outlen, outsize;
     unsigned long outbits;
@@ -158,12 +159,35 @@ struct uzlib_comp {
 
     void (*progress)( size_t progress, size_t total );
 
-    // unsigned int (*readSourceByte)(struct uzlib_comp *data, unsigned char *out);
+    size_t readOffset;
+
+    unsigned int (*readSourceBytes)(struct uzlib_comp *data, unsigned char *out, size_t len);
 
     unsigned int (*writeDestByte)(struct uzlib_comp *data, unsigned char byte);
+
+    struct uzlib_stream_reader *streamReader;
 };
 
+
+typedef struct uzlib_stream_reader
+{
+    uint8_t *buf;  // pointer to buffer
+    size_t buflen; // buffer length
+    int bufnum;
+    // double buffer
+    uint8_t *buf1;
+    uint8_t *buf2;
+    unsigned bpos; // position in the buffer
+    unsigned slen; // stream length
+    unsigned pos;  // position in the stream
+    //int (*read_cb)(struct uzlib_comp *data, size_t num_bytes);
+    //int (*readSourceBytes)(unsigned char *out, size_t len);
+
+} uzlib_stream_reader;
+
+
 void TINFCC uzlib_compress(struct uzlib_comp *c, const uint8_t *src, unsigned slen);
+void TINFCC uzlib_stream_compress(struct uzlib_comp *c);
 
 #include "defl_static.h"
 
