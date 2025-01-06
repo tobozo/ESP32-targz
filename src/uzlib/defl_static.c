@@ -75,10 +75,12 @@ void outbits(struct uzlib_comp *out, unsigned long bits, int nbits)
     while (out->noutbits >= 8) {
         if (out->outlen+1 >= out->outsize) {
             out->outsize = out->outlen + 64;
-            out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
+            if( out->grow_buffer == 1 )
+                out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
         }
         unsigned char outval = (out->outbits & 0xFF);
-        out->outbuf[out->outlen] = outval;
+        if( out->grow_buffer == 1 )
+            out->outbuf[out->outlen] = outval;
         if( out->writeDestByte ) // compressing to stream: write 1 byte
             out->writeDestByte( out, outval );
         out->outlen++;
@@ -93,13 +95,16 @@ void out4bytes( struct uzlib_comp *out, unsigned char st, unsigned char nd, unsi
     int newlen = out->outlen + 4;
     if (newlen > out->outsize) {
         out->outsize = newlen;
-        out->outbuf = sresize(out->outbuf, newlen, unsigned char);
+        if( out->grow_buffer == 1 )
+            out->outbuf = sresize(out->outbuf, newlen, unsigned char);
     }
 
-    out->outbuf[out->outlen]   = st;
-    out->outbuf[out->outlen+1] = nd;
-    out->outbuf[out->outlen+2] = rd;
-    out->outbuf[out->outlen+3] = th;
+    if( out->grow_buffer == 1 ) {
+        out->outbuf[out->outlen]   = st;
+        out->outbuf[out->outlen+1] = nd;
+        out->outbuf[out->outlen+2] = rd;
+        out->outbuf[out->outlen+3] = th;
+    }
 
     if( out->writeDestByte ) {
         // compressing to stream: write 4 bytes

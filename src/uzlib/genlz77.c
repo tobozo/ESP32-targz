@@ -199,9 +199,6 @@ int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
 
     uzstream->in.total += uzstream->in.avail;
 
-    if( ctx->progress_cb )
-        ctx->progress_cb(uzstream->in.total, ctx->slen);
-
     uzstream->in.next += uzstream->in.avail;
     uzstream->in.avail = 0;
 
@@ -209,6 +206,7 @@ int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
     if(uzstream->out.avail < ctx->outlen){
         if(flush == Z_FINISH) {
             free((void*)ctx->outbuf);
+            ctx->outbuf = NULL;
             return Z_BUF_ERROR;
         }
         memcpy(uzstream->out.next, ctx->outbuf, uzstream->out.avail);
@@ -227,11 +225,16 @@ int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
     } else {
         uzstream->out.total += ctx->outlen;
     }
+
     uzstream->out.avail -= ctx->outlen;
     uzstream->out.next  += ctx->outlen;
 
     free((void*)ctx->outbuf);
     ctx->outbuf = NULL;
+
+    if( ctx->progress_cb && uzstream->in.total<=ctx->slen)
+        ctx->progress_cb(uzstream->in.total, ctx->slen);
+
     return flush == Z_FINISH ? Z_STREAM_END : Z_OK;
 }
 

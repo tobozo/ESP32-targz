@@ -181,13 +181,18 @@ struct uzlib_comp {
     // additional (non uzlib) changes:
     size_t slen; // input size uncompressed
     uint32_t checksum;
-    char checksum_type;
+
     // uzlib_crc32() or uzlib_adler32() will be attached here
     uint32_t (*checksum_cb)(const void *data, unsigned int length, uint32_t checksum);
     // optional progress user callback
     void (*progress_cb)( size_t progress, size_t total );
     // output stream byte writer
     unsigned int (*writeDestByte)(struct uzlib_comp *data, unsigned char byte);
+
+    char checksum_type;
+    char grow_buffer;
+    unsigned char reserved[2];
+
 };
 
 
