@@ -1,7 +1,3 @@
-#ifndef ESP32
-  #error "this sketch is only available on ESP32 architecture"
-#endif
-
 // Set **destination** filesystem by uncommenting one of these:
 //#define DEST_FS_USES_SPIFFS
 #define DEST_FS_USES_LITTLEFS
