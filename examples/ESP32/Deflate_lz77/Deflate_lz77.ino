@@ -11,151 +11,186 @@
 #include <ESP32-targz.h>
 
 
-void unpackFile(const char* fzFileName)
+#include "./test_utils.h"
+
+
+// const char *inputFilename = "/ESP32-targz.bmp"; // 450 KB of binary data (messes up the progress meter)
+// const char *inputFilename = "/tiny.json"; // 32 bytes of JSON (tiny file, deflated output should be bigger than the original)
+const char *inputFilename = "/big.json"; // 52 KB of non-minified JSON (output should be much smaller)
+const char *fzFileName = "/out.gz";
+
+
+
+void testStreamToStream()
 {
-  // now open the fz file for reading
-  File flz = LittleFS.open(fzFileName);
-  if(!flz)
+  Serial.println();
+  Serial.println("### Stream to Stream ###");
+
+  // open the uncompressed text file for streaming
+  File src = LittleFS.open(inputFilename);
+  if(!src)
   {
-    Serial.println("Unable to open lz file, halting");
+    Serial.println("[testStreamToStream] Unable to read input file, halting");
     while(1);
   }
 
-  // create GzUnpacker instance
-  GzUnpacker *GZUnpacker = new GzUnpacker();
-  // attach callback to write the uncompressed data
-  GZUnpacker->setStreamWriter(
-    [](unsigned char* buff, size_t buffsize)->bool
-    {
-      Serial.write(buff, buffsize); return true;
-    }
-  );
-  // inflate!
-  GZUnpacker->gzStreamExpander(&flz, flz.size());
-}
-
-
-void loadFileToBuffer( const char* fileName, unsigned char** bufPtr, size_t* bufLen )
-{
-  File fin = LittleFS.open(fileName);
-  if(!fin)
+  // open the fz file for writing
+  File dst = LittleFS.open(fzFileName, "w");
+  if(!dst)
   {
-    Serial.println("Unable to read input file, halting");
+    Serial.println("[testStreamToStream] Unable to create output file, halting");
     while(1);
   }
-  *bufLen = fin.size();
-  *bufPtr = (unsigned char *)malloc(*bufLen+1);
-  if( *bufPtr == NULL )
-  {
-    Serial.printf("Failed to malloc() %d bytes, halting.\nHint: use a smaller file.\n", *bufLen);
-    while(1);
-  }
-  size_t bytesRead = fin.readBytes( (char*)*bufPtr, *bufLen);
-  printf("Loaded %d bytes from file into ram\n", bytesRead);
-  fin.close();
+
+  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  size_t dstLen = LZPacker::compress( &src, src.size(), &dst );
+  size_t srcLen = src.size();
+
+  float done = float(dstLen)/float(srcLen);
+  float left = -(1.0f - done);
+
+  Serial.printf("[testStreamToStream] Deflated %d bytes to %d bytes (%s%.1f%s)\n", srcLen, dstLen, left>0?"+":"", left*100.0, "%" );
+
+  src.close();
+  dst.close();
+
+  verify(fzFileName, inputFilename);
 }
 
-
-void saveBufferToFile( const uint8_t* buf, size_t bufSize, const char* dstFileName )
-{
-  assert(buf);
-  assert(bufSize>0);
-  File out = LittleFS.open(dstFileName, "w");
-  if(!out) {
-    Serial.printf("Unable to open %s for writing, aborting\n", dstFileName);
-    return;
-  }
-  size_t written_bytes = out.write(buf, bufSize);
-  Serial.printf("Wrote %d bytes to %s\n", written_bytes, dstFileName);
-}
 
 
 void testBufferToBuffer()
 {
-  const char *txtFileName = "/jargon.txt";
-  const char *fzFileName = "/out.fz";
+  Serial.println();
+  Serial.println("### Buffer to Buffer ###");
 
   size_t srcBufLen;
   uint8_t* srcBuf = NULL;
   uint8_t* dstBuf = NULL;
 
   // load the uncompressed text file into memory
-  loadFileToBuffer( txtFileName, &srcBuf, &srcBufLen );
+  loadFileToBuffer( inputFilename, &srcBuf, &srcBufLen );
 
-  LZPacker::setProgressCallBack( lzProgressCallback );
+  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
   // perform buffer to buffer decompression (will be saved as file for verification)
   size_t dstBufLen = LZPacker::compress( srcBuf, srcBufLen, &dstBuf );
+
   if( dstBufLen==0 ) {
-    Serial.printf("Failed to compress %d bytes, halting\n", srcBufLen);
+    Serial.printf("[testBufferToBuffer] Failed to compress %d bytes, halting\n", srcBufLen);
     while(1);
   }
-  if( LittleFS.exists(fzFileName))
-    LittleFS.remove(fzFileName); // delete artifacts from previous test
+
+  float done = float(dstBufLen)/float(srcBufLen);
+  float left = -(1.0f - done);
+
+  Serial.printf("[testBufferToBuffer] Deflated %d bytes to %d bytes (%s%.1f%s)\n", srcBufLen, dstBufLen, left>0?"+":"", left*100.0, "%" );
 
   saveBufferToFile( dstBuf, dstBufLen, fzFileName ); // save to file for verification
 
   free(srcBuf); // free the input buffer
   free(dstBuf); //free the output buffer
 
-  unpackFile(fzFileName); // verify
+  verify(fzFileName, inputFilename);
+}
+
+
+
+void testStreamToBuffer()
+{
+  Serial.println();
+  Serial.println("### Stream to Buffer ###");
+
+  // open the uncompressed text file for streaming
+  File src = LittleFS.open(inputFilename);
+  if(!src)
+  {
+    Serial.println("[testStreamToBuffer] Unable to read input file, halting");
+    while(1);
+  }
+
+  size_t srcLen = src.size();
+
+  uint8_t* dstBuf;
+
+  size_t dstBufLen = LZPacker::compress( &src, srcLen, &dstBuf );
+
+  if( dstBufLen==0 ) {
+    Serial.printf("[testStreamToBuffer] Failed to compress %d bytes, halting\n", srcLen);
+    while(1);
+  }
+
+  float done = float(dstBufLen)/float(srcLen);
+  float left = -(1.0f - done);
+
+  Serial.printf("[testStreamToBuffer] Deflated %d bytes to %d bytes (%s%.1f%s)\n", srcLen, dstBufLen, left>0?"+":"", left*100.0, "%" );
+
+  saveBufferToFile( dstBuf, dstBufLen, fzFileName ); // save to file for verification
+
+  free(dstBuf); //free the output buffer
+
+  verify(fzFileName, inputFilename);
 }
 
 
 
 void testBufferToStream()
 {
-  const char *txtFileName = "/jargon.txt";
-  const char *fzFileName = "/out.fz";
+  Serial.println();
+  Serial.println("### Buffer to Stream ###");
 
   size_t srcBufLen;
   uint8_t* srcBuf = NULL;
 
   // load the uncompressed text file into memory
-  loadFileToBuffer( txtFileName, &srcBuf, &srcBufLen );
-  Serial.printf("srcBufLen = %d\n", srcBufLen);
-  if(srcBuf==NULL)
+  loadFileToBuffer( inputFilename, &srcBuf, &srcBufLen );
+  if(srcBufLen==0 || srcBuf==NULL)
   {
-    Serial.printf("Buffer is empty ?");
+    Serial.printf("[testBufferToStream] Source buffer is empty, halkting");
     while(1);
   }
 
-  if( LittleFS.exists(fzFileName))
-    LittleFS.remove(fzFileName); // delete artifacts from previous test
-
   // create writable file stream
-  File stream = LittleFS.open(fzFileName, "w");
-  if(!stream)
+  File src = LittleFS.open(fzFileName, "w");
+  if(!src)
   {
-    Serial.println("Unable to create output file, halting");
+    Serial.println("[testBufferToStream] Unable to create output file, halting");
     while(1);
   }
 
   // deflate!
-  LZPacker::setProgressCallBack( lzProgressCallback );
-  size_t outputSize = LZPacker::compress( srcBuf, srcBufLen, &stream );
-  Serial.printf("Compressed %d input bytes to %u total bytes, file size is %d bytes\n", srcBufLen, outputSize, stream.position() );
-  stream.close();
+  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &src );
+
+  float done = float(dstLen)/float(srcBufLen);
+  float left = -(1.0f - done);
+
+  Serial.printf("[testBufferToStream] Deflated %d bytes to %d bytes (%s%.1f%s)\n", srcBufLen, dstLen, left>0?"+":"", left*100.0, "%" );
+  src.close();
 
   free(srcBuf); // free the input buffer
+
+  verify(fzFileName, inputFilename);
 }
 
 
 void setup()
 {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Hello world");
 
   if(!LittleFS.begin())
   {
       Serial.println("LittleFS Failed, halting");
       while(1);
   }
-  Serial.println("LittleFS started, now testing LZ77 compression");
+  Serial.println("ESP32-targz: LZ77 compression example");
 
-  testBufferToBuffer(); // tested OK
-  // testBufferToStream(); // tested OK
+  testBufferToBuffer();
+  testBufferToStream();
+  testStreamToBuffer();
+  testStreamToStream();
 
+  Serial.println();
+  Serial.println("All tests completed");
 }
 
 void loop()
