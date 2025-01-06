@@ -461,32 +461,27 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
 namespace LZ77
 {
-  // LZ77 support from uzlib
-
-  void defaultProgressCallback( size_t progress, size_t total );
+  // deflate support
 
   struct LZPacker
   {
-    // buffer to stream
+    // buffer to stream (best compression)
     static size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
-    // buffer to buffer
-    static size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf );
-    // stream to stream
+    // buffer to buffer (best compression)
+    static size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBufPtr );
+    // stream to buffer (average compression)
+    static size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBufPtr );
+    // stream to stream (average compression)
     static size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
-    // stream to buffer
-    static size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBuf );
-
+    // progress callback setter [](size_t bytes_read, size_t total_bytes)
     static void setProgressCallBack(totalProgressCallback cb);
-
-    static void (*progressCb)( size_t progress, size_t total );
-
-    static Stream* dstStream;
-    static Stream* srcStream;
-
-    static struct GZ::uzlib_comp* _init();
-    static struct GZ::uzlib_comp _ctx;
-
+    // LZPacker uses buffered streams
+    static size_t inputBufferSize; // default = 4096, lowest possible value = 256
+    static size_t outputBufferSize;// default = 4096, lowest possible value = 1024
   };
+
+  void defaultProgressCallback( size_t progress, size_t total );
+
 };
 
 using LZ77::LZPacker;

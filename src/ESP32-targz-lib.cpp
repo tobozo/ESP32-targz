@@ -1613,11 +1613,16 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
     setError( ESP32_TARGZ_STREAM_ERROR );
     return false;
   }
-  // TODO: ESP8266 support
-  #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
-    log_e("gz stream expanding not implemented on ESP8266/RP2040");
-    return false;
-  #elif defined ESP32
+  // // TODO: ESP8266 support
+
+  #if defined ESP8266
+    log_w("gzStreamExpander() is unstable on ESP8266 (consumes 32KB for Dictionary)");
+  #endif
+
+  // #if defined ESP8266 || defined ARDUINO_ARCH_RP2040
+  //   log_e("gz stream expanding not implemented on ESP8266/RP2040");
+  //   return false;
+  // #elif defined ESP32
 
     bool show_progress = false;
     bool use_dict      = true;
@@ -1652,7 +1657,7 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
       return false;
     }
     setError( (tarGzErrorCode)ret );
-  #endif // ifdef ESP32
+  //#endif // ifdef ESP32
 
   return true;
 }
@@ -2384,12 +2389,72 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
 namespace LZ77
 {
 
+  class StreamBuffer : public Stream
+  {
+    uint8_t * buffer;
+    int writePosition;
+    int readPosition;
+    int size;
+    size_t capacity = 0;
+    size_t grow_size = 64;
+
+  public:
+
+      StreamBuffer(uint8_t * buffer=nullptr, int size=0) : writePosition(0), readPosition(0)
+      {
+        this->buffer = buffer;
+        this->size = size;
+        if( buffer == nullptr ) { // write mode
+          this->buffer = (uint8_t*)malloc(grow_size);
+          this->capacity = grow_size;
+        }
+      }
+
+      uint8_t * getBuffer() { return buffer; }
+      size_t getSize() { return size; }
+
+      // Stream methods
+      virtual int available(){ return writePosition - readPosition; }
+      virtual int read(){ if(readPosition == writePosition) return -1; return buffer[readPosition++]; }
+      virtual int peek(){ if(readPosition == writePosition) return -1; return buffer[readPosition]; }
+      virtual void flush() { readPosition=0; writePosition = 0; }
+      // Print methods
+      virtual void end(){ buffer[writePosition] = '\0'; }
+      virtual size_t write(uint8_t c) { return this->write(&c, 1); }
+      virtual size_t write(const uint8_t* data, size_t len)
+      {
+        size_t target_size = size + len;
+        if (target_size >= capacity) {
+          while( capacity<target_size )
+              capacity += grow_size;
+          buffer = (uint8_t*)realloc(buffer, capacity);
+        }
+        memcpy(buffer + size, data, len);
+        size += len;
+        writePosition += len;
+        return len;
+      }
+  };
+
+
+  void (*progressCb)( size_t progress, size_t total ) = nullptr;
+
+  Stream* dstStream = nullptr;
+  Stream* srcStream = nullptr;
+
 
   void defaultProgressCallback( size_t progress, size_t total )
   {
     assert(total>0);
-    static uint8_t lastprogress = 0xff; // percent progress
-    uint8_t pg = 100*(float(progress) / float(total));
+    static size_t lastprogress = 0xff; // percent progress
+    size_t pg = 100*(float(progress) / float(total));
+
+    if( progress !=0 && pg > 100 )
+    {
+      Serial.printf("WTF!! progress=%d, total=%d, pg=%d, lastprogress=%d\n", progress, total, pg, lastprogress);
+      while(1) yield();
+    }
+
     if( pg != lastprogress )
     {
       if( pg == 0 )
@@ -2397,36 +2462,12 @@ namespace LZ77
       else if( pg == 100 )
         Serial.printf(" 100%%\n");
       else
-        Serial.printf(".");
-      // printf("Processed: %3d%s\n", pg, "%");
+        // Serial.printf(".");
+        Serial.printf("%d ", pg);
       lastprogress = pg;
     }
   }
 
-
-  // unsigned int streamReadCb(GZ::uzlib_comp *data, unsigned char * out, size_t num_bytes)
-  // {
-  //   assert(LZPacker::srcStream);
-  //   assert(num_bytes>0);
-  //   size_t bytes_read = LZPacker::srcStream->readBytes(out, num_bytes);
-  //
-  //   if( data->checksum_cb )
-  //       data->checksum = data->checksum_cb(out, num_bytes, data->checksum);
-  //
-  //   //data->streamReader->pos += bytes_read;
-  //   // printf("Read %d/%d bytes from stream (total %d, buffer pos:%d, ram free:%ld)\n", bytes_read, num_bytes, data->streamReader->pos+1, data->streamReader->bpos, ESP.getFreeHeap());
-  //   //if( data->progress )
-  //     //data->progress( data->streamReader->pos, data->streamReader->slen );
-  //   return bytes_read;
-  // }
-
-
-  // one-byte writer
-  unsigned int streamByteWriter(struct GZ::uzlib_comp *data, unsigned char byte)
-  {
-    assert(LZPacker::dstStream);
-    return LZPacker::dstStream->write(byte);
-  }
 
 
   size_t lzHeader(uint8_t* buf, bool gzip_header=true)
@@ -2452,7 +2493,7 @@ namespace LZ77
     //       bit  5       FDICT   (preset dictionary)
     //       bits 6 to 7  FLEVEL  (compression level)
     buf[len++] = ((uint8_t)0x00); // FLG
-    for(int i=0;i<sizeof(int);i++)
+    for(size_t i=0;i<sizeof(int);i++)
       buf[len++] = 0; // mtime
     buf[len++] = ((uint8_t)0x04); // XFL
     buf[len++] = ((uint8_t)0x03); // OS
@@ -2464,9 +2505,9 @@ namespace LZ77
   {
     assert(buf);
     size_t len = 0;
-    for(int i=0;i<sizeof(crc);i++)
+    for(size_t i=0;i<sizeof(crc);i++)
       buf[len++] = ((uint8_t*)&crc)[i];
-    for(int i=0;i<sizeof(outlen);i++)
+    for(size_t i=0;i<sizeof(outlen);i++)
       buf[len++] = ((uint8_t*)&outlen)[i];
 
     if( terminate)
@@ -2477,123 +2518,71 @@ namespace LZ77
 
 
 
+  // uzlib comp object initializer
+  struct GZ::uzlib_comp* lzInit()
+  {
+    auto c = (struct GZ::uzlib_comp*)calloc(1, sizeof(struct GZ::uzlib_comp)+1);
+    c->dict_size   = 32768;
+    c->hash_bits   = 12;
+    c->grow_buffer = 1;
+    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
+    c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
+    if( c->hash_table == NULL ) {
+      printf("lz77 error: unable to allocate %d bytes for hash table, halting\n", hash_size );
+      while(1) yield();
+    }
+    c->checksum_type = TINF_CHKSUM_CRC;
+    c->checksum_cb = GZ::uzlib_crc32;    // more reliable but slightly slower
+    // comp.checksum_cb = uzlib_adler32; // slightly faster but more prone to checksum miss
+    c->checksum = ~0;
+    if( LZ77::progressCb != nullptr )
+      c->progress_cb = LZ77::progressCb;
+
+    c->outbuf = NULL;
+    return c;
+  }
+
+
 
   // LZPacker static members need to be initialized
-  struct GZ::uzlib_comp LZPacker::_ctx;
-  void (*LZPacker::progressCb)( size_t progress, size_t total ) = nullptr;
-  Stream* LZPacker::dstStream = nullptr;
-  Stream* LZPacker::srcStream = nullptr;
+  size_t LZPacker::inputBufferSize  = 4096;
+  size_t LZPacker::outputBufferSize = 4096;
+
 
 
   // progress callback setter
   void LZPacker::setProgressCallBack(totalProgressCallback cb)
   {
-    LZPacker::progressCb = cb;
+    LZ77::progressCb = cb;
   }
 
-
-  // uzlib comp object initializer
-  struct GZ::uzlib_comp* LZPacker::_init()
-  {
-    auto c = &LZPacker::_ctx;
-    memset((uint8_t*)c, 0, sizeof(GZ::uzlib_comp));
-    c->dict_size = 32768;
-    c->hash_bits = 12;
-    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
-    c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
-    if( c->hash_table == NULL ) {
-      printf("lz77 error: unable to allocate %d bytes for hash table, halting\n", hash_size );
-      while(1);
-    }
-    c->checksum_type = TINF_CHKSUM_CRC;
-    c->checksum_cb = GZ::uzlib_crc32;
-    // comp.checksum_cb = uzlib_adler32;
-    c->checksum = ~0;
-    c->progress_cb = LZPacker::progressCb;
-    c->outbuf = NULL;
-    return c;
-  }
-
-  class StreamBufferWriter : public Stream
-  {
-  public:
-    StreamBufferWriter() {}
-
-    uint8_t* buffer = nullptr;
-    size_t size = 0;
-    size_t capacity = 0;
-    size_t grow_size = 64;
-
-    size_t write(const uint8_t* data, size_t len)
-    {
-      size_t target_size = size + len;
-      if (target_size >= capacity) {
-        while( capacity<target_size )
-            capacity += grow_size;
-        buffer = (uint8_t*)realloc(buffer, capacity);
-      }
-      memcpy(buffer + size, data, len);
-      size += len;
-      return len;
-    }
-
-    // Stream virtual functions
-    int available() { return 0; }
-    int read() { return 0; }
-    int peek() { return 0; }
-    size_t write(uint8_t) { return 0; }
-    void flush() {}
-    size_t readBytes(char *buffer, size_t length) { return 0; }
-  };
-
-
-  // buffer to buffer
-  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf )
-  {
-    assert(srcBuf);
-    assert(srcBufLen>0);
-
-    auto c = LZPacker::_init();
-    c->outbuf = (uint8_t*)malloc( 10 ); // space for header
-    assert(c->outbuf);
-    c->outsize = 10;
-    c->outlen = lzHeader(c->outbuf);
-
-    // lz-compress data
-    GZ::zlib_start_block(c);
-    GZ::uzlib_compress(c, srcBuf, srcBufLen);
-    GZ::zlib_finish_block(c);
-
-    // add footer
-    if (c->outlen + 64 >= c->outsize) {
-      size_t tail_size = (c->outlen + 64) - c->outsize;
-      c->outsize = c->outlen + tail_size;
-      c->outbuf = (unsigned char*)realloc(c->outbuf, c->outsize * sizeof(unsigned char) );
-      assert(c->outbuf);
-    }
-
-    c->checksum = c->checksum_cb(srcBuf, srcBufLen, c->checksum);
-
-    c->outlen += lzFooter(&c->outbuf[c->outlen], srcBufLen, ~c->checksum/*, true*/);
-
-    *dstBuf = c->outbuf;
-
-    free(c->hash_table);
-
-    return c->outlen;
-  }
 
 
   // stream to buffer
   size_t LZPacker::compress( Stream* srcStream, size_t srcLen, uint8_t** dstBuf )
   {
-    StreamBufferWriter dstStream;
+    //StreamBufferWriter dstStream;
+    StreamBuffer dstStream(nullptr, 0);
     size_t dstLen = LZPacker::compress( srcStream, srcLen, &dstStream);
-    if( dstLen == 0 || dstLen != dstStream.size )
+    if( dstLen == 0 || dstLen != dstStream.getSize() )
       return 0;
-    *dstBuf = dstStream.buffer;
-    return dstStream.size;
+    *dstBuf = dstStream.getBuffer();
+    return dstStream.getSize();
   }
+
+
+
+  // buffer to buffer
+  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf )
+  {
+    StreamBuffer dstStream(nullptr, 0);
+    size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &dstStream);
+    if( dstLen == 0 || dstLen != dstStream.getSize() )
+      return 0;
+    *dstBuf = dstStream.getBuffer();
+    return dstStream.getSize();
+  }
+
 
 
   // stream to stream
@@ -2603,20 +2592,17 @@ namespace LZ77
     assert(srcLen>0);
     assert(dstStream);
 
-    LZPacker::dstStream = dstStream;
-    LZPacker::srcStream = srcStream;
+    LZ77::dstStream = dstStream;
+    LZ77::srcStream = srcStream;
 
     uint8_t header[10];
     size_t header_size = lzHeader(header);
     size_t dstLen = dstStream->write(header, header_size);
 
-    const size_t inputBufferSize = 4096; // bigger = better compression
-    const size_t outputBufferSize = inputBufferSize;
+    unsigned char* inputBuffer  = (unsigned char*)malloc(LZPacker::inputBufferSize);
+    unsigned char* outputBuffer = (unsigned char*)malloc(LZPacker::outputBufferSize);
 
-    unsigned char* inputBuffer  = (unsigned char*)malloc(inputBufferSize);
-    unsigned char* outputBuffer = (unsigned char*)malloc(outputBufferSize);
-
-    auto c = LZPacker::_init();
+    auto c = lzInit();
     c->checksum_type = TINF_CHKSUM_CRC;
     c->writeDestByte = NULL;
     c->slen = srcLen;
@@ -2628,10 +2614,10 @@ namespace LZ77
         // abort !
         free(inputBuffer);
         free(outputBuffer);
-        return prev_state;
+        return 0;
     }
 
-    uzstream.out.avail = outputBufferSize;
+    uzstream.out.avail = LZPacker::outputBufferSize;
 
     int input_bytes = 0; // for do..while state
     size_t total_bytes = 0; // for progress meter
@@ -2639,7 +2625,7 @@ namespace LZ77
     int defl_mode  = Z_BLOCK;
     do {
         if(uzstream.out.avail > 0){
-            input_bytes = srcStream->readBytes(inputBuffer, inputBufferSize); // consume input stream
+            input_bytes = srcStream->readBytes(inputBuffer, LZPacker::inputBufferSize); // consume input stream
             total_bytes += input_bytes;
 
             if( c->progress_cb )
@@ -2650,13 +2636,13 @@ namespace LZ77
             uzstream.in.next   = inputBuffer;
             uzstream.in.avail  = input_bytes;
 
-            if( input_bytes != inputBufferSize ) {
+            if( input_bytes != LZPacker::inputBufferSize ) {
                 defl_mode = Z_FINISH;
             }
         }
 
         uzstream.out.next  = outputBuffer;
-        uzstream.out.avail = outputBufferSize;
+        uzstream.out.avail = LZPacker::outputBufferSize;
 
         prev_state = uzlib_deflate_stream(&uzstream, defl_mode);
 
@@ -2669,11 +2655,16 @@ namespace LZ77
     dstLen += dstStream->write(footer, footer_len);
 
     free(c->hash_table);
+    c->hash_table = NULL;
+    if( c->outbuf != NULL ) free(c->outbuf);
+
     free(inputBuffer);
     free(outputBuffer);
+    free(c);
 
     return dstLen;
   }
+
 
 
   // buffer to stream
@@ -2683,11 +2674,12 @@ namespace LZ77
     assert(srcBufLen>0);
     assert(dstStream);
 
-    LZPacker::dstStream = dstStream;
-    auto c = LZPacker::_init();
+    LZ77::dstStream = dstStream;
+    auto c = lzInit();
 
-    // attach byte writer
-    c->writeDestByte  = streamByteWriter;
+    // wrap dstStream->write() in lambda byteWriter
+    c->writeDestByte  = [](struct GZ::uzlib_comp *data, unsigned char byte) -> unsigned int { return LZ77::dstStream->write(byte); };
+    c->grow_buffer = 0; // use direct writes, don't grow output buffer
 
     uint8_t header[10];
     size_t header_len = lzHeader(header);
@@ -2703,8 +2695,11 @@ namespace LZ77
     dstStream->write(footer, footer_len);
 
     free(c->hash_table);
+    c->hash_table = NULL;
+    auto ret = c->outlen;
+    free(c);
 
-    return header_len + c->outlen + footer_len;
+    return header_len + ret + footer_len;
   }
 
 
