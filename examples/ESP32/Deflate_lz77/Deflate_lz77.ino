@@ -6,16 +6,16 @@
 //#define DEST_FS_USES_SD_MMC // ESP32 only
 #include <ESP32-targz.h>
 
-
 #include "./test_utils.h"
 
 
-// const char *inputFilename = "/ESP32-targz.bmp"; // 450 KB of binary data (messes up the progress meter)
+// const char *inputFilename = "/ESP32-targz.bmp"; // 450 KB of binary data (some tests will fail if free heap is below that)
 // const char *inputFilename = "/tiny.json"; // 32 bytes of JSON (tiny file, deflated output should be bigger than the original)
-const char *inputFilename = "/big.json"; // 52 KB of non-minified JSON (output should be much smaller)
+const char *inputFilename = "/big.json"; // 52 KB of non-minified JSON (deflated output should be 50~80% smaller)
 const char *fzFileName = "/out.gz";
 
-
+File src;
+File dst;
 
 void testStreamToStream()
 {
@@ -23,19 +23,19 @@ void testStreamToStream()
   Serial.println("### Stream to Stream ###");
 
   // open the uncompressed text file for streaming
-  File src = LittleFS.open(inputFilename);
+  src = tarGzFS.open(inputFilename, "r");
   if(!src)
   {
     Serial.println("[testStreamToStream] Unable to read input file, halting");
-    while(1);
+    while(1) yield();
   }
 
   // open the fz file for writing
-  File dst = LittleFS.open(fzFileName, "w");
+  dst = tarGzFS.open(fzFileName, "w");
   if(!dst)
   {
     Serial.println("[testStreamToStream] Unable to create output file, halting");
-    while(1);
+    while(1) yield();
   }
 
   LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
@@ -51,6 +51,7 @@ void testStreamToStream()
   dst.close();
 
   verify(fzFileName, inputFilename);
+
 }
 
 
@@ -59,6 +60,7 @@ void testBufferToBuffer()
 {
   Serial.println();
   Serial.println("### Buffer to Buffer ###");
+
 
   size_t srcBufLen;
   uint8_t* srcBuf = NULL;
@@ -73,7 +75,7 @@ void testBufferToBuffer()
 
   if( dstBufLen==0 ) {
     Serial.printf("[testBufferToBuffer] Failed to compress %d bytes, halting\n", srcBufLen);
-    while(1);
+    while(1) yield();
   }
 
   float done = float(dstBufLen)/float(srcBufLen);
@@ -87,6 +89,7 @@ void testBufferToBuffer()
   free(dstBuf); //free the output buffer
 
   verify(fzFileName, inputFilename);
+
 }
 
 
@@ -96,12 +99,13 @@ void testStreamToBuffer()
   Serial.println();
   Serial.println("### Stream to Buffer ###");
 
+
   // open the uncompressed text file for streaming
-  File src = LittleFS.open(inputFilename);
+  src = tarGzFS.open(inputFilename, "r");
   if(!src)
   {
     Serial.println("[testStreamToBuffer] Unable to read input file, halting");
-    while(1);
+    while(1) yield();
   }
 
   size_t srcLen = src.size();
@@ -112,7 +116,7 @@ void testStreamToBuffer()
 
   if( dstBufLen==0 ) {
     Serial.printf("[testStreamToBuffer] Failed to compress %d bytes, halting\n", srcLen);
-    while(1);
+    while(1) yield();
   }
 
   float done = float(dstBufLen)/float(srcLen);
@@ -124,7 +128,10 @@ void testStreamToBuffer()
 
   free(dstBuf); //free the output buffer
 
+  src.close();
+
   verify(fzFileName, inputFilename);
+
 }
 
 
@@ -142,15 +149,15 @@ void testBufferToStream()
   if(srcBufLen==0 || srcBuf==NULL)
   {
     Serial.printf("[testBufferToStream] Source buffer is empty, halkting");
-    while(1);
+    while(1) yield();
   }
 
   // create writable file stream
-  File src = LittleFS.open(fzFileName, "w");
+  src = tarGzFS.open(fzFileName, "w");
   if(!src)
   {
     Serial.println("[testBufferToStream] Unable to create output file, halting");
-    while(1);
+    while(1) yield();
   }
 
   // deflate!
@@ -164,32 +171,47 @@ void testBufferToStream()
   src.close();
 
   free(srcBuf); // free the input buffer
+  srcBuf = NULL;
 
   verify(fzFileName, inputFilename);
+
 }
 
 
 void setup()
 {
   Serial.begin(115200);
+  delay(5000);
 
-  if(!LittleFS.begin())
+  if(!tarGzFS.begin())
   {
-      Serial.println("LittleFS Failed, halting");
-      while(1);
+      Serial.println("tarGzFS Failed, halting");
+      while(1) yield();
   }
+
   Serial.println("ESP32-targz: LZ77 compression example");
+  printMem();
 
-  testBufferToBuffer();
-  testBufferToStream();
-  testStreamToBuffer();
-  testStreamToStream();
+  const bool IF_TEST_ENDLESSLY = false; // set to true to test memory leaks
 
-  Serial.println();
-  Serial.println("All tests completed");
+  do
+  {
+    testStreamToStream(); // tested OK on ESP32/RP2040/ESP8266 (any file size)
+    printMem();
+    testBufferToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    printMem();
+    testBufferToStream(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    printMem();
+    testStreamToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    printMem();
+
+    Serial.println();
+    Serial.println("All tests completed");
+    Serial.println();
+
+  } while( IF_TEST_ENDLESSLY );
 }
 
 void loop()
 {
-
 }
