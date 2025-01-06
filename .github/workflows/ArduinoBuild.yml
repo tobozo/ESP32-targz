@@ -26,16 +26,17 @@ jobs:
         include:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino # Comma separated list of sketch names (no path required) or patterns to use in build
+            # Comma separated list of sketch names (no path required) or patterns to use in build
+            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Deflate_lz77.ino
             board-name: esp32
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
-            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino
+            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Deflate_lz77.ino
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
             board-name: esp8266
 
           - arduino-boards-fqbn: rp2040:rp2040:rpipico
-            sketch-names: Test_tar_gz_tgz.ino
+            sketch-names: Test_tar_gz_tgz.ino,Deflate_lz77.ino
             platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
             board-name: rp2040
 
