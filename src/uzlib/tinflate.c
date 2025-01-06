@@ -33,7 +33,7 @@
  */
 
 #include <assert.h>
-#include "tinf.h"
+#include "uzlib.h"
 
 #define UZLIB_DUMP_ARRAY(heading, arr, size) \
     { \
@@ -725,6 +725,7 @@ int uzlib_uncompress_chksum(TINF_DATA *d)
 
         case TINF_CHKSUM_CRC:
             val = tinf_get_le_uint32(d);
+
             if (~d->checksum != val) {
                 return TINF_CHKSUM_ERROR;
             }

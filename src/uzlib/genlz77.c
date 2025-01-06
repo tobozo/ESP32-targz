@@ -26,6 +26,13 @@
  *
  * 3. This notice may not be removed or altered from
  *    any source distribution.
+ *
+ *
+ * Edited by Tobozo for ESP32-targz
+ *  - Added uzlib_checksum_none()
+ *  - Added uzlib_deflate_init_stream()
+ *  - Added uzlib_deflate_stream()
+ *
  */
 #include <stdint.h>
 #include <string.h>
@@ -44,11 +51,7 @@
 #define MAX_MATCH 258
 
 /* Max offset of the match to look for, inclusive */
-#if 0
-#define MAX_OFFSET 32768
-#else
 #define MAX_OFFSET data->dict_size
-#endif
 
 /* Hash function can be defined as macro or as inline function */
 
@@ -61,27 +64,6 @@ static inline int HASH(struct uzlib_comp *data, const uint8_t *p) {
     return hash;
 }
 
-#ifdef DUMP_LZTXT
-
-#include <stdio.h>
-
-/* Counter for approximate compressed length in LZTXT mode. */
-/* Literal is counted as 1, copy as 2 bytes. */
-unsigned approx_compressed_len;
-
-void literal(void *data, uint8_t val)
-{
-    printf("L%02x # %c\n", val, (val >= 0x20 && val <= 0x7e) ? val : '?');
-    approx_compressed_len++;
-}
-
-void copy(void *data, unsigned offset, unsigned len)
-{
-    printf("C-%u,%u\n", offset, len);
-    approx_compressed_len += 2;
-}
-
-#else
 
 static inline void literal(void *data, uint8_t val)
 {
@@ -93,228 +75,164 @@ static inline void copy(void *data, unsigned offset, unsigned len)
     zlib_match(data, offset, len);
 }
 
-#endif
-
-
-// pointer increment with callback for crc
-const uint8_t *uzlib_walk_buf(struct uzlib_comp *data, const uint8_t *buf, size_t bytes)
-{
-    if( data->checksum_cb )
-        data->checksum = data->checksum_cb(buf, bytes, data->checksum);
-
-    buf += bytes;
-    data->readOffset += bytes;
-    return buf;
-}
-
-
-void uzlib_align_buffer(struct uzlib_comp *data, const uint8_t *buf)
-{
-    // if( data->bufferPosition + MAX_OFFSET > data->bufferSize )
-    {
-        // move buf[data->bufferPosition] to buf[0]
-        // read (data->bufferPosition - data->bufferEnd) bytes
-        // append bytes at buf[data->bufferPosition]
-        // data->bufferPosition = 0;
-        // *buf =
-    }
-}
 
 void uzlib_compress(struct uzlib_comp *data, const uint8_t *src, unsigned slen)
 {
-    data->readOffset = 0;
-    size_t readEnd = slen - MIN_MATCH;
-
-    if( data->progress )
-        data->progress(0, slen);
-
-    while( data->readOffset < readEnd )
-    {
-        if( data->progress )
-            data->progress(data->readOffset, slen);
-
-        if( data->readSourceBytes )
-            uzlib_align_buffer( data, src );
-
+    const uint8_t *top = src + slen - MIN_MATCH;
+    while (src < top) {
         int h = HASH(data, src);
         const uint8_t **bucket = &data->hash_table[h & (HASH_SIZE - 1)];
         const uint8_t *subs = *bucket;
         *bucket = src;
-
         if (subs && src > subs && (src - subs) <= MAX_OFFSET && !memcmp(src, subs, MIN_MATCH)) {
-            src = uzlib_walk_buf(data,src,MIN_MATCH);
+            src += MIN_MATCH;
             const uint8_t *m = subs + MIN_MATCH;
             int len = MIN_MATCH;
-            while (*src == *m && len < MAX_MATCH && data->readOffset < readEnd /*src < top*/) {
-                src = uzlib_walk_buf(data,src,1);
-                m++; len++;
+            while (*src == *m && len < MAX_MATCH && src < top) {
+                src++; m++; len++;
             }
             copy(data, src - len - subs, len);
         } else {
-            literal(data, *src);
-            src = uzlib_walk_buf(data,src,1);
+            literal(data, *src++);
         }
     }
     // Process buffer tail, which is less than MIN_MATCH
     // (and so it doesn't make sense to look for matches there)
-    readEnd += MIN_MATCH;
-    while( data->readOffset < readEnd )
-    {
-        literal(data, *src);
-        src = uzlib_walk_buf(data,src,1);
+    top += MIN_MATCH;
+    while (src < top) {
+        literal(data, *src++);
     }
-
-    if( data->progress )
-        data->progress(slen, slen);
 }
 
 
 
-
-
-
-// // Callback function to read the next byte from the file
-// int file_read_cb(uzlib_stream_reader *reader, size_t num_bytes)
-// {
-//     // Move the data in the buffer to make space for new data
-//     if (reader->pos >= reader->slen) {
-//         return -1;
-//     }
-//
-//     // Read the next byte from the file
-//     int next_byte = 1; // stream->read();
-//     if (next_byte != EOF) {
-//         reader->buf[reader->slen++] = (uint8_t)next_byte;
-//         return next_byte;
-//     }
-//     return -1; // End of file
-// }
-
-int read_stream( struct uzlib_comp *data)
+uint32_t uzlib_checksum_none(const void *data, unsigned int length, uint32_t prev_sum)
 {
-    if (!data->readSourceBytes) {
-        printf("ERROR: no stream reader callback attached\n");
-        return -1;
+  return prev_sum;
+}
+
+
+
+int uzlib_deflate_init_stream(struct uzlib_comp* ctx, uzlib_stream* uzstream){
+    if (uzstream == Z_NULL)
+        return Z_STREAM_ERROR;
+    if (ctx == Z_NULL)
+        return Z_MEM_ERROR;
+    if( ctx->hash_table == NULL )
+        return Z_MEM_ERROR;
+    ctx->comp_disabled = 0;
+
+    switch( ctx->checksum_type ) {
+      case TINF_CHKSUM_CRC:
+        ctx->checksum_cb = uzlib_crc32;
+        ctx->checksum    = ~0;
+        break;
+      case TINF_CHKSUM_ADLER:
+        ctx->checksum_cb = uzlib_adler32;
+        ctx->checksum    = 1;
+        break;
+      case TINF_CHKSUM_NONE:
+      default:
+        ctx->checksum_cb = uzlib_checksum_none;
+        ctx->checksum      = 0;
+        break;
     }
 
-    struct uzlib_stream_reader *reader = data->streamReader;
-    if(reader->pos > 0 && reader->bpos + MAX_MATCH + 1 < reader->buflen ) {
-        //printf("Stream buffer hit at pos %d (bpos %d)\n", reader->pos, reader->bpos);
-        int ret = reader->buf[reader->pos];
-        reader->pos++;
-        reader->bpos++;
-        return ret;
-    }
+    uzstream->ctx = ctx;
 
-    //printf("Stream read hit at pos %d (bpos %d) %d+%d > %d  \n", reader->pos, reader->bpos, reader->bpos, MAX_MATCH, reader->buflen);
-    uint8_t* src_buf = reader->bufnum==0?reader->buf1:reader->buf2;
-    uint8_t* dst_buf = reader->bufnum==0?reader->buf2:reader->buf1;
-    size_t bytes_to_read = reader->buflen;
-    size_t bytes_read = 0;
+    if( ctx->progress_cb )
+        ctx->progress_cb(0,ctx->slen);
 
-    if( reader->pos > 0 ) { // first read occured
-        if( reader->bpos > 0 ) { // some data chunk remains
-            char a[5] = { reader->buf[reader->bpos-4], reader->buf[reader->bpos-3], reader->buf[reader->bpos-2], reader->buf[reader->bpos-1], 0};
-            printf("\n**** Swapping buffers **** (last char='%s')\n\n", a);
-            size_t chunk_len = reader->buflen - (reader->bpos); // leftover unprocessed data
-            bytes_to_read = reader->buflen - (chunk_len+1); // bytes to read to fill the buffer (include the last byte too)
-            memcpy(dst_buf, &src_buf[reader->bpos-1], chunk_len+1); // move leftover unprocessed data to other buffer
-            bytes_read = data->readSourceBytes(data, &dst_buf[chunk_len+1], bytes_to_read);
-            printf("\n**** read %d bytes at offset %d****\n\n", bytes_read, chunk_len+1);
-            reader->bpos = 1; // reset buffer pos
-            // swap buffers
-            *reader->buf = *dst_buf;
-            reader->bufnum = 1-reader->bufnum;
-        } else {
-            printf("reader->bpos at zero, halting\n");
-            while(1);
+    return Z_OK;
+}
+
+
+
+int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
+    struct uzlib_comp* ctx = uzstream->ctx;
+
+    // some data is still pending in the output buffer
+    if(ctx->outbuf != NULL) {
+        if(uzstream->out.avail < ctx->outlen){
+            memcpy(uzstream->out.next, ctx->outbuf, uzstream->out.avail);
+            ctx->outbuf  += uzstream->out.avail;
+            ctx->outlen  -= uzstream->out.avail;
+            uzstream->out.next  += uzstream->out.avail;
+            uzstream->out.total += uzstream->out.avail;
+            uzstream->out.avail = 0;
+            return Z_OK;
         }
+
+        memcpy(uzstream->out.next, ctx->outbuf, ctx->outlen);
+
+        ctx->outbuf -= uzstream->out.total;
+
+        uzstream->out.avail -= ctx->outlen;
+        uzstream->out.next  += ctx->outlen;
+        uzstream->out.total += ctx->outlen;
+
+        free((void*)ctx->outbuf);
+        ctx->outbuf = NULL;
+        if(uzstream->in.avail == 0) return Z_OK;
+    }
+
+    if(uzstream->in.avail == 0 && flush != Z_FINISH)
+        return Z_OK;
+
+    ctx->outlen   = 0;
+    ctx->outsize  = 0;
+    ctx->outbits  = 0;
+    ctx->noutbits = 0;
+
+    ctx->checksum = ctx->checksum_cb(uzstream->in.next, uzstream->in.avail, ctx->checksum);
+
+    if(flush != Z_FINISH){
+        zlib_next_block(ctx);
+        uzlib_compress(ctx, uzstream->in.next, uzstream->in.avail);
+        zlib_empty_block(ctx);
     } else {
-        printf("reader->bpos at zero\n");
-        bytes_read = data->readSourceBytes(data, src_buf, bytes_to_read);
-        printf("\n**** read %d bytes at offset %d****\n\n", bytes_read, reader->bpos);
-        *reader->buf = *src_buf;
-        reader->bufnum = 0;
-
+        zlib_start_block(ctx);
+        uzlib_compress(ctx, uzstream->in.next, uzstream->in.avail);
+        zlib_finish_block(ctx);
+        ctx->comp_disabled = 1;
     }
 
+    uzstream->in.total += uzstream->in.avail;
 
+    if( ctx->progress_cb )
+        ctx->progress_cb(uzstream->in.total, ctx->slen);
 
-    if( bytes_read>0 ) {
-        if( data->checksum_cb ) {
-            data->checksum = data->checksum_cb(&reader->buf[reader->bpos], bytes_read, data->checksum);
+    uzstream->in.next += uzstream->in.avail;
+    uzstream->in.avail = 0;
+
+    // output buffer too small for output ?
+    if(uzstream->out.avail < ctx->outlen){
+        if(flush == Z_FINISH) {
+            free((void*)ctx->outbuf);
+            return Z_BUF_ERROR;
         }
-
-        int ret = reader->buf[reader->bpos];
-
-        reader->pos++;
-        reader->bpos++;
-
-        return ret;
+        memcpy(uzstream->out.next, ctx->outbuf, uzstream->out.avail);
+        ctx->outbuf += uzstream->out.avail;
+        ctx->outlen -= uzstream->out.avail;
+        uzstream->out.next += uzstream->out.avail;
+        uzstream->out.total = uzstream->out.avail;
+        uzstream->out.avail = 0;
+        return Z_OK;
     }
 
-    printf("END OF STREAM");
-    while(1);
+    memcpy(uzstream->out.next, ctx->outbuf, ctx->outlen);
 
-    // int next_byte = reader->read_cb(data, len_remaining);
-    // if (next_byte != -1) {
-    //     //reader->buf[reader->pos++] = (uint8_t)next_byte;
-    //     //reader->slen++;
-    //     reader->pos++;
-    //     reader->bpos++;
-    //     return next_byte;
-    // }
-
-    return -1; // End of stream
-}
-
-
-int uzlib_stream_get_next_byte( struct uzlib_comp *data, unsigned char* current_byte )
-{
-    // printf("Entered uzlib_stream_compress\n");
-    int next_byte = read_stream(data);
-    *current_byte = next_byte;
-    //printf("got next byte: 0x%02x\n", (uint8_t)next_byte);
-
-    char a[2] = {next_byte,0};
-    printf("%s", a);
-
-    return next_byte;
-}
-
-
-void uzlib_stream_compress(struct uzlib_comp *data)
-{
-    unsigned char current_byte;
-    struct uzlib_stream_reader *reader = data->streamReader;
-
-    printf("Entered uzlib_stream_compress\n");
-
-    //while ((current_byte = read_stream(data, reader)) != -1)
-    while( uzlib_stream_get_next_byte(data, &current_byte) != -1 )
-    {
-        int h = HASH(data, &reader->buf[reader->bpos - 1]);
-        const uint8_t **bucket = &data->hash_table[h & (HASH_SIZE - 1)];
-        const uint8_t *subs = *bucket;
-        *bucket = reader->buf + reader->bpos - 1;
-        if (subs && (reader->buf + reader->bpos - 1) > subs && ((reader->buf + reader->bpos - 1) - subs) <= MAX_OFFSET &&
-            !memcmp(reader->buf + reader->bpos - 1, subs, MIN_MATCH)) {
-            reader->bpos += MIN_MATCH - 1;
-            const uint8_t *m = subs + MIN_MATCH;
-            int len = MIN_MATCH;
-            //while ((current_byte = read_stream(data, reader)) != -1 && *m == current_byte && len < MAX_MATCH)
-            while( uzlib_stream_get_next_byte(data, &current_byte) != -1 && *m == current_byte && len < MAX_MATCH)
-            {
-                m++;
-                len++;
-            }
-            // printf("zlib match len %d at bpos %d \n", len, reader->bpos );
-            //copy(data, (reader->buf + reader->bpos - len - 1) - subs, len);
-            copy(data, &reader->buf[reader->bpos-1] - len - subs, len);
-        } else {
-            literal(data, current_byte);
-        }
+    if(flush == Z_FINISH) {
+        uzstream->out.total  = ctx->outlen;
+    } else {
+        uzstream->out.total += ctx->outlen;
     }
+    uzstream->out.avail -= ctx->outlen;
+    uzstream->out.next  += ctx->outlen;
+
+    free((void*)ctx->outbuf);
+    ctx->outbuf = NULL;
+    return flush == Z_FINISH ? Z_STREAM_END : Z_OK;
 }
 
 

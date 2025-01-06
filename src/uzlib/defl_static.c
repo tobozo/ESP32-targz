@@ -28,6 +28,13 @@ NONINFRINGEMENT.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE
 FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+* Edited by Tobozo for ESP32-targz
+  - Added byteWriter to outbits()
+  - Added out4bytes(), with byteWriter support
+  - Added zlib_next_block() and zlib_empty_block() for streamed input
+
+
 */
 #include <stdlib.h>
 #include <stdint.h>
@@ -66,26 +73,44 @@ void outbits(struct uzlib_comp *out, unsigned long bits, int nbits)
     out->outbits |= bits << out->noutbits;
     out->noutbits += nbits;
     while (out->noutbits >= 8) {
-        if (out->outlen >= out->outsize) {
+        if (out->outlen+1 >= out->outsize) {
             out->outsize = out->outlen + 64;
-            if( out->outbuf ) { // compressing to memory: resize buffer
-                out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
-                assert(out->outbuf); // TODO: OOM error handling
-            }
+            out->outbuf = sresize(out->outbuf, out->outsize, unsigned char);
         }
-
         unsigned char outval = (out->outbits & 0xFF);
-
-        if( out->outbuf ) // compressing to memory: write 1 byte
-            out->outbuf[out->outlen] = outval;
-        else if( out->writeDestByte ) // compressing to stream: write 1 byte
+        out->outbuf[out->outlen] = outval;
+        if( out->writeDestByte ) // compressing to stream: write 1 byte
             out->writeDestByte( out, outval );
-
         out->outlen++;
         out->outbits >>= 8;
         out->noutbits -= 8;
     }
 }
+
+
+void out4bytes( struct uzlib_comp *out, unsigned char st, unsigned char nd, unsigned char rd, unsigned char th )
+{
+    int newlen = out->outlen + 4;
+    if (newlen > out->outsize) {
+        out->outsize = newlen;
+        out->outbuf = sresize(out->outbuf, newlen, unsigned char);
+    }
+
+    out->outbuf[out->outlen]   = st;
+    out->outbuf[out->outlen+1] = nd;
+    out->outbuf[out->outlen+2] = rd;
+    out->outbuf[out->outlen+3] = th;
+
+    if( out->writeDestByte ) {
+        // compressing to stream: write 4 bytes
+        out->writeDestByte( out, st );
+        out->writeDestByte( out, nd );
+        out->writeDestByte( out, rd );
+        out->writeDestByte( out, th );
+    }
+    out->outlen+=4;
+}
+
 
 static const unsigned char mirrorbytes[256] = {
     0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
@@ -289,11 +314,6 @@ void zlib_match(struct uzlib_comp *out, int distance, int len)
         i = -1;
         j = sizeof(distcodes) / sizeof(*distcodes);
         while (1) {
-            if( j - i < 2 ) {
-                printf("assert will fail with %d - %d >= 2, halting instead of crashing\n", j,  i );
-                while(1);
-            }
-
             assert(j - i >= 2);
             k = (j + i) / 2;
             if (distance < distcodes[k].min)
@@ -318,6 +338,22 @@ void zlib_match(struct uzlib_comp *out, int distance, int len)
             outbits(out, distance - d->min, d->extrabits);
     }
 }
+
+
+void zlib_next_block(struct uzlib_comp *out)
+{
+    outbits(out, 0, 1); /* Not the final block */
+    outbits(out, 1, 2); /* Static huffman block */
+}
+
+void zlib_empty_block(struct uzlib_comp *out)
+{
+    outbits(out, 0, 7); /* close block */
+    outbits(out, 0, 3); /* header of stored block */
+    outbits(out, 0, 7); /* flush all bits */
+    out4bytes(out, 0x00, 0x00, 0xFF, 0xFF); // empty block ?
+}
+
 
 void zlib_start_block(struct uzlib_comp *out)
 {

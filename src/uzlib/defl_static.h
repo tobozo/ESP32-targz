@@ -28,10 +28,22 @@
 
 /* This files contains type declaration and prototypes for defl_static.c.
    They may be altered/distinct from the originals used in PuTTY source
-   code. */
+   code.
+
+
+* Edited by Tobozo for ESP32-targz
+  - Added byteWriter to outbits()
+  - Added out4bytes(), with byteWriter support
+  - Added zlib_next_block() and zlib_empty_block() for streamed input
+
+*/
 
 void outbits(struct uzlib_comp *ctx, unsigned long bits, int nbits);
+void out4bytes( struct uzlib_comp *out, unsigned char st, unsigned char nd, unsigned char rd, unsigned char th );
 void zlib_start_block(struct uzlib_comp *ctx);
 void zlib_finish_block(struct uzlib_comp *ctx);
 void zlib_literal(struct uzlib_comp *ctx, unsigned char c);
 void zlib_match(struct uzlib_comp *ctx, int distance, int len);
+
+void zlib_next_block(struct uzlib_comp *out);
+void zlib_empty_block(struct uzlib_comp *out);

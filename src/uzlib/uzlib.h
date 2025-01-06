@@ -6,6 +6,11 @@
  * http://www.ibsensoftware.com/
  *
  * Copyright (c) 2014-2018 by Paul Sokolovsky
+ *
+ * Edited by Tobozo for ESP32-targz
+ *  - Added logging to inflate
+ *  - Added stream support to deflate
+ *
  */
 
 #ifndef UZLIB_H_INCLUDED
@@ -16,7 +21,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "uzlib_conf.h"
 
 /* calling convention */
 #ifndef TINFCC
@@ -30,6 +34,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "uzlib_conf.h"
+
 
 /* ok status, more data produced */
 #define TINF_OK             0
@@ -46,6 +53,9 @@ extern "C" {
 
 /* helper macros */
 #define TINF_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
+
+#define TINF_CHKSUM_TYPE(t) ( t==TINF_CHKSUM_CRC?"crc32":(t==TINF_CHKSUM_ADLER?"adler32":"none") )
+
 
 /* data structures */
 
@@ -115,7 +125,6 @@ typedef struct TINF_DATA  {
     TINF_TREE dtree; /* dynamic distance tree */
 } TINF_DATA;
 
-#include "tinf_compat.h"
 
 #define TINF_PUT(d, c) \
     { \
@@ -137,13 +146,28 @@ int TINFCC uzlib_gzip_parse_header(TINF_DATA *d);
 
 /* Compression API */
 
+// some defines from zlib used for state or error
+#define Z_NO_FLUSH      0
+#define Z_PARTIAL_FLUSH 1
+#define Z_SYNC_FLUSH    2
+#define Z_FULL_FLUSH    3
+#define Z_FINISH        4
+#define Z_BLOCK         5
+#define Z_TREES         6
+#define Z_NULL          0
+#define Z_OK            0
+#define Z_STREAM_END    1
+#define Z_NEED_DICT     2
+#define Z_ERRNO        (-1)
+#define Z_STREAM_ERROR (-2)
+#define Z_DATA_ERROR   (-3)
+#define Z_MEM_ERROR    (-4)
+#define Z_BUF_ERROR    (-5)
+
 typedef const uint8_t *uzlib_hash_entry_t;
 
 
-struct uzlib_stream_reader;
-
-struct uzlib_comp
-{
+struct uzlib_comp {
     unsigned char *outbuf;
     int outlen, outsize;
     unsigned long outbits;
@@ -154,40 +178,37 @@ struct uzlib_comp
     unsigned int hash_bits;
     unsigned int dict_size;
 
+    // additional (non uzlib) changes:
+    size_t slen; // input size uncompressed
     uint32_t checksum;
+    char checksum_type;
+    // uzlib_crc32() or uzlib_adler32() will be attached here
     uint32_t (*checksum_cb)(const void *data, unsigned int length, uint32_t checksum);
-
-    void (*progress)( size_t progress, size_t total );
-
-    size_t readOffset;
-
-    unsigned int (*readSourceBytes)(struct uzlib_comp *data, unsigned char *out, size_t len);
-
+    // optional progress user callback
+    void (*progress_cb)( size_t progress, size_t total );
+    // output stream byte writer
     unsigned int (*writeDestByte)(struct uzlib_comp *data, unsigned char byte);
-
-    struct uzlib_stream_reader *streamReader;
 };
 
 
-typedef struct uzlib_stream_reader
-{
-    uint8_t *buf;  // pointer to buffer
-    size_t buflen; // buffer length
-    int bufnum;
-    // double buffer
-    uint8_t *buf1;
-    uint8_t *buf2;
-    unsigned bpos; // position in the buffer
-    unsigned slen; // stream length
-    unsigned pos;  // position in the stream
-    //int (*read_cb)(struct uzlib_comp *data, size_t num_bytes);
-    //int (*readSourceBytes)(unsigned char *out, size_t len);
+typedef struct uzlib_pipe {
+    unsigned char* next;
+    unsigned int   avail;
+    unsigned long  total;
+} uzlib_pipe;
 
-} uzlib_stream_reader;
+// stream to stream decompression
+typedef struct uzlib_stream {
+    uzlib_pipe in;
+    uzlib_pipe out;
+    struct uzlib_comp* ctx;
+
+} uzlib_stream;
 
 
 void TINFCC uzlib_compress(struct uzlib_comp *c, const uint8_t *src, unsigned slen);
-void TINFCC uzlib_stream_compress(struct uzlib_comp *c);
+int TINFCC uzlib_deflate_init_stream(struct uzlib_comp* ctx, uzlib_stream* strm);
+int TINFCC uzlib_deflate_stream(struct uzlib_stream* strm, int flush);
 
 #include "defl_static.h"
 
