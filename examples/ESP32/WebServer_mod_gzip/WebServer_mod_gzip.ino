@@ -21,8 +21,6 @@ static const char notFoundContent[] PROGMEM = R"==(
 </body>
 )==";
 
-GzWebServer server(80);
-
 
 size_t compressFile( fs::FS &fs, const String &inputFilename, bool force=false )
 {
@@ -160,6 +158,13 @@ void gzipDir(fs::FS &fs, const char *dirname, uint8_t levels) {
 }
 
 
+WebServer server(80);
+
+// client can send a header to regenerate gz cache i.e. after modifying the uncompressed source
+const char* gzip_flush_header = "x-gzip-cache-flush";
+GzCacheMiddleware mod_gzip( server, new GzStaticRequestHandler(tarGzFS, "/", "/", nullptr), gzip_flush_header );
+
+
 
 void setup()
 {
@@ -191,18 +196,14 @@ void setup()
 
   server.onNotFound([]() { server.send(404, "text/html", FPSTR(notFoundContent)); });
 
-  auto gzStaticHandler = new GzStaticRequestHandler(tarGzFS, "/", "/", nullptr);
-  server.addStaticHandler(gzStaticHandler);
-  // optional: attach a cached compressor
-  server.createGz = compressFile;
-  // optional: attach as streamed compressor
-  server.streamGz = [](Stream *input, size_t len, Stream* output)->size_t { return LZPacker::compress(input, len, output); };
-  // optional: disable gz cache (also enables compression on the fly if server.streamGZ is set)
-  // server.cacheGz = false;
-  // optional: magic header to flush+regen gzip cache
-  const char *headerkeys[] = {"x-gzip-recompress"};
-  size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
-  server.collectHeaders(headerkeys, headerkeyssize);
+  // attach stream compressor
+  mod_gzip.addStreamCompressor( [](Stream *input, size_t len, Stream* output)->size_t { return LZPacker::compress(input, len, output); } );
+  // attache file compressor
+  mod_gzip.addFileCompressor( compressFile );
+  // mod_gzip.enableCache(); // cache gz files
+  mod_gzip.disableCache(); // ignore existing gz files, compress on the fly
+
+  server.addMiddleware( &mod_gzip );
 
   server.begin();
 
