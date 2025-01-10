@@ -281,13 +281,7 @@ bool GzCacheMiddleware::run(WebServer &server, Middleware::Callback next) {
     return next();
 
   assert(gzHandler);
-  if( serverPtr->hasHeader(FPSTR(ACCEPT_ENCODING_HEADER)) ) {
-    String acceptEncoding = serverPtr->header(FPSTR(ACCEPT_ENCODING_HEADER));
-    if( acceptEncoding.indexOf("gzip") > 0 || acceptEncoding.indexOf("deflate") > 0 ) {
-      return gzHandler->handle( server, server.method(), server.uri() );
-    }
-  }
-  return next();
+  return gzHandler->handle( server, server.method(), server.uri() );
 }
 
 
