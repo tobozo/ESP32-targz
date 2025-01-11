@@ -33,7 +33,7 @@
  *    any source distribution.
  */
 
-#include "tinf.h"
+#include "uzlib.h"
 
 #define FTEXT    1
 #define FHCRC    2

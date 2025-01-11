@@ -33,7 +33,7 @@
  *    any source distribution.
  */
 
-#include "tinf.h"
+#include "uzlib.h"
 
 int uzlib_zlib_parse_header(TINF_DATA *d)
 {

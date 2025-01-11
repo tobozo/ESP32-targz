@@ -275,6 +275,7 @@ typedef bool (*tarExcludeFilter)( TAR::header_translated_t *header );
 typedef bool (*tarIncludeFilter)( TAR::header_translated_t *header );
 
 // Callbacks for progress and misc output messages, default is verbose
+typedef void (*totalProgressCallback)(size_t progress, size_t total);
 typedef void (*genericProgressCallback)( uint8_t progress );
 typedef void (*genericLoggerCallback)( const char* format, ... );
 
@@ -456,6 +457,37 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
   #endif
 
 };
+
+
+namespace LZ77
+{
+  // deflate support
+
+  struct LZPacker
+  {
+    // buffer to stream (best compression)
+    static size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
+    // buffer to buffer (best compression)
+    static size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBufPtr );
+    // stream to buffer (average compression)
+    static size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBufPtr );
+    // stream to stream (average compression)
+    static size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
+    // progress callback setter [](size_t bytes_read, size_t total_bytes)
+    static void setProgressCallBack(totalProgressCallback cb);
+    // LZPacker uses buffered streams
+    static size_t inputBufferSize; // default = 4096, lowest possible value = 256
+    static size_t outputBufferSize;// default = 4096, lowest possible value = 1024
+  };
+
+  void defaultProgressCallback( size_t progress, size_t total );
+
+};
+
+using LZ77::LZPacker;
+
+
+
 
 
 

@@ -1,6 +1,6 @@
 # 🗜️ ESP32-targz
 
-## An ESP32/ESP8266/RP2040 Arduino library to provide decompression support for .tar, .gz and .tar.gz files
+## An ESP32/ESP8266/RP2040 Arduino library to handle .tar, .gz and .tar.gz files
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/ESP32-targz.svg)](https://registry.platformio.org/packages/libraries/tobozo/ESP32-targz)
@@ -9,15 +9,17 @@
 <img src="ESP32-targz.png" alt="ES32-targz logo" width="512" />
 </p>
 
+## 🆕 ESP32-targz now supports compression!
 
-## This library is a wrapper for the following two great libraries:
+## ESP32-targz is based on those two great libraries:
 
   - uzlib https://github.com/pfalcon/uzlib
   - TinyUntar https://github.com/dsoprea/TinyUntar
 
-This library enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data ~~without using an intermediate file~~ (bug: see [#4](https://github.com/tobozo/ESP32-targz/issues/4)).
+ESP32-targz enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data ~~without using an intermediate file~~ (bug: see [#4](https://github.com/tobozo/ESP32-targz/issues/4)).
 
 In order to reach this goal, TinyUntar was heavily modified to allow data streaming, uzlib is also customized.
+
 
 Tradeoffs
 ---------
@@ -38,8 +40,11 @@ This limitation does not apply to the **input** filesystem/stream.
 Scope
 -----
 
-  - This library is only for unpacking / decompressing, no compression support is provided whatsoever
-  - Although the examples use SPIFFS as default, it should work with any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and streams (HTTP, HTTPS, UDP, CAN, Ethernet)
+  - Compressing to `gz` (deflate/lz77)
+  - Decompressing `gz` 
+  - Expanding `tar` 
+  - Decompressing and expanding `tar.gz` 
+  - Supports any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and streams (HTTP, HTTPS, UDP, CAN, Ethernet)
   - This is experimental, expect bugs!
   - Contributions and feedback are more than welcome :-)
 
@@ -51,11 +56,11 @@ Support Matrix
 
 | fs::FS  | SPIFFS  |  LittleFS |  SD    |  SD_MMC |  FFAT |
 | ------- |:------- | :-------- | :----- | :------ | :---- |
-| ESP32   | 1.0     |  1.0.5    |  1.0.5 |  1.0    |  1.0  |
+| ESP32   | 1.0     |  3.1.0    |  1.0.5 |  1.0    |  1.0  |
 |         |         |           |        |         |       |
 | ESP8266 | builtin |  0.1.0    |  0.1.0 |  n/a    |  n/a  |
 |         |         |           |        |         |       |
-| RP2040  | n/a     |  n/a      |  2.0.0 |  n/a    |  n/a  |
+| RP2040  | n/a     |  0.1.0    |  2.0.0 |  n/a    |  n/a  |
 
 
 
@@ -63,7 +68,7 @@ Usage
 -----
 
 
-:warning: Important note: setting the `#define` **before** including `<ESP32-targz.h>` is mandatory otherwise it will be ignored and the library will default to SPIFFS.
+:warning: Important note: setting the `#define` **before** including `<ESP32-targz.h>` is recommended to prevent the library from defaulting to SPIFFS.
 
 
 ```C
@@ -294,6 +299,54 @@ ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
 
 
 
+Compress to `.gz` (buffer to stream)
+-------------------------------
+
+```C
+    const char* json = "{\"hello\":\"world\"}"; // input buffer
+    File out = LittleFS.open("/out.gz", "w");   // output stream
+    size_t compressedSize = LZPacker::compress( (uint8_t*)json, strlen(json), &out );
+    out.close();
+```
+
+Compress to `.gz` (buffer to buffer)
+-------------------------------
+
+```C
+    const char* json = "{\"hello\":\"world\"}"; // input buffer
+    uint8_t* compressedBytes;                   // output buffer
+    size_t compressedSize = LZPacker::compress( (uint8_t*)json, strlen(json), &compressedBytes);
+    // do something with compressedBytes
+    free(compressedBytes);
+```
+
+Compress to `.gz` (stream to buffer)
+-------------------------------
+
+```C
+    File in = LittleFS.open("/my.uncompressed.file.txt"); // input stream
+    uint8_t* compressedBytes;                             // output buffer
+    size_t compressedSize = LZPacker::compress( &in, in.size(), &compressedBytes );
+    // do something with compressedBytes
+    free(compressedBytes);
+    in.close();
+```
+
+Compress to `.gz` (stream to stream)
+-------------------------------
+
+```C
+    File in = LittleFS.open("/my.uncompressed.file.txt"); // input stream
+    File out = LittleFS.open("/out.gz", "w");             // output stream
+    size_t compressedSize = LZPacker::compress( &in, in.size(), &out );
+    out.close();
+    in.close();
+```
+    
+
+    
+
+
 
 Callbacks
 ---------
@@ -422,10 +475,6 @@ Known bugs
   - tarGzExpander without intermediate file hates situations with low heap
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
 
-  ~~- tarGzExpander: files smaller than 4K aren't processed~~
-  - ~~error detection isn't deferred efficiently, debugging may be painful~~
-  - ~~.tar files containing files smaller than 512 bytes aren't fully processed~~
-  - ~~reading/writing simultaneously on SPIFFS may induce errors~~
 
 
 Debugging:
