@@ -189,9 +189,10 @@ struct uzlib_comp {
     // output stream byte writer
     unsigned int (*writeDestByte)(struct uzlib_comp *data, unsigned char byte);
 
-    char checksum_type;
-    char grow_buffer;
-    unsigned char reserved[2];
+    char checksum_type; // crc32 or adler32
+    char grow_buffer; // 1 = enables realloc() in outbits() and out4bytes() functions
+    char is_stream; // 1 = disables calling progress_cb() from uzlib_compress()
+    unsigned char reserved[1];
 
 };
 

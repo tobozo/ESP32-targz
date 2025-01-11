@@ -76,10 +76,16 @@ static inline void copy(void *data, unsigned offset, unsigned len)
 }
 
 
+// used only when uzlib_compress is in buffer mode (when in stream mode, progress_cb is managed from outside)
+#define UZLIB_PROGRESS(b,t) if( data->is_stream == 0 && data->progress_cb ) data->progress_cb(b, t);
+
 void uzlib_compress(struct uzlib_comp *data, const uint8_t *src, unsigned slen)
 {
+    UZLIB_PROGRESS(0,slen);
+
     const uint8_t *top = src + slen - MIN_MATCH;
     while (src < top) {
+        UZLIB_PROGRESS( slen-(top-src), slen);
         int h = HASH(data, src);
         const uint8_t **bucket = &data->hash_table[h & (HASH_SIZE - 1)];
         const uint8_t *subs = *bucket;
@@ -102,6 +108,7 @@ void uzlib_compress(struct uzlib_comp *data, const uint8_t *src, unsigned slen)
     while (src < top) {
         literal(data, *src++);
     }
+    UZLIB_PROGRESS( slen, slen);
 }
 
 
@@ -137,6 +144,8 @@ int uzlib_deflate_init_stream(struct uzlib_comp* ctx, uzlib_stream* uzstream){
         ctx->checksum      = 0;
         break;
     }
+
+    ctx->is_stream = 1; // progress_cb is triggered from outside
 
     uzstream->ctx = ctx;
 
