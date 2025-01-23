@@ -128,9 +128,9 @@ namespace TAR
 
     while (file) {
       const char* file_path =
-        #if defined ESP32 || defined ARDUINO_ARCH_RP2040
+        #if defined ESP32
           file.path()
-        #elif defined ESP8266
+        #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
           file.fullName()
         #else
           #error
