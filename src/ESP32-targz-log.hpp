@@ -77,6 +77,7 @@
 
   #else
     #define U_PART U_SPIFFS
+    #include "esp32-hal-log.h"
   #endif
 
 #elif defined ARDUINO_ARCH_RP2040

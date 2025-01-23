@@ -216,6 +216,7 @@ int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
         if(flush == Z_FINISH) {
             free((void*)ctx->outbuf);
             ctx->outbuf = NULL;
+            printf("gz buffer ERROR\n");
             return Z_BUF_ERROR;
         }
         memcpy(uzstream->out.next, ctx->outbuf, uzstream->out.avail);
