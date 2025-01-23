@@ -105,7 +105,7 @@ namespace TarGzPacker
       virtual void flush() { };
       // Print methods (not used in this implementation)
       virtual void end() { };
-      virtual size_t write(uint8_t c) { return 0; };
+      virtual size_t write(uint8_t c) { return c?0:0; };
   };
 
   // tar gz methods

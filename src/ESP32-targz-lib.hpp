@@ -118,7 +118,7 @@
         #define FS_NAME "SPIFFS"
       #endif
     #else // no destination filesystem defined in sketch
-      #warning "Unspecified or invalid destination filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD, DEST_FS_USES_PSRAMFS"
+      // #warning "Unspecified or invalid destination filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD, DEST_FS_USES_PSRAMFS"
       // however, check for USE_LittleFS as it is commonly defined since SPIFFS deprecation
       #if defined USE_LittleFS
         #include <LittleFS.h>
@@ -163,6 +163,7 @@
   #error "Only ESP32, ESP8266 and RP2040/Pico architectures are supported"
 
 #endif
+
 
 #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT
   #define WARN_LIMITED_FS
@@ -243,6 +244,11 @@ typedef void (*genericProgressCallback)(uint8_t progress); // percent (0...100)
 typedef void (*genericLoggerCallback)( const char* format, ... ); // same behaviour as printf()
 
 
+// md5sum (essentially for debug)
+#include "helpers/md5_sum.h"
+// helpers: mkdir, mkpath, dirname
+#include "helpers/path_tools.h"
+
 #if !defined ESP32_TARGZ_DISABLE_DECOMPRESSION
   #include "libunpacker/LibUnpacker.hpp"
 #else
@@ -255,12 +261,6 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
 #else
   #pragma message "Compression support is disabled"
 #endif
-
-
-// md5sum (essentially for debug)
-#include "helpers/md5_sum.h"
-// helpers: mkdir, mkpath, dirname
-#include "helpers/path_tools.h"
 
 
 //#endif // #ifdef _ESP_TGZ_H

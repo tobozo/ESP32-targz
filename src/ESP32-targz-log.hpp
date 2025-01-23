@@ -33,6 +33,7 @@
 
 #pragma once
 
+inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) { yield(); }
 
 #if defined ESP8266 || defined ESP32
   // those have OTA and common device API
@@ -57,22 +58,22 @@
         #if defined DEBUG_ESP_VERBOSE
           #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
         #else
-          #define log_v(format, ...) BaseUnpacker::targzNullLoggerCallback
+          #define log_v(format, ...) NullLoggerCallback
         #endif
       #else
         // don't be verbose, only errors+warnings
-        #define log_i BaseUnpacker::targzNullLoggerCallback
-        #define log_d BaseUnpacker::targzNullLoggerCallback
-        #define log_v BaseUnpacker::targzNullLoggerCallback
+        #define log_i NullLoggerCallback
+        #define log_d NullLoggerCallback
+        #define log_v NullLoggerCallback
       #endif
 
     #else
       #define log_n(format, ...) Serial.printf(ARDUHAL_LOG_FORMAT(N, format), ##__VA_ARGS__);
       #define log_e(format, ...) Serial.printf(ARDUHAL_LOG_FORMAT(E, format), ##__VA_ARGS__);
-      #define log_w BaseUnpacker::targzNullLoggerCallback
-      #define log_i BaseUnpacker::targzNullLoggerCallback
-      #define log_d BaseUnpacker::targzNullLoggerCallback
-      #define log_v BaseUnpacker::targzNullLoggerCallback
+      #define log_w NullLoggerCallback
+      #define log_i NullLoggerCallback
+      #define log_d NullLoggerCallback
+      #define log_v NullLoggerCallback
     #endif
 
   #else

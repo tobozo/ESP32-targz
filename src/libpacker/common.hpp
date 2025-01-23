@@ -58,7 +58,7 @@ namespace TAR
 
     tar_files_packer_t *p{nullptr};;
     std::vector<dir_entity_t> *dirEntities{nullptr};
-    int iterator{0};
+    size_t iterator{0};
     dir_entity_t dirEntity{"",false,0}; // last parsed entity
     entity_t entity{ nullptr, nullptr, nullptr, nullptr, ENTITY_STAT, 0 };
     String SavePath{""};
@@ -111,7 +111,7 @@ namespace TAR
     assert(fs);
     assert(dirname);
 
-    File root = fs->open(dirname);
+    File root = fs->open(dirname, "r");
     if (!root) {
       log_e("Failed to open directory %s", dirname);
       return;
@@ -120,20 +120,29 @@ namespace TAR
       log_e("Not a directory %s", dirname);
       return;
     }
-    log_v("  DIR: %-16s", dirname);
+    //log_v("  DIR: %-16s", dirname);
 
     dirEntities->push_back( { String(dirname), true, 0 } );
 
     File file = root.openNextFile();
 
     while (file) {
+      const char* file_path =
+        #if defined ESP32 || defined ARDUINO_ARCH_RP2040
+          file.path()
+        #elif defined ESP8266
+          file.fullName()
+        #else
+          #error
+        #endif
+      ;
       if (file.isDirectory()) {
         if (levels) {
-          collectDirEntities(dirEntities, fs, file.path(), levels - 1);
+          collectDirEntities(dirEntities, fs, file_path, levels - 1);
         }
       } else {
-        dirEntities->push_back( { String(file.path()), false, file.size() } );
-        log_v("  FILE: %-16s\tSIZE: %6d", file.name(), file.size() );
+        dirEntities->push_back( { String(file_path), false, file.size() } );
+        //log_v("  FILE: %-16s\tSIZE: %6d", file.name(), file.size() );
       }
       file = root.openNextFile();
     }

@@ -41,7 +41,7 @@
 #include <ctype.h> // for isprint()
 
 
-#include "../ESP32-targz-log.hpp" // import log_e(), log_w(), log_d() and log_i(), all behaving like printf()
+// #include "../ESP32-targz-log.hpp" // import log_e(), log_w(), log_d() and log_i(), all behaving like printf()
 
 #define UID "root"
 #define GID "root"
@@ -53,7 +53,7 @@ char * tar_block;
 int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque)
 {
   if (t == NULL) {
-    log_e("Failed to alloc %d files for tar", sizeof(TAR));
+    //log_e("Failed to alloc %d files for tar", sizeof(TAR));
     return -1;
   }
 
@@ -63,16 +63,16 @@ int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque)
 
   tar_block = (char*)calloc(1, T_BLOCKSIZE);
   if( tar_block==NULL ) {
-    log_e("Failed to alloc %d files for tar_block", sizeof(TAR));
+    //log_e("Failed to alloc %d files for tar_block", sizeof(TAR));
     return -1;
   }
 
   if( io==NULL ){
-    log_e("No attached callbacks");
+    //log_e("No attached callbacks");
     return -1;
   }
 
-  log_d("Tar init done");
+  //log_d("Tar init done");
 
   return 0;
 }
@@ -82,11 +82,10 @@ int tar_open(TAR *t, const char *pathname, tar_callback_t *io, const char *mode,
 {
   if (tar_init(t, pathname, io, opaque) == -1)
     return -1;
-  log_d("Tar open %s with '%s' flag", pathname, mode);
+  //log_d("Tar open %s with '%s' flag", pathname, mode);
   t->fd = (*(t->io->openfunc))(t->opaque, pathname, mode);
   if (t->fd == (void *)-1) {
-    log_e("Failed to open file %s with %s flag", pathname, mode);
-    // free(*t);
+    //log_e("Failed to open file %s with %s flag", pathname, mode);
     return -1;
   }
   return 0;
@@ -158,7 +157,7 @@ int tar_append_entity_step(entity_t *e)
       th_set_path(e->tar, (e->savename ? e->savename : e->realname)); // set the header path
       e->step = ENTITY_HEADER;
       // fallthrough
-    case ENTITY_HEADER: log_d("Entity header(%s)", e->realname);
+    case ENTITY_HEADER: //log_d("Entity header(%s)", e->realname);
       if (th_write(e->tar, e->written_bytes) != 0) { // header write failed?
         return -1;
       }
@@ -216,14 +215,14 @@ int tar_append_eof(TAR *t, ssize_t *written_bytes)
     if (i != T_BLOCKSIZE) {
       if (i != -1)
         errno = EINVAL;
-      log_e("written bytes (%d) don't match tar block size (%d)", i, T_BLOCKSIZE);
+      //log_e("written bytes (%d) don't match tar block size (%d)", i, T_BLOCKSIZE);
       return -1;
     }
   }
   // trigger last write signal (reminder: writefunc may be async)
   if( t->io->closewritefunc(t->opaque, t->fd) == -1 )
     return -1;
-  log_v("Wrote %d leftover bytes", leftover_bytes);
+  //log_v("Wrote %d leftover bytes", leftover_bytes);
   return 0;
 }
 
@@ -242,19 +241,19 @@ int tar_append_regfile_step(TAR *t, const char *realname, ssize_t *written_bytes
     case OPEN_FILE:
       regfile_iterator = 0;
       regfile_rv = -1;
-      log_d("Adding %s", realname);
+      //log_d("Adding %s", realname);
       regfile_fd = t->io->openfunc(t->opaque, realname, "r");
       if (regfile_fd == (void *)-1)
         return -1;
       regfile_size = (unsigned int)oct_to_int((t)->th_buf.size);
       memset(tar_block, 0, T_BLOCKSIZE);
       regfile_iterator = regfile_size;
-      log_v("Assigning size (%d)", regfile_size);
+      //log_v("Assigning size (%d)", regfile_size);
       regfile_step = WRITE_BLOCK;
       // fallthrough
     case WRITE_BLOCK:
     {
-      log_v("WRITE_BLOCK");
+      //log_v("WRITE_BLOCK");
       if(regfile_iterator <= T_BLOCKSIZE ) {
         regfile_step = WRITE_LAST_BLOCK;
         return 0;
@@ -273,13 +272,13 @@ int tar_append_regfile_step(TAR *t, const char *realname, ssize_t *written_bytes
         return 0;
       }
       regfile_iterator -= block_size;
-      log_v("Wrote %lu bytes, regfile_iterator=%d", T_BLOCKSIZE, regfile_iterator);
+      //log_v("Wrote %lu bytes, regfile_iterator=%d", T_BLOCKSIZE, regfile_iterator);
       *written_bytes += block_size;
     }
     break;
     case WRITE_LAST_BLOCK:
       {
-        log_v("case WRITE_LAST_BLOCK");
+        //log_v("case WRITE_LAST_BLOCK");
         regfile_step = CLOSE_FILE;
         if (regfile_iterator > 0) {
           regfile_read_bytes = t->io->readfunc(t->opaque, regfile_fd, tar_block, regfile_iterator);
@@ -291,14 +290,14 @@ int tar_append_regfile_step(TAR *t, const char *realname, ssize_t *written_bytes
           if ( block_size == -1) {
             return 0;
           }
-          log_v("Wrote %lu last bytes", T_BLOCKSIZE);
+          //log_v("Wrote %lu last bytes", T_BLOCKSIZE);
           *written_bytes += block_size;
         }
       }
       regfile_rv = 0;
       // fallthrough
     case CLOSE_FILE:
-      log_v("case CLOSE_FILE");
+      //log_v("case CLOSE_FILE");
       t->io->closefunc(t->opaque, regfile_fd);
       regfile_fd = NULL;
       return regfile_rv;
@@ -334,7 +333,7 @@ int th_write(TAR *t, ssize_t *written_bytes)
 
   i = t->io->writefunc(t->opaque, (t)->fd, &(t->th_buf), T_BLOCKSIZE);
   if (i != T_BLOCKSIZE) {
-    log_e("ERROR in th_write, returned block size %d didn't match expexted size %d", i, (int)T_BLOCKSIZE);
+    //log_e("ERROR in th_write, returned block size %d didn't match expexted size %d", i, (int)T_BLOCKSIZE);
     if (i != -1) {
       errno = EINVAL;
     }
@@ -376,7 +375,7 @@ void th_set_path(TAR *t, const char *pathname)
     // POSIX-style prefix field
     tmp = (char *)strchr(&(pathname[strlen(pathname) - T_NAMELEN - 1]), '/');
     if (tmp == NULL) {
-      log_e("ERROR: no '/' found in \"%s\"", pathname);
+      //log_e("ERROR: no '/' found in \"%s\"", pathname);
       return;
     }
     snprintf(t->th_buf.name, 100, "%s%s", &(tmp[1]), suffix);

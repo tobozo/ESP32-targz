@@ -550,7 +550,7 @@ namespace TarPacker
         return -1;
       }
       log_v("stat_func: stating %s", path );
-      fs::File f = fs->open(path);
+      fs::File f = fs->open(path, "r");
 
       if(!f) {
         log_e("Unable to open %s for stat", path);
@@ -896,8 +896,6 @@ namespace TarGzPacker
       log_e("Failed to allocate %d bytes for tar to gz buffer, halting", bufSize);
       while(1) yield();
     }
-
-
 
     log_d("Stream to Stream mode enabled");
 

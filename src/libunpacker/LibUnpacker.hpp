@@ -40,7 +40,6 @@
 
 #include "../ESP32-targz-lib.hpp"
 
-
 namespace TAR
 {
   #include "../TinyUntar/untar.h"
