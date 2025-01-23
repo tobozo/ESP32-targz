@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=utf8>
+  <meta name="keywords" content="Dither, Dithering, FloydSteinberg, Atkinson, Bayer, Client Side">
+  <meta name="Author" lang="en" content="tobozo" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="A client-side image dithering tool by tobozo" />
+  <meta property="og:description" content="This tool converts any supported image format to 1-bit color dithered image, exportable to PNG or 1-bit Bitmap format." />
+  <meta property="og:url" content="https://phpsecu.re/dither.html" />
+  <meta property="og:site_name" content="phpsecu.re" />
+  <meta property="og:image" content="http://phpsecu.re/img/dither.png" />
+  <meta property="og:updated_time" content="2024-09-04T14:10:12+00:00" />
+  <meta property="article:publisher" content="https://mastodon.social/@tobozo" />
+  <meta property="article:section" content="Article" />
+  <meta property="article:published_time" content="2024-09-04T08:53:40+00:00" />
+  <meta property="article:modified_time" content="2024-09-04T14:10:12+00:00" />
+  <title>Client Side Image Dithering Tool</title>
+  <style>
+
+    * {box-sizing:border-box;} /* reset all */
+
+    html { font-size: 16px; }
+    body { font-family: sans-serif; transition: 0.5s linear background-color; --section-width: 24rem; }
+
+    @media (orientation: portrait) {
+      html { font-size: 4vw; }
+    }
+
+    @media (orientation: portrait)  and (min-width: 24rem) {
+      body { --section-width: 88"https://upload.wikimedia.org/wikipedia/commons/1/1a/SVG_example_markup_grid.svg">SVG_example_markup_grid.svg</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/1/14/Animated_PNG_example_bouncing_beach_ball.png">Animated_PNG_example_bouncing_beach_ball.apng</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif">Rotating_earth_(large).gif</option>
+          <option value="https://upload.wikimedia.org/wikipedia/common    fieldset { display:inline-block; }
+    fieldset div { width: var(--section-width); margin-bottom: 1em; display: flex; align-items: center; }
+    div label, div select, div input { flex: 50%; max-width:50%; overflow: hidden; white-space: nowrap; }
+
+    .hidden { display: none; }
+
+    #saveas.ready { margin: .8em 0; }
+    #saveas a::before { content: "💾"; /* disk icon */ display: inline-block; margin: 0.3em; }
+    #saveas span { cursor: pointer; }
+
+    section ul { margin:0; padding: 0; display: inline-block; list-style: none; }
+    section ul.ready li { margin-bottom: 1em; display:inline-block; margin-inline: 2px; padding-block: 0.35rem 0.625rem; padding-inline: 0.75rem; border: 0.1rem solid; }
+    section ul li img { position:relative; z-index:2; max-width:var(--section-width); display:block; }
+    section ul li img.nomax { max-width: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+    #canvasholder { display:block; max-width:var(--section-width); max-height: 380px; margin: 0.3em; }
+    #outputcanvas { max-width:var(--section-width); }
+
+    section aside { width: var(--section-width); max-height: 12em; overflow: auto; }
+    section aside div { font-family:monospace; font-size: 0.5rem; margin-left:1em; }
+
+    div.outerbg {
+      background:url("data:image/webp;base64,UklGRjAAAABXRUJQVlA4TCQAAAAvA8AAAIVS27ahb3uzOUmSJoqqrOq6P47of8DQdcprYdP8/VY=");
+      filter:contrast(2000);
+      image-rendering:crisp-edges;
+      height: 4rem;
+      overflow:hidden;
+    }
+    div.innerbg {
+      mix-blend-mode:soft-light;
+      background:white;
+      isolation:isolate;
+      width: 100vw;
+      height: 100vw;
+      background: radial-gradient(circle, #111 0%, #eee 100%);
+      background-position: center center;
+      background-size: 12% 12%;
+      transform: translate(0%,-50%) rotate(36deg);
+      animation: gradient .5s ease 1;
+    }
+
+    @keyframes gradient {
+      0% {
+        background-size: 400% 100%;
+        transform: translate(0%,-50%) rotate(36deg);
+      }
+      60% {
+        background-size: 12% 100%;
+        transform: translate(0%,-50%) rotate(90deg);
+      }
+      100% {
+        background-size: 12% 12%;
+        transform: translate(0%,-50%) rotate(36deg);
+      }
+    }
+
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="outerbg"><div class="innerbg"><br><br></div></div>
+    <h2>1-bit Image Dithering</h2>
+    <p>Input image => Grayscale => Dithering => Bitmap 1pbb</p>
+    <nav></nav>
+  </header>
+
+  <section>
+
+
+    <fieldset>
+      <legend>Input image (any format)</legend>
+      <div>
+        <label for="file">💾 Load from File</label>
+        <input type="file" id="file" onchange="App.dither('file')" accept=".jpg,.jpeg,.png,.bmp" />
+        <!-- button id=filebutton onclick="App.dither('file')">dither</button -->
+      </div>
+      <div>
+        <label for="url">🌐 Load from URL</label>
+        <input type="text" id="url" onblur="App.dither('url')" value="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/UtrechtIconoclasm.jpg/800px-UtrechtIconoclasm.jpg" />
+        <!-- button onclick="App.dither('url')">dither</button -->
+      </div>
+      <div>
+        <label for="urlpicker">🧪 Load example</label>
+        <select id="urlpicker" onchange="url.value=this.options[this.selectedIndex].value;App.dither('url')">
+          <option value="" selected>Pick an image</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/UtrechtIconoclasm.jpg/800px-UtrechtIconoclasm.jpg">800px-UtrechtIconoclasm.jpg</option>
+          <option value=reshold = threshold.value;
+
+        UI.showSpinner();
+        UI.showProgress();
+        UI.log("<hr>");
+        return new Promise( sourceGetter )
+          .then( imageLoader )
+          .then( this.processImage )
+          .then( UI.createBmpLink )
+          .catch( this.handleError )
+          .finally( () => {
+            UI.hideProgress();
+            UI.hideSpinner();
+          });
+      },
+      loadImageFromFile: function(file)
+      {
+        return new Promise((resolve, reject) => {
+          if(s/b/b2/Vulphere_WebP_OTAGROOVE_demonstration_2.webp">Vulphere_WebP_OTAGROOVE_demonstration_2.webp</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/3/30/Hubble%E2%80%99s_observation_of_Jupiter_in_2021_%2851688147562%29.jpg">Jupiter_Hubble.jpg</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/2/23/Jupiter_Showcases_Auroras%2C_Hazes_%28NIRCam_Closeup%29.jpg">Jupiter_JWST.jpg</option>
+          <option value="https://upload.wikimedia.org/wikipedia/en/3/3b/SpongeBob_SquarePants_character.svg">SpongeBob_SquarePants_character.svg</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/0/05/Boingball.png">Boingball.png</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/3/37/Colorspace.png">Colorspace.png</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/0/0b/Pillars_of_creation_-_JWST%2C_MIRI_-_STScI-01GFRYYRTCTMX197BY86MBFCR9.png">jwst-pillars.png</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/5/59/NASA%E2%80%99s_Webb_Reveals_Cosmic_Cliffs%2C_Glittering_Landscape_of_Star_Birth_-_Flickr_-_James_Webb_Space_Telescope.png">JWST-carina.png (huge file)</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/f/f2/2_week-old_Female_Sphynx_%28Suki%29.jpg">sphynx-kitten.jpg</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Dithering options</legend>
+      <div>
+        <label for="grayscalemode">🎨 Grayscale mode</label>
+        <select id="grayscalemode" onchange="App.dither()">
+          <option value="luminance" selected>Luminance</option>
+          <option value="canvas">Canvas</option>
+        </select>
+      </div>
+      <div>
+        <label for="threshold">≐ Threshold</label>
+        <input type="number" id="threshold" min="0" max="255" value="150" step="10" onchange="App.dither()" />
+      </div>
+      <div>
+        <label for="dithering">⦾ Dithering mode</label>
+        <select id="dithering" onchange="App.dither()">
+          <option value="FloydSteinberg" selected>Floyd Steinberg</option>
+          <option value="Bayer">Bayer</option>
+          <option value="Atkinson">Atkinson</option>
+          <option value="None">None</option>
+        </select>
+      </div>
+    </fieldset>
+
+
+  </section>
+
+  <section>
+    <div id="saveas"></div>
+  </section>
+
+  <section>
+    <ul id="images">
+      <li id="inputimage"></li>
+      <li id="outputimage"></li>
+    </ul>
+  </section>
+
+
+  <section>
+    <progress id="progress" value="0" max="100" style="width: 100%; display:none"></progress>
+    <aside><output id=logs class="hidden"></output></aside>
+    <div id=canvasholder style="display:none"><canvas id="outputcanvas"></canvas></div>
+  </section>
+
+  <footer>
+    <author>Copyleft (c+) <a href="https://github.com/tobozo">tobozo</a> sept. 2024</author>
+  </footer>
+
+
+  <script>
+
+
+    const App =
+    {
+      dither: function( source )
+      {
+        const _source = !!source ? source : App.appMode;
+        const sourceGetter = _source == 'url' ? this.getURL : _source == 'file' ? this.getFile : (resolve,reject) => reject({cause:`invalid source: ${_source}`});
+        const imageLoader  = _source == 'url' ? this.loadImageFromURL : this.loadImageFromFile;
+        if( _source == 'none' ) return;
+        App.appMode = _source;
+        App.grayscaleMode = grayscalemode.options[grayscalemode.selectedIndex].value;
+        App.ditherMode    = dithering.options[dithering.selectedIndex].value;
+        Image1Bpp.threject({cause:'no file to load'});
+        resolve(file.files[0]);
+      },
+      handleError: function(reason)
+      {
+        if (reason.cause) {
+          console.log(reason.cause);
+        } else {
+          console.error(`${reason}`);
+        }
+      },
+      grayscaleMode : 'canvas',
+      ditherMode: 'FloydSteinberg',
+      appMode: 'none'
+    };
+
+
+
+    const UI =
+    {
+      log: function(message)
+      {
+        let firstChild = document.querySelector("output > hr")
+        let div        = documen file == null )
+            reject({cause:'no file to load'});
+
+          const fileReader = new FileReader();
+          fileReader.onerror = () => { UI.log(`<b>Opening ${file.name} failed</b>`); reject('FileReader failed.'); }
+          fileReader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              UI.log(`Loaded <b>${file.name}</b> from filesystem`);
+              resolve({ img, filename: file.name } );
+            };
+            img.src = e.target.result;
+          };
+          fileReader.readAsDataURL(file);
+
+        });
+      },
+      loadImageFromURL: function(url)
+      {
+        return new Promise((resolve, reject) => {
+          if( url.trim() == '' )
+            reject({cause:'no URL to load'});
+          const base = location.protocol + '//' + location.host;
+          const urlParts = url.startsWith('/') ? new URL(url, base) : new URL(url);
+          const pathParts = urlParts.pathname.split('/');
+          let filename = pathParts.length>0 ? pathParts[pathParts.length-1] : 'export_dithered_1bpp';
+
+          UI.loadImageProgress(url, UI.onProgressCallback)
+            .then( imgSrc => {
+              const img = new Image();
+              img.onerror = () => { UI.log(`<b>${filename} is not a valid image</b>`); reject('Invalid image.'); }
+              img.onload = () => {
+                UI.log(`Loaded <b>${filename}</b> from <a href="${url}">URL</a>`);
+                resolve({ img, filename });
+              };
+              img.src = imgSrc;
+              imgSrc = [];
+            })
+            .catch( xhr => { console.log(xhr); let msg = `Failed to load URL ${url} (status ${xhr.status})`; UI.log(`<b style="color:red">${msg}</b>`); reject(msg); } )
+          ;
+        });
+      },
+      processImage: function(data)
+      {
+        if( data === null )
+          return new Promise((resolve, reject) => {resolve(null);});
+        const canvas = document.getElementById('outputcanvas');
+        const ctx    = canvas.getContext('2d');
+        const width  = data.img.width;
+        const height = data.img.height;
+        const color = width%8==0 ? 'blue' : width%4==0 ? 'green' : width%2==0 ? 'orange' : 'red';
+        let pixelsRGBA = [];
+        UI.log(`<font color=${color}>Input Dimensions: <b>${width}</b> x <b>${height}</b>`);
+        // resize canvas to fit image
+        canvas.width = width;
+        canvas.height = height;
+        // copy pixels in canvas
+        ctx.drawImage(data.img, 0 , 0);
+        // apply dithering
+        const dstart = performance.now();
+        pixelsRGBA = Image1Bpp.dither( ctx, width, height, App.ditherMode, App.grayscaleMode == 'canvas' );
+        const dend = performance.now();
+        UI.log(`Dithering time: ${dend - dstart} ms (grayscale mode: ${App.grayscaleMode})`);
+        // convert to grayscale
+        if( App.grayscaleMode == 'canvas' )
+          ctx.filter = 'grayscale(1)';
+        // update pixels in canvas
+        ctx.putImageData(pixelsRGBA, 0, 0, 0, 0, width, height);
+        pixelsRGBA = [];
+        data.filename = data.filename.split('.').slice(0, -1).join('.'); // remove extension from filename
+        data.dataURL = canvas.toDataURL();
+        data.canvas = canvas;
+        return new Promise((resolve, reject) => {resolve(data);})
+      },
+      getURL: function(resolve, reject)
+      {
+        const URL = url.value;
+        if( URL.trim() == '' )
+          reject({cause:"no URL to load"});
+        resolve(URL);
+      },
+      getFile: function(resolve, reject)
+      {
+        if (file.files.length == 0)
+              onProgressCallback: function(ratio)
+      {
+        if (ratio >= 0)
+          progress.value = ratio;
+        else
+          progress.removeAttribute('value');
+      },
+      showProgress: function() { progress.style.display = 'block'; },
+      hideProgress: function() { progress.style.display = 'none'; },
+      showSpinner:  function() { document.body.classList.add("loading"); },
+      hideSpinner:  function() { document.body.classList.remove("loading"); },
+    };
+
+
+
+    const Image1Bpp =
+    {
+      et.createElement('div');
+
+        if( message.trim() == '' )
+          message = '<hr>';
+
+        div.innerHTML = message;
+
+        if( firstChild === undefined )
+          logs.appendChild(div);
+        else
+          logs.insertBefore(div, firstChild);
+
+        //div.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      },
+
+      createImage: function(dataUrl, name)
+      {
+        const img = document.createElement('img');
+        // class toggling on click
+        img.onclick = () => img.classList.toggle("nomax");
+        img.setAttribute("name", name );
+        img.src = dataUrl;
+        return img;
+      },
+
+
+      createBmpLink: function(data)
+      {
+        if( data === null )
+          return null;
+
+        const abmp   = document.createElement('a');
+        const atxt   = document.createElement('span');
+        const imgbmp = UI.createImage(data.dataURL, data.filename);
+        const logbtn = document.createElement('span');
+
+        abmp.download  = data.filename+"-1bpp.bmp";
+        abmp.innerHTML = `${decodeURI(data.filename)}-1bpp.bmp`;
+        abmp.href = '#';
+        abmp.onclick = () => {
+          Image1Bpp.exportToBitmap( data.filename, data.canvas, data.img.width, data.img.height )
+            .then( bmp => {
+              const blob = new Blob([bmp.fileContent], {type: "octet/stream"});
+              const bmpUrl = window.URL.createObjectURL(blob);
+              abmp.setAttribute('href', bmpUrl);
+            }).catch((reason) => {
+              console.error(`${reason}`);
+            })
+          return true;
+        };
+
+        atxt.innerHTML =  ` (1-bit color ${data.img.width}x${data.img.height} bitmap)`;
+
+        logbtn.innerHTML = ' 🗎 ';
+        logbtn.title = 'View Logs';
+        logbtn.onclick = () => logs.classList.toggle('hidden')
+
+        //imgbmp.onclick = () => imgbmp.classList.toggle("nomax");
+        //imgbmp.src = data.dataURL;
+        data.dataURL = [];
+
+        saveas.innerHTML = '';
+
+        outputimage.innerHTML = '';
+        inputimage.innerHTML = '';
+
+        images.classList.add('ready');
+        saveas.classList.add('ready');
+
+        saveas.appendChild(abmp);
+        saveas.appendChild(atxt);
+        saveas.appendChild(logbtn);
+
+        outputimage.appendChild(imgbmp);
+        inputimage.appendChild(data.img);
+      },
+      // Loads an image with progress callback
+      loadImageProgress: function (imageUrl, onprogress) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          let notifiedNotComputable = false;
+
+          xhr.open('GET', imageUrl, true);
+          xhr.responseType = 'arraybuffer';
+
+          xhr.onprogress = function(ev) {
+            if (ev.lengthComputable)
+              onprogress(parseInt((ev.loaded / ev.total) * 100));
+            else
+            {
+              if (!notifiedNotComputable)
+              {
+                notifiedNotComputable = true;
+                onprogress(-1);
+              }
+            }
+          }
+
+          xhr.onloadend = function() {
+            if (!xhr.status.toString().match(/^2/))
+            {
+              reject(xhr);
+              return;
+            }
+
+            const options = {}
+            const headers = xhr.getAllResponseHeaders();
+            const m = headers.match(/^Content-Type\:\s*(.*?)$/mi);
+
+            if (m && m[1])
+              options.type = m[1];
+
+            resolve(window.URL.createObjectURL( new Blob([this.response], options)));
+          }
+
+          xhr.send();
+        });
+      },
+      // "onprogress" callback
+  xelsRGBA.data[i + 2] = pixelsRGBA.data[i];
+
+        }
+
+        return pixelsRGBA;
+      },
+
+
+      threshold: 150,
+
+
+      atkinson: function( pixelsRGBA, width, height, pixnum )
+      {
+        // Bill Atkinson's dithering algorithm
+        let newPixel = pixelsRGBA.data[pixnum] < this.threshold ? 0 : 255;
+        let err = Math.floor((pixelsRGBA.data[pixnum] - newPixel) / 8);
+        pixelsRGBA.data[pixnum] = newPixel;
+
+        pixelsRGBA.data[pixnum           + 4 ] += err;
+        pixelsRGBA.data[pixnum xportToBitmap: function(filename, canvas, width, height)
+      {
+        const colorTable = new Uint8Array([
+          0x00, 0x00, 0x00, 0x00,
+          0xFF, 0xff, 0xFF, 0x00
+        ]);
+
+        const ctx = canvas.getContext('2d');
+        const pixelsRGBA = ctx.getImageData(0, 0, width, height);
+
+        const obj1bpp    = this.convert(pixelsRGBA, width, height);
+        const array1bpp  = obj1bpp.pixels1bpp;
+        const buffer1bpp = new Uint8Array(array1bpp);
+        const colorValuesPerRow = buffer1bpp.length / height;
+
+        const pixels1pbb = ImageBmp.padImageData({
+          unpaddedImageData: buffer1bpp,
+          height
+        });
+
+        UI.log(`Output Dimensions: <b>${obj1bpp.width}</b> x <b>${height}</b> (${array1bpp.length} bytes)`);
+
+        return ImageBmp.createBitmapFile({
+          name:filename,
+          pixels1pbb,
+          canvas32bpp:canvas,
+          width,
+          height,
+          bitsPerPixel: 1,
+          colorTable
+        });
+      },
+      // inspired by https://stackoverflow.com/a/76969915
+      // pixelsRGBA: canvas imageData() of black and white pixels
+      // returns { 1bpp %8 padded lines, new width }
+      convert: function (pixelsRGBA, width, height)
+      {
+        const pixels1bpp = [];
+
+        for (let y = pixelsRGBA.height-1; y >= 0; y--) // for each pixel
+        {
+          let lineData = [];
+          for (let x = 0; x < pixelsRGBA.width; x++)
+          {
+            const pixelIndex = (y * pixelsRGBA.width + x) * 4;
+            const pixelBit = pixelsRGBA.data[pixelIndex]==0 ? 0 : 1;
+            lineData.push(pixelBit);
+            if (lineData.length === 8) // byte is full, push to the ESC/POS array
+            {
+              const byteValue = lineData.reduce((byte, bit, index) => byte | (bit << (7 - index)), 0);
+              pixels1bpp.push(byteValue);
+              lineData = [];
+            }
+          }
+          if (lineData.length > 0) // pad remaining bits with zeros, push to the ESC/POS array
+          {
+            while (lineData.length < 8)
+            {
+              lineData.push(0);
+            }
+            const byteValue = lineData.reduce((byte, bit, index) => byte | (bit << (7 - index)), 0);
+            pixels1bpp.push(byteValue);
+          }
+        }
+
+        return {
+          pixels1bpp: pixels1bpp,
+          width: (pixels1bpp.length/height)*8
+        };
+      },
+      // Floyd Steinberg canvas dithering
+      // returns an Uint32Array of colors in 1bit color space ( 0 or 255 )
+      // note: it is assumed the source canvas has already been grayscaled
+      dither: function(canvasContext, width, height, ditherMode, isGrayscale)
+      {
+        const bytesPerPixel=4;
+        const pixelsRGBA = canvasContext.getImageData(0, 0, width, height);
+        const imageDataLength = width*height*bytesPerPixel;
+
+        if(!isGrayscale)
+          this.grayscaleLuminance(pixelsRGBA, imageDataLength, bytesPerPixel );
+
+        for (let i = 0; i <= imageDataLength; i += bytesPerPixel)
+        {
+          switch(ditherMode)
+          {
+            case 'FloydSteinberg': this.floydSteinberg( pixelsRGBA, width, height, i ); break;
+            case 'Bayer':          this.bayer( pixelsRGBA, width, height, i ); break;
+            case 'Atkinson':       this.atkinson( pixelsRGBA, width, height, i ); break;
+            default:
+            case 'None':           pixelsRGBA.data[i] = pixelsRGBA.data[i] < this.threshold ? 0 : 255;
+          }
+          // Set g and b values equal to r (effectively greyscales the image fully)
+          pixelsRGBA.data[i + 1] = pi new Uint8Array(14);
+        // A bitmap file starts with a "BM" in ASCII.
+        this.writeASCII(arr, "B", 0);
+        this.writeASCII(arr, "M", 1);
+        // The entire filesize.
+        this.writeInt32LE(arr, filesize, 2);
+        // 4 bytes reserved for the application creating the image.
+        this.writeInt32LE(arr, applicationHeader, 6);
+        // The byte offset to access the pixel data.
+        this.writeInt32LE(arr, imageDataOffset, 10);
+        return arr;
+      },
+      // Creates a DIB head          + 8 ] += err;
+        pixelsRGBA.data[pixnum + 4*width - 4 ] += err;
+        pixelsRGBA.data[pixnum + 4*width     ] += err;
+        pixelsRGBA.data[pixnum + 4*width + 4 ] += err;
+        pixelsRGBA.data[pixnum + 8*width     ] += err
+      },
+
+
+      floydSteinberg: function( pixelsRGBA, width, height, pixnum )
+      {
+        // Floyd–Steinberg dithering algorithm
+        let pxPos = {
+          p0: pixnum,
+          p1: pixnum + 4,
+          p2: pixnum + 4 * (width-1),
+          p3: pixnum + 4 * width,
+          p4: pixnum + 4 * (width+1)
+        };
+
+        let newPixel = pixelsRGBA.data[pxPos.p0] < this.threshold ? 0 : 255;
+        // threshold for determining current pixel's conversion to a black or white pixel
+        let err = Math.floor((pixelsRGBA.data[pxPos.p0] - newPixel) / 23);
+        pixelsRGBA.data[pxPos.p0] = newPixel; // current pixel
+        pixelsRGBA.data[pxPos.p1] += err * 7; // right pixel
+        pixelsRGBA.data[pxPos.p2] += err * 3; // bottom left
+        pixelsRGBA.data[pxPos.p3] += err * 5; // bottom center
+        pixelsRGBA.data[pxPos.p4] += err * 1; // bottom right
+      },
+
+      bayerThresholdMap: [
+        [  15, 135,  45, 165 ],
+        [ 195,  75, 225, 105 ],
+        [  60, 180,  30, 150 ],
+        [ 240, 120, 210,  90 ]
+      ],
+
+      // 4x4 Bayer ordered dithering algorithm
+      bayer: function( pixelsRGBA, width, height, pixnum )
+      {
+        const x = pixnum/4 % width;
+        const y = Math.floor(pixnum/4 / width);
+        const map = Math.floor( (pixelsRGBA.data[pixnum] + this.bayerThresholdMap[x%4][y%4]) / 2 );
+        pixelsRGBA.data[pixnum] = (map < this.threshold) ? 0 : 255;
+      },
+
+
+      grayscaleLuminance: function(pixelsRGBA, imageDataLength, bytesPerPixel)
+      {
+        // grayscale palette
+        let lumR = [],
+            lumG = [],
+            lumB = [];
+
+        for (let i = 0; i < 256; i++)
+        {
+          lumR[i] = i * 0.299;
+          lumG[i] = i * 0.587;
+          lumB[i] = i * 0.110;
+        }
+
+        // 1st pass => Greyscale luminance (sets r pixels to luminance of rgb)
+        for (let i = 0; i <= imageDataLength; i += bytesPerPixel)
+        {
+          pixelsRGBA.data[i] = Math.floor(lumR[pixelsRGBA.data[i]] + lumG[pixelsRGBA.data[i+1]] + lumB[pixelsRGBA.data[i+2]]);
+        }
+      }
+    };
+
+
+
+    const ImageBmp =
+    {
+      // inspired by https://github.com/ericandrewlewis/bitmap-js
+
+      // create the bitmap file
+      createBitmapFile: function({ name, pixels1pbb, canvas32bpp, width, height, bitsPerPixel, colorTable })
+      {
+        return new Promise((resolve, reject) => {
+          const imageDataOffset = 54 + colorTable.length;
+          const filesize = imageDataOffset + pixels1pbb.length;
+          let fileContent = new Uint8Array(filesize);
+          let fileHeader = this.bitmapFileHeader({
+            filesize,
+            imageDataOffset
+          });
+          let dib = this.dibHeader({
+            width,
+            height,
+            bitsPerPixel,
+            bitmapDataSize: pixels1pbb.length,
+            numberOfColorsInPalette: colorTable.length / 4
+          });
+
+          this.writeAppend( fileContent, fileHeader );
+          this.writeAppend( fileContent, dib, 14 );
+          this.writeAppend( fileContent, colorTable, 54 );
+          this.writeAppend( fileContent, pixels1pbb, imageDataOffset );
+
+          resolve({fileContent});
+        });
+      },
+      // Creates the bitmap file header
+      bitmapFileHeader: function({ filesize = 0, applicationHeader = 0, imageDataOffset = 0 })
+      {
+        const arr =data/tiny.json                                                                                      100755       0       0           40 14736274306  11755  0                                                                                                    ustar 00root                            root                                                                                                                                                                                                                   er, specifically a BITMAPINFOHEADER type
+      // since it's the most widely supported.
+      dibHeader: function({ width, height, bitsPerPixel, bitmapDataSize, numberOfColorsInPalette })
+      {
+        const arr = new Uint8Array(40);
+        // The size of the header.
+        this.writeInt32LE(arr, 40, 0);
+        // The width and height of the bitmap image.
+        this.writeInt32LE(arr, width, 4);
+        this.writeInt32LE(arr, height, 8);
+        // The number of color planes, which in bitmap files is always 1
+        this.writeInt16LE(arr, 1, 12);
+        this.writeInt16LE(arr, bitsPerPixel, 14);
+
+        // Compression method, not supported in this package.
+        this.writeInt32LE(arr, 0, 16);
+        this.writeInt32LE(arr, bitmapDataSize, 20);
+        // The horizontal and vertical resolution of the image.
+        // On monitors: 72 DPI × 39.3701 inches per metre yields 2834.6472
+        this.writeInt32LE(arr, 2835, 24);
+        this.writeInt32LE(arr, 2835, 28);
+        // Number of colors in the palette.
+        this.writeInt32LE(arr, numberOfColorsInPalette, 32);
+        // Number of important colors used.
+        this.writeInt32LE(arr, 0, 36);
+        return arr;
+      },
+      // adds byte-padding to unpaddedImageData when necessary
+      // e.g. only if the line width isn't 4-bytes aligned
+      padImageData: function({ unpaddedImageData, height })
+      {
+        const colorValuesPerRow = unpaddedImageData.length / height;
+        const padding = 4 - colorValuesPerRow % 4;
+
+        if( colorValuesPerRow%4==0 )
+        {
+          // no byte padding required, image data is already 4-bytes aligned
+          return unpaddedImageData;
+        }
+
+        const unpaddedRowLength = colorValuesPerRow;
+        const paddedRowLength = colorValuesPerRow + padding;
+        const padded = new Uint8Array(paddedRowLength * height);
+
+        for (let i = 0; i < height; i++)
+        {
+          this.writeCopy(
+            unpaddedImageData,
+            padded,
+            paddedRowLength * i,
+            unpaddedRowLength * i,
+            unpaddedRowLength * i + unpaddedRowLength
+          );
+        }
+        return padded;
+      },
+      writeCopy: function(dest, array, arrayStart, start, end)
+      {
+        const len = end - start
+        Uint8Array.prototype.set.call(
+          array,
+          dest.subarray(start, end),
+          arrayStart
+        )
+        return len
+      },
+      writeAppend: function(dest, array, offset=0)
+      {
+        for( let i=0;i<array.length;i++ )
+          dest[offset+i] = array[i];
+      },
+      writeASCII: function(dest, value, offset)
+      {
+        dest[offset] = value.charCodeAt(0);
+      },
+      writeInt32LE: function(dest, value, offset)
+      {
+        value = +value
+        offset = offset >>> 0
+        dest[offset] = (value & 0xff)
+        dest[offset + 1] = (value >>> 8)
+        dest[offset + 2] = (value >>> 16)
+        dest[offset + 3] = (value >>> 24)
+        return offset + 4
+      },
+      writeInt16LE: function(dest, value, offset)
+      {
+        value = +value
+        offset = offset >>> 0
+        dest[offset] = (value & 0xff)
+        this[offset + 1] = (value >>> 8)
+        return offset + 2
+      }
+    };
+
+
+  </script>
+
+</body>
+</html>

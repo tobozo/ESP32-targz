@@ -38,7 +38,7 @@ void testStreamToStream()
     while(1) yield();
   }
 
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   size_t dstLen = LZPacker::compress( &src, src.size(), &dst );
   size_t srcLen = src.size();
 
@@ -69,7 +69,7 @@ void testBufferToBuffer()
   // load the uncompressed text file into memory
   loadFileToBuffer( inputFilename, &srcBuf, &srcBufLen );
 
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   // perform buffer to buffer decompression (will be saved as file for verification)
   size_t dstBufLen = LZPacker::compress( srcBuf, srcBufLen, &dstBuf );
 
@@ -161,7 +161,7 @@ void testBufferToStream()
   }
 
   // deflate!
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &src );
 
   float done = float(dstLen)/float(srcBufLen);
