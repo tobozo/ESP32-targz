@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <string.h> // for basename()
 #include <ctype.h> // for isprint()
+#include <stdlib.h> // for calloc(), because RP2040 wants it
 
 
 // #include "../ESP32-targz-log.hpp" // import log_e(), log_w(), log_d() and log_i(), all behaving like printf()
