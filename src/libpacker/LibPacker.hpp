@@ -36,6 +36,54 @@
 
 #include "./common.hpp"
 
+
+// struct BasePacker
+// {
+//   BasePacker();
+//   void haltOnError( bool halt );
+// };
+//
+// struct TarPacker : virtual public BasePacker
+// {
+//   TarPacker();
+//
+//   std::vector<dir_entity_t> *dirEntities = nullptr;
+//   fs::FS* fs = nullptr;
+//
+//   // input data
+//   std::vector<dir_entity_t> dirEntities getEntities(fs::FS* fs, const char* tar_inputdir);
+//   void setEntities(fs::FS* fs, std::vector<dir_entity_t> dirEntities);
+//
+//   // tar archive property
+//   void setRoot(const char* tar_rootdir);
+//
+//   // output data
+//   void setOutput(fs::FS*, const char* tar_output_filename);
+//   void setOutputStream(Stream* stream);
+//   void setOutputFile(Stream* stream);
+//
+//   // batch process dirEntities
+//   void pack_files();
+//
+//   void open();
+//   void add_entity();
+//   void close();
+//
+// };
+//
+// struct GzPacker : virtual public BasePacker
+// {
+//
+// };
+//
+// struct TarGzPacker : public TarPacker, public GzPacker
+// {
+//
+// };
+
+
+
+
 // .gz compressor (LZ77/deflate)
 namespace LZPacker
 {
@@ -50,67 +98,36 @@ namespace LZPacker
   // progress callback setter [](size_t bytes_read, size_t total_bytes)
   void setProgressCallBack(totalProgressCallback cb);
   void defaultProgressCallback( size_t progress, size_t total );
+
+  size_t lzHeader(uint8_t* buf, bool gzip_header=true);
+  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false);
+  struct GZ::uzlib_comp* lzInit();
+
 };
 
 
 
-// .tar packager
 namespace TarPacker
 {
   using namespace TAR;
 
-  // TAR pack from directory to a tar file on same filesystem
-  size_t pack_files(fs::FS *srcFS, std::vector<dir_entity_t> *dirEntities, const char*tar_path, const char*dst_path);
-  // TAR pack from directory entities to output stream
-  //size_t pack_files(tar_files_packer_t *packer);
-};
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*tar_output_file_path, const char* tar_prefix=nullptr);
+
+  void setProgressCallBack(totalProgressCallback cb);
+  void defaultProgressCallback( size_t progress, size_t total );
+
+}
 
 
-
-// .tar.gz packager+compressor
 namespace TarGzPacker
 {
-  // tar to gz stream helper
-  class TarGzStream : public Stream
-  {
-    private:
-      fs::FS *srcFS = nullptr;
-      std::vector<TAR::dir_entity_t> *dirEntities = nullptr;
-      const char* tar_path = nullptr; // e.g. "/test.tar", or "/" if streaming to gz
-      const char* tgz_path = nullptr; // e.g "/text.tar.gz"
-      const char* dst_path = nullptr;
-      ssize_t written_bytes = 0;
-      ssize_t total_bytes = 0;
-      ssize_t bytes_ready = 0;
-      uint8_t *buffer = nullptr;
-      size_t bufSize = 4096;
-      TAR::tar_files_packer_t tar_files_packer;
-      TAR::dir_iterator_t dirIterator;
-      void _init();
-    public:
-      TarGzStream(fs::FS *srcFS, std::vector<TAR::dir_entity_t> *dirEntities, const char* tar_path, const char* tgz_path=NULL, const char* dst_path=NULL, size_t bufSize=4096)
-        : srcFS(srcFS), dirEntities(dirEntities), tar_path(tar_path), dst_path(dst_path), bufSize(bufSize) { _init(); };
-      ~TarGzStream();
-      // write to gz input buffer
-      virtual size_t write(const uint8_t* data, size_t len);
-      // read bytes from input tarPacker
-      virtual size_t readBytes(uint8_t* dest, size_t count);
-      // return evaluated tar size
-      ssize_t size() { return total_bytes; }
-      inline bool ready() { return size()>0; };
-      // Stream methods (not used in this implementation)
-      virtual int available() { return 0; };
-      virtual int read() { return 0; };
-      virtual int peek() { return 0; };
-      virtual void flush() { };
-      // Print methods (not used in this implementation)
-      virtual void end() { };
-      virtual size_t write(uint8_t c) { return c?0:0; };
-  };
+  using namespace TAR;
 
-  // tar gz methods
-  size_t compress(fs::FS *srcFS, const char* src_path, const char* tgz_path=NULL, const char* dst_path=NULL);
-  size_t compress(TarGzStream *tarStream, Stream *dstStream);
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+
 };
 
-using TarGzPacker::TarGzStream;
+
+// using TarGzPacker::TarGzStreamReader;

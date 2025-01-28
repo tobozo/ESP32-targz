@@ -36,49 +36,6 @@
 
 
 
-namespace TarPacker
-{
-  uint32_t readbuf_size = 1024;
-  uint8_t *readbuf = NULL;
-  uint32_t readbuf_numblocks = 0;
-
-  uint32_t writebuf_size = 4096;
-  uint8_t *writebuf = NULL;
-  uint32_t writebuf_numblocks = 0;
-
-  fs::File fileRO; // file handle for input files to read
-  fs::File fileRW; // file handle for output tar to write
-
-
-  namespace io
-  {
-    void * open(void *_fs, const char *filename, const char *mode);
-    int close(void *fs, void *file);
-    int stat(void *_fs, const char *path, void *_stat);
-    ssize_t read(void *_fs, void *_stream, void * buf, size_t count);
-    ssize_t write_buffered(void *_fs, void *_stream, void * buf, size_t count);
-    ssize_t write_stream(void *_fs, void *_stream, void * buf, size_t count);
-    ssize_t write_finalize(void*_fs, void*_stream);
-
-
-    tar_callback_t TarIOFunctions = {
-      .openfunc       = io::open,
-      .closefunc      = io::close,
-      .readfunc       = io::read,
-      .writefunc      = io::write_buffered,
-      .closewritefunc = io::write_finalize,
-      .statfunc       = io::stat
-    };
-
-  };
-
-  using io::TarIOFunctions;
-
-};
-
-
-
-
 namespace LZPacker
 {
   // LZPacker uses buffered streams
@@ -91,7 +48,7 @@ namespace LZPacker
   void (*progressCb)( size_t progress, size_t total ) = nullptr;
 
   // write LZ77 header
-  size_t lzHeader(uint8_t* buf, bool gzip_header=true)
+  size_t lzHeader(uint8_t* buf, bool gzip_header)
   {
     assert(buf);
     size_t len = 0;
@@ -123,7 +80,7 @@ namespace LZPacker
 
 
   // write LZ77 footer
-  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false)
+  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate)
   {
     assert(buf);
     size_t len = 0;
@@ -267,6 +224,7 @@ namespace LZPacker
   // stream to stream
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream )
   {
+    log_d("LZPacker::compress(stream, size=%d, stream)", srcLen);
     assert(srcStream);
     assert(srcLen>0);
     assert(dstStream);
@@ -302,12 +260,14 @@ namespace LZPacker
 
     int input_bytes = 0; // for do..while state
     size_t total_bytes = 0; // for progress meter
+    //size_t total_read_bytes = 0;
 
     int defl_mode  = Z_BLOCK;
 
     uint8_t footer[8];
     size_t footer_len = 0;
     size_t write_size = 0;
+    size_t written_bytes = 0;
 
     do {
         if(uzstream.out.avail > 0){
@@ -321,11 +281,13 @@ namespace LZPacker
               log_e("No more input bytes, srcStream->readBytes() miss?");
               //prev_state = Z_STREAM_END;
               break;
-            }
-            if(input_bytes == -1) {
+            } else if(input_bytes == -1) {
               log_e("srcStream->readBytes() failed");
               return -1;
+            } else {
+              // log_d("srcStream->readBytes() returned %d bytes", input_bytes);
             }
+
             uzstream.in.next   = inputBuffer;
             uzstream.in.avail  = input_bytes;
 
@@ -342,7 +304,21 @@ namespace LZPacker
 
         write_size = uzstream.out.next - outputBuffer;
 
-        dstLen += dstStream->write(outputBuffer, write_size); // write to output stream
+        written_bytes = dstStream->write(outputBuffer, write_size); // write to output stream
+
+        if( written_bytes == 0 ) {
+          log_e("Write failed at offset %d", input_bytes );
+          break;
+        } else {
+          log_v("Wrote %d/%d bytes", written_bytes, write_size );
+        }
+
+        dstLen += written_bytes;
+
+        if( total_bytes > srcLen ) {
+          log_e("Read more bytes (%d) than source contains (%d), something is wrong", total_bytes, srcLen);
+          break;
+        }
 
     } while(prev_state==Z_OK);
 
@@ -352,15 +328,17 @@ namespace LZPacker
       success = false;
     }
 
+    if( c->progress_cb )
+        c->progress_cb(srcLen, srcLen); // send progress end signal, whatever the outcome
+
     if( total_bytes != srcLen ) {
       success = false;
       int diff = srcLen - total_bytes;
       if( diff>0 ) {
-        log_e("Bad input stream size: could not read all of %d requested bytes, missed %d bytes.", srcLen, diff);
+        log_e("Bad input stream size: could not read every %d bytes, missed %d bytes.", srcLen, diff);
       } else {
-        log_e("Bad input stream size: read more than %d requested bytes, got %d extra bytes.", srcLen, -diff);
+        log_e("Bad input stream size: read %d further than %d requested bytes.", -diff, srcLen);
       }
-
       srcLen = total_bytes;
     }
 
@@ -420,70 +398,102 @@ namespace LZPacker
 
 
 
-
-
-
-
-
 namespace TarPacker
 {
-
   using namespace TAR;
 
+  uint8_t block_buf[512];
 
-  void deallocReadBuffer()
+  static bool use_lock = false;
+  static bool targzlock = false;
+
+  void (*progressCb)( size_t progress, size_t total ) = nullptr;
+
+  // progress callback setter
+  void setProgressCallBack(totalProgressCallback cb)
   {
-    free(TarPacker::readbuf);
-    TarPacker::readbuf = NULL;
+    TarPacker::progressCb = cb;
   }
 
-  void deallocWriteBuffer()
-  {
-    free(TarPacker::writebuf);
-    TarPacker::writebuf = NULL;
-  }
+  size_t readBytesAsync(tar_params_t *params, uint8_t* buf, size_t len);
 
-  void deallocBuffers()
+  void takeLock();
+  void setLock(bool set=true);
+  void releaseLock();
+
+  namespace io
   {
-    deallocReadBuffer();
-    deallocWriteBuffer();
-  }
+    fs::File fileRO;
+    fs::File fileRW;
+
+    void * open(void *_fs, const char *filename, const char *mode);
+    int close(void *fs, void *file);
+    int stat(void *_fs, const char *path, void *_stat);
+    ssize_t read(void *_fs, void *_stream, void * buf, size_t count);
+    ssize_t write_finalize(void*_fs, void*_stream);
+    ssize_t write_stream(void *_fs, void *_stream, void * buf, size_t count);
+  };
 
 
-  bool allocReadBuffer(uint32_t readbuf_size)
+  tar_callback_t TarIOFunctions = {
+    .src_fs         = nullptr,
+    .dst_fs         = nullptr,
+    .openfunc       = io::open,  // r/w
+    .closefunc      = io::close, // r/w
+    .readfunc       = io::read,         // ro
+    .writefunc      = io::write_stream, // wo
+    .closewritefunc = io::write_finalize,
+    .statfunc       = io::stat
+  };
+
+  std::vector<tar_entity_t> _tarEntities;
+  size_t _tar_estimated_filesize = 0;
+  TAR::TAR* _tar;
+
+  size_t readBytesAsync(tar_params_t *params, uint8_t* buf, size_t len)
   {
-    TarPacker::readbuf = (uint8_t*)calloc(1, readbuf_size);
-    if( TarPacker::readbuf==NULL ) {
-      log_e("Failed to alloc %lu bytes for read buffer", readbuf_size);
-      return false;
+    if(len%512!=0) { // not a multiple of 512
+      log_e("%d is not a multiple of 512!", len);
+      return 0;
     }
-    return true;
+    int idx = 0;
+    do {
+      while(!targzlock)
+        vTaskDelay(1);
+      memcpy(&buf[idx], block_buf, 512);
+      releaseLock();
+      idx += 512;
+      if( idx == len )
+        return len;
+    } while(params->ret == 1);
+
+    return idx;
   }
 
 
-  bool allocWriteBuffer(uint32_t writebuf_size)
+  void takeLock()
   {
-    TarPacker::writebuf = (uint8_t*)calloc(1, writebuf_size);
-    if( TarPacker::writebuf==NULL ) {
-      log_e("Failed to alloc %lu bytes for read buffer", writebuf_size);
-      return false;
+    if( use_lock ) {
+      while(targzlock)
+        vTaskDelay(1);
     }
-    return true;
   }
 
 
-  bool allocBuffers()
+  void setLock(bool set)
   {
-    if( !allocReadBuffer(TarPacker::readbuf_size) ) {
-      return false;
+    if( use_lock ) {
+      targzlock = set;
     }
-    if( !allocWriteBuffer(TarPacker::writebuf_size) ) {
-      deallocReadBuffer();
-      return false;
-    }
-    return true;
   }
 
+
+  void releaseLock()
+  {
+    if( use_lock ) {
+      setLock( false );
+    }
+  }
 
 
   // i/o functions
@@ -496,51 +506,42 @@ namespace TarPacker
       fs::FS* fs = (fs::FS*)_fs;
       String flagStr;
       void* retPtr;
-
-      log_d("io::open(%s, mode=%s)", filename, mode);
-
+      log_v("io::open(%s, mode=%s)", filename, mode);
       if( String(mode) == "r" ) {
-        readbuf_numblocks = 0; // reset read buffer
         flagStr = "r";
-        TarPacker::fileRO = fs->open(filename, "r");
-        if(!TarPacker::fileRO) {
+        fileRO = fs->open(filename, "r");
+        if(!fileRO) {
           log_e("Unable to open %s for reading", filename);
           return (void*)-1;
         }
-        retPtr = &TarPacker::fileRO;
+        retPtr = &fileRO;
       } else {
-        writebuf_numblocks = 0; // reset write buffer
         flagStr = "w";
-        TarPacker::fileRW = fs->open(filename, "w");
-        if(!TarPacker::fileRW) {
+        fileRW = fs->open(filename, "w");
+        if(!fileRW) {
           log_e("Unable to open %s for writing", filename);
           return (void*)-1;
         }
-        retPtr = &TarPacker::fileRW;
+        retPtr = &fileRW;
       }
-
       return retPtr;
     }
-
 
 
     int close(void *fs, void *file)
     {
       assert(file);
       fs::File* filePtr = (fs::File*)file;
-
-      log_d("io::close(fs, %s)", filePtr->name() );
-
+      log_v("io::close(fs, %s)", filePtr->name() );
       filePtr->close();
       return 0;
     }
 
 
-
     int stat(void *_fs, const char *path, void *_stat)
     {
-      assert(_fs);
-      assert(_stat);
+      if(!_fs || !_stat)
+        return -1;
       fs::FS* fs = (fs::FS*)_fs;
       struct stat *s = (struct stat *)_stat;
       static int inode_num = 0;
@@ -549,9 +550,8 @@ namespace TarPacker
         log_e("Path %s does not exist", path);
         return -1;
       }
-      log_v("stat_func: stating %s", path );
-      fs::File f = fs->open(path, "r");
 
+      fs::File f = fs->open(path, "r");
       if(!f) {
         log_e("Unable to open %s for stat", path);
         return -1;
@@ -567,7 +567,7 @@ namespace TarPacker
       s->st_mtime = strcmp(path, "/") == 0 ? 0 : f.getLastWrite();
 
       f.close();
-
+      log_v("stat_func: [%s] %s %d bytes", is_dir?"dir":"file", path, s->st_size );
       return 0;
     }
 
@@ -576,40 +576,15 @@ namespace TarPacker
     {
       assert(_stream);
       Stream* streamPtr = (Stream*)_stream;
-
-      uint32_t buf_idx = (readbuf_numblocks*T_BLOCKSIZE)%readbuf_size;
-      ssize_t readbytes = count;
-      if( buf_idx == 0 ) {
-        readbytes = streamPtr->readBytes(TarPacker::readbuf, readbuf_size);
-        if( readbytes<count ) {
-          log_d("asked to read %d bytes, got %d\n", count, readbytes);
-          count = readbytes;
-        }
-      }
-      if( buf_idx + count > readbuf_size ) {
-        log_e("Aborting read to prevent buffer overflow\n");
-        return -1;
-      }
-      memcpy(buf, &TarPacker::readbuf[buf_idx], count );
-
-      readbuf_numblocks++;
-
-      return count > 0 ? count : -1;
+      return streamPtr->readBytes(block_buf, count);
     }
 
 
     ssize_t write_finalize(void*_fs, void*_stream)
     {
       assert(_stream);
-      Stream* streamPtr = (Stream*)_stream;
-
-      uint32_t leftover_bytes = (writebuf_numblocks*T_BLOCKSIZE)%writebuf_size;
-      if( leftover_bytes == 0 ) {
-        log_d("writefunc::commit_finalize(no leftover bytes at block %d)", writebuf_numblocks);
-        return 0; // no data leftover in buffer
-      }
-      log_d("writefunc::commit_finalize(%lu leftover bytes)", leftover_bytes );
-      return streamPtr->write(TarPacker::writebuf, leftover_bytes);
+      // Stream* streamPtr = (Stream*)_stream;
+      return 0;
     }
 
 
@@ -617,239 +592,232 @@ namespace TarPacker
     ssize_t write_stream(void *_fs, void *_stream, void * buf, size_t count)
     {
       Stream* streamPtr = (Stream*)_stream;
-      return streamPtr->write(TarPacker::writebuf, writebuf_size);
-    }
-
-
-    // buffered writes
-    ssize_t write_buffered(void *_fs, void *_stream, void * buf, size_t count)
-    {
-      assert(_stream);
-      Stream* streamPtr = (Stream*)_stream;
-      // printf("write: Got output tar file handle: %p at position %lu\n", _stream );
-      uint32_t buf_idx = (writebuf_numblocks*T_BLOCKSIZE)%writebuf_size;
-
-      if( buf_idx + count > TarPacker::writebuf_size ) {
-        log_e("Aborting write to prevent buffer overflow");
-        return -1;
-      }
-
-      if( writebuf_numblocks>0 && buf_idx==0 ) { // commit buffer write
-        log_d("writefunc::commit(%lu bytes, block=%lu, idx=%lu)", writebuf_size, writebuf_numblocks, buf_idx);
-        ssize_t written = streamPtr->write(TarPacker::writebuf, writebuf_size);
-        if( written != writebuf_size ) {
-          log_e("Buffer write fail (req %u bytes, wrote %d/%lu bytes)", count, written, writebuf_size );
-          return -1;
-        }
-      } else {
-        log_d("writefunc::buffer(req %u/%lu bytes, block=%lu, idx=%lu)", count, writebuf_size, writebuf_numblocks, buf_idx);
-      }
-
-      memcpy(&TarPacker::writebuf[buf_idx], buf, count );
-
-      writebuf_numblocks++;
-
-      return count;
+      return streamPtr->write((uint8_t*)buf, count);
     }
 
   }; // end namespace io
 
 
 
-  bool pack_files_step(tar_files_packer_t *packer);
 
-  // private: batch append files
-  int append_files(tar_files_packer_t*p)
+  int add_header(TAR::TAR* tar, tar_entity_t tarEntity)
   {
+    takeLock();
 
-    assert(p);
-    do {
-      if(!pack_files_step(p)) {
-        p->status = false;
-        break;
-      }
-    } while( p->step != PACK_FILES_END );
+    struct stat entity_stat;
 
-    // free(p->tar);
-
-    return  p->status ? 0 : 1;
-  }
-
-
-
-  // private: state machine stepper when appending files to a tar archive
-  int append_files_step(tar_files_packer_t*p)
-  {
-    if( p == nullptr || p->dirIterator == nullptr ) { // prevent crashing
-      log_e("Malformed tar_files_packer, aborting");
+    if( tar->io->statfunc(tar->io->src_fs, tarEntity.realpath.c_str(), &entity_stat) != 0) {
+      // file or dir not found
+      log_e("File not found: %s", tarEntity.realpath.c_str() );
       return -1;
     }
-
-    dir_iterator_t* dirIterator = p->dirIterator; // local alias to make code easier to read
-
-    enum steps_t { init, loop, eof, end };
-
-    static steps_t step = init;
-
-    if(!p->tar)
-      step = init;
-
-    if(step!=loop) {
-      log_d("Step: %d p->tar = %p", step, p->tar);
+    memset(&(tar->th_buf), 0, sizeof(struct tar_header)); // clear header buffer
+    th_set_from_stat(tar, &entity_stat); // set header block
+    th_set_path(tar, tarEntity.savepath.c_str()); // set the header path
+    ssize_t written_bytes = 0;
+    if (th_write(tar, &written_bytes) != 0) { // header write failed?
+      return -1;
     }
-
-    switch(step)
-    {
-      case init:
-        p->tar = (TAR::TAR*)calloc(1, sizeof(TAR::TAR));
-        if( p->tar == NULL ) {
-          log_e("Failed to alloc %d bytes for p->tar", sizeof(TAR::TAR) );
-        }
-        p->status = tar_open(p->tar, p->tar_path, p->io, "w", p->fs) == 0 ? true : false;
-        log_d("INIT p->tar = %p", p->tar);
-        if(!p->status) {
-          log_e("Failed to open input tar for writing");
-          return -1;
-        }
-        // basic health check, first entity in tar should be the root directory
-        if( !dirIterator->available() ) {
-          log_e("Error: first item should be a directory e.g. '/'");
-          return -1;
-        }
-        step = loop; // begin loop
-        if( !dirIterator->next() ) { // append root directory entity
-          return -1;
-        }
-        log_d("ROOTDIR (%s -> %s)", dirIterator->dirEntity.path.c_str(), dirIterator->SavePath.c_str());
-        // process TAR header
-        do {
-          if( tar_append_entity_step(&dirIterator->entity) != 0 )
-            return -1;
-        } while( ! dirIterator->stepComplete() );
-        // fallthrough
-      case loop:
-        if( dirIterator->iterator > 1 && !dirIterator->stepComplete() ) { // in loop doing entity step
-          log_v("-> [ x ] ENTITY STEP (%s)", dirIterator->dirEntity.path.c_str());
-          return tar_append_entity_step(&dirIterator->entity);
-        } else {
-          if( dirIterator->stepComplete() ) {
-            log_d("Finished adding %s", dirIterator->dirEntity.path.c_str());
-          }
-        }
-        // check for main loop end
-        if( dirIterator->complete() ) {
-          if( dirIterator->stepComplete() ) {
-            log_d("No more files to add");
-            step = eof;
-          }
-          return 0;
-        }
-        // in loop assigning next entity, or skipping if entity is filtered
-        if( ! dirIterator->next() ) {
-          log_d("Skipping entity #%d (%s)", dirIterator->iterator, dirIterator->dirEntity.path.c_str());
-          dirIterator->entity.step = ENTITY_END;
-        }
-        return 0;
-      case eof: log_d("Appending EOF to TAR archive (p->tar = %p)", p->tar);
-        if( tar_append_eof(p->tar, p->written_bytes) != 0 )
-          return -1;
-        step = end;
-        // return 0;
-        // fallthrough
-      case end: log_d("Calling io::close(p->tar = %p)", p->tar);
-        p->entity_step = PACK_FILES_END;
-        if( tar_close(p->tar) !=0 ) {
-          log_e("Failed to close archive");
-          return -1;
-        }
-        free( p->tar );
-        p->tar = NULL;
-        p->status = true;
-        step = init;
-      break;
+    if( written_bytes != 512 ) { // th_write() made a boo boo!
+      log_e("header write failed for: %s", tarEntity.realpath.c_str() );
+      return -1;
     }
-    return p->status ? 0 : -1;
+    setLock();
+    return 512;
   }
 
 
 
-  // private: state machine stepper when packing files
-  bool pack_files_step(tar_files_packer_t *packer)
+  int add_body_chunk(TAR::TAR* tar)
   {
-    static bool ret = false;
-
-    switch(packer->step)
-    {
-      case PACK_FILES_SETUP:
-        log_d("Pack files setup");
-        ret = false;
-        if( !allocBuffers())
-          return false;
-        packer->step = PACK_FILES_STEP;
-        // fallthrough
-      case PACK_FILES_STEP :
-        log_v("Pack step");
-        if(TarPacker::append_files_step(packer) != 0 )
-          return false;
-        if(packer->entity_step == PACK_FILES_END ) {
-          packer->status = true; // success!
-          // TODO: trigger last write?
-          packer->step = PACK_FILES_END;
-        } else
-          return true;
-        // fallthrough
-      case PACK_FILES_END  :
-        log_v("PACK_FILES_END");
-        deallocBuffers();
-        ret = packer->status;
-      break;
+    takeLock();
+    memset(block_buf, 0, 512);
+    ssize_t read_bytes = tar->io->readfunc(tar->io->src_fs, tar->src_file, block_buf, 512);
+    if( read_bytes <= 0 ) {
+      log_e("ReadBytes Failed");
+      return -1;
     }
-
+    if( read_bytes != 512 ) { // block was zero padded anyway
+      log_v("only got %d bytes of %d requested", read_bytes, 512 );
+    }
+    auto ret = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, 512);
+    setLock();
     return ret;
   }
 
 
 
-  // public
-  size_t pack_files(fs::FS *fs, std::vector<dir_entity_t> *dirEntities, const char*tar_path, const char*dst_path)
+  int add_eof_chunk(TAR::TAR* tar)
   {
-    assert(fs);
-    assert(dirEntities);
+    takeLock();
+    memset(block_buf, 0, 512);
+    size_t written_bytes = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, 512);
+    setLock();
+    return written_bytes;
+  }
 
-    TarGzStream tarStream(fs, dirEntities, tar_path, NULL, dst_path);
 
-    if( tarStream.size() <= 0 ) {
-      log_e("Nothing to archive!");
-      return -1;
+
+  int pack_tar_init(tar_callback_t *io, fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*output_file_path, const char* tar_prefix=nullptr)
+  {
+    _tarEntities.clear();
+
+    _tar_estimated_filesize = 0;
+
+    for(int i=0;i<dirEntities.size();i++) {
+      auto d = dirEntities.at(i);
+      if( String(output_file_path)==d.path ) // ignore self
+        continue;
+
+      _tar_estimated_filesize += 512; // entity header
+      if(d.size>0) {
+        _tar_estimated_filesize += d.size + (512 - (d.size%512)); // align to 512 bytes
+      }
+
+      auto realpath = d.path;
+      auto savepath = tar_prefix ? String(tar_prefix)+realpath : realpath;
+
+      if( !tar_prefix && savepath.startsWith("/") ) // tar paths can't be slash-prepended, add a dot
+        savepath = "." + savepath;
+
+      _tarEntities.push_back( { realpath, savepath, d.is_dir, d.size } );
+      log_w("Add entity( [%4s]\t%-32s\t%d bytes -> %s", d.is_dir?"DIR":"FILE", realpath.c_str(), d.size, savepath.c_str() );
     }
 
-    ssize_t bytes_ready = 0;
-    uint8_t buf[4096];
+    _tar_estimated_filesize += 1024; //tar footer
 
-    fs::File out = fs->open(tar_path, "w");
-    if(!out)
+    log_i("TAR estimated file size: %d", _tar_estimated_filesize );
+
+    _tar = (TAR::TAR*)calloc(1, sizeof(TAR::TAR));
+    if( _tar == NULL ) {
+      log_e("Failed to alloc %d bytes for tar", sizeof(TAR::TAR) );
+    }
+
+    io->src_fs = srcFS;
+    io->dst_fs = dstFS;
+
+    int status = tar_open(_tar, output_file_path, io);
+
+    if(status!=0) {
+      log_e("Failed to open input tar for writing");
+      return -1;
+    }
+    return _tar_estimated_filesize;
+  }
+
+
+
+  int pack_tar_impl()
+  {
+    size_t total_bytes = 0;
+    size_t chunk_size = 0;
+    size_t chunks = 0;
+    size_t entities_size = _tarEntities.size();
+    tar_entity_t current_entity;
+
+    if(_tar_estimated_filesize==0)
       return -1;
 
-    do {
-      ssize_t bytes_read = tarStream.readBytes(buf, 4096);
-      if( bytes_read<=0 ) {// EOF
-        log_v("EOF");
-        break;
-      }
+    if( TarPacker::progressCb )
+      TarPacker::progressCb(0,_tar_estimated_filesize);
 
-      ssize_t bytes_written = out.write(buf, bytes_read);
-      if( bytes_written != bytes_read ) {
-        log_e("Write error, got %d bytes to write but wrote %d (total %d/%d)", bytes_read, bytes_written, bytes_ready, tarStream.size() );
-        out.close();
+    for(int i=0;i<entities_size;i++) {
+      current_entity = _tarEntities.at(i);
+      chunk_size = add_header(_tar, current_entity);
+      if( chunk_size == -1 ) {
         return -1;
       }
+      total_bytes += chunk_size;
+      if( current_entity.size>0 ) {
+        chunks = ceil(float(current_entity.size)/512.0);
+        _tar->src_file = _tar->io->openfunc( _tar->io->src_fs, current_entity.realpath.c_str(), "r" );
+        if( _tar->src_file == (void*)-1 ) {
+          log_e("Open failed for: %s", current_entity.realpath.c_str() );
+          return -1;
+        }
+        // log_d("got %d chunks in %d bytes for %s", chunks, current_entity.size, current_entity.realpath.c_str() );
+        for(int c=0;c<chunks;c++) {
+          chunk_size = add_body_chunk(_tar);
+          if( chunk_size == -1 ) {
+            return -1;
+          }
+          total_bytes += chunk_size;
+          if( TarPacker::progressCb )
+            TarPacker::progressCb(total_bytes,_tar_estimated_filesize);
+        }
+        _tar->io->closefunc( _tar->io->src_fs, _tar->src_file );
+      }
+    }
+    total_bytes += add_eof_chunk(_tar);
+    total_bytes += add_eof_chunk(_tar);
 
-      bytes_ready += bytes_read;
-      log_v("Bytes ready: %d", bytes_ready);
-    } while( bytes_ready<tarStream.size() );
+    if( TarPacker::progressCb )
+      TarPacker::progressCb(_tar_estimated_filesize,_tar_estimated_filesize); // send end signal, whatever the outcome
 
-    out.close();
-    return bytes_ready;
+    tar_close(_tar);
+
+    return total_bytes;
+  }
+
+
+
+  void pack_tar_task(void* params)
+  {
+    tar_params_t *p = (tar_params_t*)params;
+    p->ret = pack_tar_impl();
+    vTaskDelete(NULL);
+  }
+
+
+
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
+  {
+    auto TarStreamFunctions = TarIOFunctions;
+    TarStreamFunctions.src_fs = srcFS;
+    TarStreamFunctions.dst_fs = nullptr;
+
+    tar_params_t params =
+    {
+      .srcFS            = srcFS,
+      .dirEntities      = dirEntities,
+      .dstFS            = nullptr,
+      .output_file_path = nullptr,
+      .tar_prefix       = tar_prefix,
+      .io               = &TarStreamFunctions,
+      .ret              = 1
+    };
+
+    ssize_t tar_estimated_filesize = pack_tar_init(params.io, params.srcFS, params.dirEntities, params.dstFS, params.output_file_path, params.tar_prefix);
+    if( tar_estimated_filesize <=0 )
+      return -1;
+
+    _tar->dst_file = dstStream;
+    use_lock = false;
+
+    TaskHandle_t tarTaskHandle = NULL;
+    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, &params, tskIDLE_PRIORITY, &tarTaskHandle );
+
+    while(params.ret == 1) {
+      vTaskDelay(1);
+    }
+
+    vTaskDelay(1);
+
+    free(_tar);
+
+    return params.ret;
+  }
+
+
+
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*tar_output_file_path, const char* tar_prefix)
+  {
+    auto tar = dstFS->open(tar_output_file_path, "w");
+    if(!tar)
+      return -1;
+    auto ret = pack_files(srcFS, dirEntities, &tar, tar_prefix);
+    tar.close();
+    return ret;
   }
 
 
@@ -860,212 +828,93 @@ namespace TarPacker
 namespace TarGzPacker
 {
   using namespace TAR;
+  using namespace TarPacker;
 
 
-  TarGzStream* tarGzStreamPtr = NULL;
-  TAR::tar_callback_t IOFunctions = { NULL, NULL, NULL, NULL, NULL, NULL };
-
-  TarGzStream::~TarGzStream()
+  class TarGzStreamReader : public Stream
   {
-    if(buffer) {
-      free(buffer);
-      buffer=NULL;
-    }
+    private:
+      TAR::tar_params_t* tar_params;
+    public:
+      TarGzStreamReader(TAR::tar_params_t* tar_params) : tar_params(tar_params) { };
+      ~TarGzStreamReader() { };
+      // read bytes from input tarPacker
+      virtual size_t readBytes(uint8_t* dest, size_t count) { return TarPacker::readBytesAsync(tar_params, dest, count); }
+      // all other methods are unused
+      virtual size_t write(const uint8_t* data, size_t len) { return 0; };
+      virtual int available() { return 0; };
+      virtual int read() { return 0; };
+      virtual int peek() { return 0; };
+      virtual void flush() { };
+      virtual void end() { };
+      virtual size_t write(uint8_t c) { return c?0:0; };
+  };
 
-    tarGzStreamPtr = NULL;
 
-    using namespace TarPacker;
-
-    // restore the original function before lambda is destroyed
-    IOFunctions = TarIOFunctions;
-  }
-
-
-  void TarGzStream::_init()
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
-    // init tar files packer
-    assert(srcFS);
-    assert(dirEntities);
-    assert(tar_path);
-    assert(bufSize>=4096);
+    auto TarGzStreamFunctions = TarIOFunctions;
 
-    using namespace TarPacker;
+    TarGzStreamFunctions.src_fs = srcFS;
+    TarGzStreamFunctions.dst_fs = nullptr;
 
-    buffer = (uint8_t*)malloc(bufSize); // create tar<->gz buffer
-    if( buffer == NULL ) {
-      log_e("Failed to allocate %d bytes for tar to gz buffer, halting", bufSize);
-      while(1) yield();
-    }
-
-    log_d("Stream to Stream mode enabled");
-
-    // for lambda capture
-    tarGzStreamPtr = this;
-
-    IOFunctions = {
-      // Override the default open() callback triggered from tar_open() to optionally return this stream:
-      //   - opening mode = read only  -> return (void*) file descriptor (legacy behaviour)
-      //   - opening mode = write only -> return (Stream*)[this]
-      .openfunc = [](void *_fs, const char *filename, const char *mode) -> void*
-      {
-        if(String(mode)=="r") { // open input file to archive on behalf of tar
-          readbuf_numblocks = 0; // reset gz read buffer
-          return TarIOFunctions.openfunc(_fs, filename, mode); // return file descriptor
-        } else { // opening gz output on behalf of LZPacker
-          writebuf_numblocks = 0; // reset gz write buffer
-          return tarGzStreamPtr; // return stream
-        }
-      },
-      .closefunc = [](void *fs, void *file) -> int {
-        if( file == tarGzStreamPtr ) {
-          log_d("GZ: Closing stream");
-          return 0;
-        }
-        log_d("TAR: Closing input file %s", ((fs::File*)file)->name() );
-        return TarIOFunctions.closefunc(fs, file);
-      },
-      .readfunc       = io::read,
-      .writefunc      = io::write_buffered,
-      .closewritefunc = io::write_finalize,
-      .statfunc       = io::stat
-    };
-
-    // estimate the full tar size so that LZPacker can write the gz header correctly
-    total_bytes = 0;
-
-    log_i("[%4s] %-32s %-8s\t%-8s", "Type", "Path", "FileSize", "TarSize" );
-    log_i("[%4s] %-32s %-8s\t%-8s", "----", "--------------------------------", "--------", "--------" );
-
-    for(int i=1; i<dirEntities->size();i++) {
-      auto dirEntity = dirEntities->at(i);
-      if(   dirEntity.path == String(tar_path)  // skip root dir
-         || dirEntity.path == String(tgz_path)) // skip tgz file
-        continue;
-      size_t tar_size = 512; // tar entity header
-      if(! dirEntity.is_dir )
-        tar_size += dirEntity.size + (512 - (dirEntity.size%512)); // add file size aligned to 512 bytes
-      log_i("[%4s] %-32s %8d\t%8d", dirEntity.is_dir?"dir":"file", dirEntity.path.c_str(), dirEntity.size, tar_size );
-      total_bytes += tar_size;
-    }
-
-    total_bytes += 1024; // tar eof
-
-    log_i("Tar estimated file size for %d elements: %d", dirEntities->size(), total_bytes);
-
-    dirIterator = { &tar_files_packer, dirEntities };
-
-    tar_files_packer = TAR::tar_files_packer_t{
-      .tar           = NULL,
-      .fs            = srcFS,
-      .tar_path      = tar_path,
-      .tgz_path      = tgz_path,
-      .dst_path      = dst_path,
-      .written_bytes = &written_bytes,
-      .io            = &IOFunctions,
-      .status        = false,
-      .step          = PACK_FILES_SETUP,
-      .entity_step   = PACK_FILES_SETUP,
-      .dirIterator   = &dirIterator
-    };
-
-  }
-
-
-
-  // write to gz input buffer
-  size_t TarGzStream::write(const uint8_t* data, size_t len)
-  {
-    if( len > bufSize ) {
-      log_w("Bad Write request (%d bytes) exceeds targz buffer size (total %d), aborting", len, bufSize);
-      return -1;
-    }
-    log_d("writestream: store(%d bytes)", len);
-    bytes_ready = len;
-    memcpy(buffer, data, len);
-    return len;
-  }
-
-
-
-  // read bytes from input tarPacker
-  size_t TarGzStream::readBytes(uint8_t* dest, size_t len)
-  {
-    using namespace TAR;
-
-    if( len > bufSize ) {
-      log_e("Bad Read request (%d bytes) exceeds targz buffer size (%d bytes), aborting", len, bufSize);
-      return -1;
-    }
-
-    bytes_ready = 0;
-
-    do {
-      if(!TarPacker::pack_files_step(&tar_files_packer)) {
-        log_w("pack_files_step failed");
-        tar_files_packer.status = false;
-        break;
+    TarGzStreamFunctions.writefunc = [](void *_fs, void *_stream, void * buf, size_t count)->ssize_t {
+      if(count!=512) {
+        log_e("BAD block write (req=%d, avail=512)", count );
+        return -1;
       }
-      // until buffer full or end of tar
-    } while( bytes_ready==0 && tar_files_packer.step != PACK_FILES_END );
+      memcpy(block_buf, buf, count);
+      return 512;
+    };
 
-    if( bytes_ready != len ) { // not using the entire buffer ?
-      log_d("Zerofilling buffer (len=%d, ready=%d)", len, bytes_ready);
-      memset(dest, 0, len); // zerofill buffer
-    }
+    tar_params_t tp =
+    {
+      .srcFS            = srcFS,
+      .dirEntities      = dirEntities,
+      .dstFS            = nullptr, // none when streaming
+      .output_file_path = nullptr, // none when streaming
+      .tar_prefix       = tar_prefix,
+      .io               = &TarGzStreamFunctions,
+      .ret              = 1
+    };
 
-    memcpy(dest, buffer, bytes_ready );
+    ssize_t srcLen = pack_tar_init(tp.io, tp.srcFS, tp.dirEntities, tp.dstFS, tp.output_file_path, tp.tar_prefix);
+    if( srcLen <=0 )
+      return -1;
 
-    return bytes_ready;
+    TarGzStreamReader tarStream(&tp);
+
+    log_d("Tar estimated data size: %d bytes", srcLen);
+
+    // set async
+    use_lock = true;
+    releaseLock();
+
+    TaskHandle_t tarGzTaskHandle = NULL;
+    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, &tp, tskIDLE_PRIORITY, &tarGzTaskHandle );
+
+    auto ret = LZPacker::compress(&tarStream, srcLen, dstStream);
+
+    vTaskDelay(1);
+
+    free(_tar);
+
+    return ret;
   }
 
-
-
-  size_t compress(fs::FS *srcFS, const char* src_path, const char* tgz_path, const char* dst_path)
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
-
-    log_d("compress(fs::FS*, src_path=%s, tgz_path=%s, dst_path=%s)", src_path, tgz_path?tgz_path:"null", dst_path?dst_path:"null");
-
-    std::vector<dir_entity_t> dirEntities;
-
-    collectDirEntities(&dirEntities, srcFS, src_path, 3);
-
-    TarGzStream tarStream(srcFS, &dirEntities, src_path, tgz_path, dst_path, LZPacker::inputBufferSize);
-
-    if( tarStream.size() <= 0 ) {
-      log_e("Nothing to compress, aborting");
-      return 0;
+    auto dstFile = dstFS->open(tgz_name, "w");
+    if(!dstFile) {
+      log_e("Can't open %s for writing", tgz_name);
+      return -1;
     }
-
-    auto tarGzFile = srcFS->open(tgz_path, "w");
-
-    if(!tarGzFile) {
-      log_e("Can't open %s for writing, aborting", tgz_path);
-      return 0;
-    }
-
-    auto compressedSize = TarGzPacker::compress(&tarStream, &tarGzFile);
-
-    tarGzFile.close();
-
-    return compressedSize;
-
+    auto ret = compress(srcFS, dirEntities, &dstFile, tar_prefix);
+    dstFile.close();
+    return ret;
   }
 
-  size_t compress(TarGzStream *tarStream, Stream *dstStream)
-  {
-    log_d("compress(TarGzStream*, Stream *)");
-    assert(tarStream);
-    assert(dstStream);
 
-    if( !tarStream->ready() ) {
-      log_e("TarGz creation failed, aborting");
-      return 0;
-    }
-
-    log_d("Input size: %d bytes", tarStream->size());
-
-    return LZPacker::compress( tarStream, tarStream->size(), dstStream );
-  }
 
 }; // end namespace TarGzPacker
 

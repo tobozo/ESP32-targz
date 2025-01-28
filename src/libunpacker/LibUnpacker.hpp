@@ -137,9 +137,12 @@ struct BaseUnpacker
   void   tarGzClearError();
   void   haltOnError( bool halt );
   void   initFSCallbacks();
+
+  // TODO: move these debug tools outside the library
   void   tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
   void   hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
   void   hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+
   void   setLoggerCallback( genericLoggerCallback cb );
   void   setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
   #ifdef ESP8266

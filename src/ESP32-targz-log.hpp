@@ -33,7 +33,7 @@
 
 #pragma once
 
-inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) { yield(); }
+inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) {  }
 
 #if defined ESP8266 || defined ESP32
   // those have OTA and common device API
@@ -86,6 +86,9 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) { yiel
   #define DEVICE_RESTART() rp2040.restart()
   #define HEAP_AVAILABLE() rp2040.getFreeHeap()
 
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wformat"
+
   // ESP like log functions turned to macros to allow gathering of file name, log level, etc
   #define log_v(format, ...) TGZ::LOG(__FILE__, __LINE__, TGZ::LogLevelVerbose, format, ##__VA_ARGS__)
   #define log_d(format, ...) TGZ::LOG(__FILE__, __LINE__, TGZ::LogLevelDebug,   format, ##__VA_ARGS__)
@@ -119,7 +122,8 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) { yiel
   #endif
 
   #if !defined TGZ_DEFAULT_LOG_LEVEL
-    #define TGZ_DEFAULT_LOG_LEVEL LogLevelWarning
+    //#define TGZ_DEFAULT_LOG_LEVEL LogLevelWarning
+    #define TGZ_DEFAULT_LOG_LEVEL LogLevelDebug
   #endif
 
   namespace TGZ
@@ -189,6 +193,7 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) { yiel
         vsnprintf(log_buffer, LOG_MAXLENGTH, fmr, arg);
         va_end(arg);
         if( log_buffer[0] != '\0' ) {
+          printf("log_level %d", loglevel);
           switch( loglevel ) {
             case LogLevelVerbose: LOG_PRINTF("[V][%d][%s:%d] %s\r\n", HEAP_AVAILABLE(), TGZ_PATHNAME(path), line, log_buffer); break;
             case LogLevelDebug:   LOG_PRINTF("[D][%d][%s:%d] %s\r\n", HEAP_AVAILABLE(), TGZ_PATHNAME(path), line, log_buffer); break;

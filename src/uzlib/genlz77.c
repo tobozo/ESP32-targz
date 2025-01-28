@@ -38,12 +38,10 @@
 #include <string.h>
 #include "uzlib.h"
 
-#if 0
-#define HASH_BITS 12
-#else
-#define HASH_BITS data->hash_bits
-#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 
+#define HASH_BITS data->hash_bits
 #define HASH_SIZE (1<<HASH_BITS)
 
 /* Minimum and maximum length of matches to look for, inclusive */
@@ -248,4 +246,6 @@ int uzlib_deflate_stream(struct uzlib_stream* uzstream, int flush){
     return flush == Z_FINISH ? Z_STREAM_END : Z_OK;
 }
 
+
+#pragma GCC diagnostic pop
 

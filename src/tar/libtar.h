@@ -48,11 +48,13 @@ extern "C"
 
 
 /* useful constants */
-const uint32_t T_BLOCKSIZE = 512;
+const ssize_t T_BLOCKSIZE = 512;
 #define T_NAMELEN   100
 #define T_PREFIXLEN 155
 #define T_MAXPATHLEN (T_NAMELEN + T_PREFIXLEN)
-#define MAXPATHLEN T_MAXPATHLEN // mock #include <sys/param.h> but reduce from 1024 to 255
+#if !defined MAXPATHLEN
+  #define MAXPATHLEN T_MAXPATHLEN // mock #include <sys/param.h> but reduce from 1024 to 255
+#endif
 
 /* our version of the tar header structure */
 struct tar_header
@@ -87,6 +89,8 @@ typedef ssize_t (*closewritefunc_t)(void *fs, void *file);
 
 // i/o callbacks
 typedef struct {
+  void            *src_fs;
+  void            *dst_fs;
   openfunc_t       openfunc;
   closefunc_t      closefunc;
   readfunc_t       readfunc;
@@ -100,41 +104,11 @@ typedef struct {
 typedef struct {
   tar_callback_t *io;
   char *pathname;
-  void *fd;
+  void *dst_file;
+  void *src_file;
   struct tar_header th_buf;
-  void *opaque;
 } TAR;
 
-
-// state machine for main loop
-typedef enum {
-  TAR_MAIN_HEADER,
-  TAR_ENT_HEADER,
-  TAR_ENT_BLOCK,
-  TAR_ENT_FOOTER,
-  TAR_MAIN_FOOTER,
-  FINISHED
-} tar_step_t;
-
-// state machine for dir entities
-typedef enum {
-  ENTITY_STAT,
-  ENTITY_HEADER,
-  ENTITY_REGFILE,
-  ENTITY_REGFILE_STEP,
-  ENTITY_END
-} entity_steps_t;
-
-// state holder for dir entities state machine
-typedef struct entity_t
-{
-  TAR *tar;
-  const char *realname;
-  const char *savename;
-  ssize_t *written_bytes;
-  entity_steps_t step;
-  int step_rv; // return value
-} entity_t;
 
 
 // helpers
@@ -151,18 +125,13 @@ int oct_to_int(char *oct);
 // integer to string-octal conversion, no NULL
 void int_to_oct_nonull(int num, char *oct, size_t octlen);
 
-
 // open new tar instance
-int tar_open(TAR *t, const char *pathname, tar_callback_t *io, const char *mode, void *opaque);
+int tar_open(TAR *t, const char *pathname, tar_callback_t *io);
 // set tar info and allocate block memory
-int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque);
+int tar_init(TAR *t, const char *pathname, tar_callback_t *io);
 
 // close tar handle and release block memory
 int tar_close(TAR *t);
-
-// Appends a dir entity (file or folder) to the tar archive
-int tar_append_entity(entity_t *entity);
-int tar_append_entity_step(entity_t *entity); // state machine stepper
 
 // encode entity header block (minus the path)
 void th_set_from_stat(TAR *t, struct stat *s);
@@ -172,9 +141,6 @@ void th_set_path(TAR *t, const char *pathname);
 
 // write tar header
 int th_write(TAR *t, ssize_t *written_bytes);
-
-// add file contents to a tar archive
-int tar_append_regfile(TAR *t, const char *realname, ssize_t *written_bytes);
 
 // write EOF indicator
 int tar_append_eof(TAR *t, ssize_t *written_bytes);

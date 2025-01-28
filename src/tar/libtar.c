@@ -41,7 +41,6 @@
 #include <ctype.h> // for isprint()
 #include <stdlib.h> // for calloc(), because RP2040 wants it
 
-
 // #include "../ESP32-targz-log.hpp" // import log_e(), log_w(), log_d() and log_i(), all behaving like printf()
 
 #define UID "root"
@@ -51,7 +50,7 @@ char * tar_block;
 
 
 // init tar for archive creation
-int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque)
+int tar_init(TAR *t, const char *pathname, tar_callback_t *io)
 {
   if (t == NULL) {
     //log_e("Failed to alloc %d files for tar", sizeof(TAR));
@@ -60,7 +59,15 @@ int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque)
 
   t->pathname = (char *)pathname;
   t->io = io;
-  t->opaque = opaque;
+
+  if( t->io->src_fs == NULL ) {
+    //log_e("Missing io->src_fs");
+    return -1;
+  }
+
+  if( t->io->dst_fs == NULL ) {
+    //log_d("No dst_fs provided, output may be a stream");
+  }
 
   tar_block = (char*)calloc(1, T_BLOCKSIZE);
   if( tar_block==NULL ) {
@@ -78,15 +85,19 @@ int tar_init(TAR *t, const char *pathname, tar_callback_t *io, void *opaque)
   return 0;
 }
 
-// open a new tarfile handle
-int tar_open(TAR *t, const char *pathname, tar_callback_t *io, const char *mode, void *opaque)
+
+int tar_open(TAR *t, const char *pathname, tar_callback_t *io)
 {
-  if (tar_init(t, pathname, io, opaque) == -1)
+  if (tar_init(t, pathname, io) == -1)
     return -1;
-  //log_d("Tar open %s with '%s' flag", pathname, mode);
-  t->fd = (*(t->io->openfunc))(t->opaque, pathname, mode);
-  if (t->fd == (void *)-1) {
-    //log_e("Failed to open file %s with %s flag", pathname, mode);
+
+  if(t->io->dst_fs == NULL) // not using fs for output
+    return 0;
+
+  //log_d("Tar open %s with 'w' flag", pathname);
+  t->dst_file = (*(t->io->openfunc))(t->io->dst_fs, pathname, "w");
+  if (t->dst_file == (void *)-1) {
+    //log_e("Failed to open file %s with 'w' flag", pathname);
     return -1;
   }
   return 0;
@@ -94,113 +105,14 @@ int tar_open(TAR *t, const char *pathname, tar_callback_t *io, const char *mode,
 
 
 
-// close tarfile handle
 int tar_close(TAR *t)
 {
   int i = -1;
-  if(t->io->closefunc)
-    i = t->io->closefunc(t->opaque, t->fd);
+  if(t->io->dst_fs && t->io->closefunc)
+    i = t->io->closefunc(t->io->dst_fs, t->dst_file);
   free(tar_block);
   tar_block = NULL;
   return i;
-}
-
-
-
-typedef enum {
-  OPEN_FILE,
-  WRITE_BLOCK,
-  WRITE_LAST_BLOCK,
-  CLOSE_FILE
-} regfile_steps_t;
-
-
-regfile_steps_t regfile_step = OPEN_FILE;
-int regfile_iterator = 0;
-ssize_t regfile_read_bytes = 0;
-ssize_t regfile_size = 0;
-void * regfile_fd = NULL;
-int regfile_rv = -1;
-
-// forward declaration
-int tar_append_regfile_step(TAR *t, const char *realname, ssize_t *written_bytes);
-
-
-
-typedef enum {
-  TREE_OPEN,
-  TREE_APPEND_STEP,
-  TREE_APPEND_EOF,
-  TREE_CLOSE
-} tree_packer_step_t;
-
-
-static struct stat entity_stat;
-
-
-int tar_append_entity_step(entity_t *e)
-{
-  assert(e);
-  switch( e->step )
-  {
-    case ENTITY_STAT:
-      e->step_rv = -1;
-      if(e->tar == NULL || e->tar->io == NULL || e->tar->io->statfunc == NULL) {
-        // malformed entity
-        return -1;
-      }
-      if( e->tar->io->statfunc(e->tar->opaque, e->realname, &entity_stat) != 0) {
-        // file not found
-        return -1;
-      }
-      memset(&(e->tar->th_buf), 0, sizeof(struct tar_header)); // clear header buffer
-      th_set_from_stat(e->tar, &entity_stat); // set header block
-      th_set_path(e->tar, (e->savename ? e->savename : e->realname)); // set the header path
-      e->step = ENTITY_HEADER;
-      // fallthrough
-    case ENTITY_HEADER: //log_d("Entity header(%s)", e->realname);
-      if (th_write(e->tar, e->written_bytes) != 0) { // header write failed?
-        return -1;
-      }
-      e->step = th_is_regfile(e->tar) ? ENTITY_REGFILE : ENTITY_END;
-      return 0;
-    case ENTITY_REGFILE:
-      regfile_step = OPEN_FILE;
-      e->step = ENTITY_REGFILE_STEP;
-      // fallthrough
-    case ENTITY_REGFILE_STEP:
-      if( tar_append_regfile_step(e->tar, e->realname, e->written_bytes) == -1 )
-        return -1;
-      if(regfile_step==CLOSE_FILE) {
-        e->step = ENTITY_END;
-        e->step_rv = 0;
-      }
-      return 0;
-    case ENTITY_END:
-      return e->step_rv;
-  }
-
-  return 0;
-
-}
-
-
-
-
-
-// appends a dir entity (file or folder) to the tar archive
-int tar_append_entity(entity_t* entity)
-{
-  assert(entity);
-  int ret_value = -1;
-  entity->step = ENTITY_STAT;
-  do  {
-    ret_value = tar_append_entity_step(entity);
-    if( ret_value == -1 )
-      return -1;
-  } while(entity->step!=ENTITY_END);
-
-  return ret_value;
 }
 
 
@@ -211,7 +123,7 @@ int tar_append_eof(TAR *t, ssize_t *written_bytes)
 
   memset(tar_block, 0, T_BLOCKSIZE);
   for (j = 0; j < 2; j++) {
-    i = t->io->writefunc(t->opaque, t->fd, tar_block, T_BLOCKSIZE);
+    i = t->io->writefunc(t->io->dst_fs, t->dst_file, tar_block, T_BLOCKSIZE);
     *written_bytes += i;
     if (i != T_BLOCKSIZE) {
       if (i != -1)
@@ -220,109 +132,12 @@ int tar_append_eof(TAR *t, ssize_t *written_bytes)
       return -1;
     }
   }
+  //log_v("EOF done");
   // trigger last write signal (reminder: writefunc may be async)
-  if( t->io->closewritefunc(t->opaque, t->fd) == -1 )
+  if( t->io->closewritefunc(t->io->dst_fs, t->dst_file) == -1 )
     return -1;
-  //log_v("Wrote %d leftover bytes", leftover_bytes);
+  //log_v("io::closewritefunc done");
   return 0;
-}
-
-
-
-
-
-
-
-int tar_append_regfile_step(TAR *t, const char *realname, ssize_t *written_bytes)
-{
-  ssize_t block_size = 0;
-
-  switch(regfile_step)
-  {
-    case OPEN_FILE:
-      regfile_iterator = 0;
-      regfile_rv = -1;
-      //log_d("Adding %s", realname);
-      regfile_fd = t->io->openfunc(t->opaque, realname, "r");
-      if (regfile_fd == (void *)-1)
-        return -1;
-      regfile_size = (unsigned int)oct_to_int((t)->th_buf.size);
-      memset(tar_block, 0, T_BLOCKSIZE);
-      regfile_iterator = regfile_size;
-      //log_v("Assigning size (%d)", regfile_size);
-      regfile_step = WRITE_BLOCK;
-      // fallthrough
-    case WRITE_BLOCK:
-    {
-      //log_v("WRITE_BLOCK");
-      if(regfile_iterator <= T_BLOCKSIZE ) {
-        regfile_step = WRITE_LAST_BLOCK;
-        return 0;
-      }
-      regfile_read_bytes = t->io->readfunc(t->opaque, regfile_fd, tar_block, T_BLOCKSIZE);
-      if (regfile_read_bytes != T_BLOCKSIZE) {
-        if (regfile_read_bytes != -1) {
-          errno = EINVAL;
-        }
-        regfile_step = CLOSE_FILE;
-        return 0;
-      }
-      block_size = t->io->writefunc(t->opaque, t->fd, tar_block, T_BLOCKSIZE);
-      if (block_size == -1) {
-        regfile_step = CLOSE_FILE;
-        return 0;
-      }
-      regfile_iterator -= block_size;
-      //log_v("Wrote %lu bytes, regfile_iterator=%d", T_BLOCKSIZE, regfile_iterator);
-      *written_bytes += block_size;
-    }
-    break;
-    case WRITE_LAST_BLOCK:
-      {
-        //log_v("case WRITE_LAST_BLOCK");
-        regfile_step = CLOSE_FILE;
-        if (regfile_iterator > 0) {
-          regfile_read_bytes = t->io->readfunc(t->opaque, regfile_fd, tar_block, regfile_iterator);
-          if (regfile_read_bytes == -1) {
-            return 0;
-          }
-          memset(&tar_block[regfile_iterator], 0, T_BLOCKSIZE - regfile_iterator);
-          block_size = t->io->writefunc(t->opaque, (t)->fd, tar_block, T_BLOCKSIZE);
-          if ( block_size == -1) {
-            return 0;
-          }
-          //log_v("Wrote %lu last bytes", T_BLOCKSIZE);
-          *written_bytes += block_size;
-        }
-      }
-      regfile_rv = 0;
-      // fallthrough
-    case CLOSE_FILE:
-      //log_v("case CLOSE_FILE");
-      t->io->closefunc(t->opaque, regfile_fd);
-      regfile_fd = NULL;
-      return regfile_rv;
-    break;
-  }
-
-  return 0;
-}
-
-
-
-// add file contents to a tarchive
-int tar_append_regfile(TAR *t, const char *realname, ssize_t *written_bytes)
-{
-
-  regfile_step = OPEN_FILE;
-  int ret_value;
-  do  {
-    ret_value = tar_append_regfile_step(t, realname, written_bytes);
-    if( ret_value == -1 )
-      return -1;
-  } while(regfile_step!=CLOSE_FILE);
-
-  return ret_value;
 }
 
 
@@ -332,7 +147,7 @@ int th_write(TAR *t, ssize_t *written_bytes)
   int i;//, j;
   th_set_ustar(t);
 
-  i = t->io->writefunc(t->opaque, (t)->fd, &(t->th_buf), T_BLOCKSIZE);
+  i = t->io->writefunc(t->io->dst_fs, t->dst_file, &(t->th_buf), T_BLOCKSIZE);
   if (i != T_BLOCKSIZE) {
     //log_e("ERROR in th_write, returned block size %d didn't match expexted size %d", i, (int)T_BLOCKSIZE);
     if (i != -1) {
@@ -349,8 +164,11 @@ int th_write(TAR *t, ssize_t *written_bytes)
 // magic, version, and checksum
 void th_set_ustar(TAR *t)
 {
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wstringop-truncation"
   strncpy(t->th_buf.version, TVERSION, TVERSLEN);
   strncpy(t->th_buf.magic, TMAGIC, TMAGLEN);
+  #pragma GCC diagnostic pop
   int_to_oct(th_crc_calc(t), t->th_buf.chksum, 8);
 }
 
@@ -435,9 +253,6 @@ void th_set_from_stat(TAR *t, struct stat *s)
   else
     th_set_size(t, 0);
 }
-
-
-// utils
 
 
 // check if entity is a file

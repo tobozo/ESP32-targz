@@ -139,7 +139,7 @@
 
 #elif defined ARDUINO_ARCH_RP2040
 
-  #pragma message "Experimental RP2040 support"
+  #pragma message "Experimental RP2040 support, compression is disabled"
 
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
@@ -156,7 +156,7 @@
     #define FS_NAME "LITTLEFS (picolib)"
   #endif
 
-  static FSInfo fsinfo;
+  [[maybe_unused]] static FSInfo fsinfo;
 
 #else
 
