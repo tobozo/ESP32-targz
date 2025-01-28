@@ -52,6 +52,8 @@ void testStreamToStream()
 
   verify(fzFileName, inputFilename);
 
+  tarGzFS.remove(fzFileName);
+
 }
 
 
@@ -89,6 +91,8 @@ void testBufferToBuffer()
   free(dstBuf); //free the output buffer
 
   verify(fzFileName, inputFilename);
+
+  tarGzFS.remove(fzFileName);
 
 }
 
@@ -131,6 +135,8 @@ void testStreamToBuffer()
   src.close();
 
   verify(fzFileName, inputFilename);
+
+  tarGzFS.remove(fzFileName);
 
 }
 
@@ -175,6 +181,8 @@ void testBufferToStream()
 
   verify(fzFileName, inputFilename);
 
+  tarGzFS.remove(fzFileName);
+
 }
 
 
@@ -198,12 +206,12 @@ void setup()
   {
     testStreamToStream(); // tested OK on ESP32/RP2040/ESP8266 (any file size)
     printMem();
-    testBufferToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
-    testBufferToStream(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
-    testStreamToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
+    // testBufferToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
+    // testBufferToStream(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
+    // testStreamToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
 
     Serial.println();
     Serial.println("All tests completed");

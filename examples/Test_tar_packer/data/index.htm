@@ -29,10 +29,29 @@
     }
 
     @media (orientation: portrait)  and (min-width: 24rem) {
-      body { --section-width: 88"https://upload.wikimedia.org/wikipedia/commons/1/1a/SVG_example_markup_grid.svg">SVG_example_markup_grid.svg</option>
-          <option value="https://upload.wikimedia.org/wikipedia/commons/1/14/Animated_PNG_example_bouncing_beach_ball.png">Animated_PNG_example_bouncing_beach_ball.apng</option>
-          <option value="https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif">Rotating_earth_(large).gif</option>
-          <option value="https://upload.wikimedia.org/wikipedia/common    fieldset { display:inline-block; }
+      body { --section-width: 88vw !important; }
+    }
+
+    body.loading { overflow:hidden; background-color: rgba(0,0,0,0.5); }
+    body.loading::before {
+      position: fixed;
+      display: block;
+      content: "⌛"; /* hourglass symbol */
+      z-index: 3;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      font-size: 6rem;
+      text-align: center;
+      line-height: 100vh;
+    }
+
+    input, select { font-size: inherit; }
+    label { line-height: inherit; }
+
+    h1, h2, p, footer { margin: 0.5rem 0.3rem; }
+    fieldset { display:inline-block; }
     fieldset div { width: var(--section-width); margin-bottom: 1em; display: flex; align-items: center; }
     div label, div select, div input { flex: 50%; max-width:50%; overflow: hidden; white-space: nowrap; }
 
@@ -120,25 +139,10 @@
         <select id="urlpicker" onchange="url.value=this.options[this.selectedIndex].value;App.dither('url')">
           <option value="" selected>Pick an image</option>
           <option value="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/UtrechtIconoclasm.jpg/800px-UtrechtIconoclasm.jpg">800px-UtrechtIconoclasm.jpg</option>
-          <option value=reshold = threshold.value;
-
-        UI.showSpinner();
-        UI.showProgress();
-        UI.log("<hr>");
-        return new Promise( sourceGetter )
-          .then( imageLoader )
-          .then( this.processImage )
-          .then( UI.createBmpLink )
-          .catch( this.handleError )
-          .finally( () => {
-            UI.hideProgress();
-            UI.hideSpinner();
-          });
-      },
-      loadImageFromFile: function(file)
-      {
-        return new Promise((resolve, reject) => {
-          if(s/b/b2/Vulphere_WebP_OTAGROOVE_demonstration_2.webp">Vulphere_WebP_OTAGROOVE_demonstration_2.webp</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/1/1a/SVG_example_markup_grid.svg">SVG_example_markup_grid.svg</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/1/14/Animated_PNG_example_bouncing_beach_ball.png">Animated_PNG_example_bouncing_beach_ball.apng</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif">Rotating_earth_(large).gif</option>
+          <option value="https://upload.wikimedia.org/wikipedia/commons/b/b2/Vulphere_WebP_OTAGROOVE_demonstration_2.webp">Vulphere_WebP_OTAGROOVE_demonstration_2.webp</option>
           <option value="https://upload.wikimedia.org/wikipedia/commons/3/30/Hubble%E2%80%99s_observation_of_Jupiter_in_2021_%2851688147562%29.jpg">Jupiter_Hubble.jpg</option>
           <option value="https://upload.wikimedia.org/wikipedia/commons/2/23/Jupiter_Showcases_Auroras%2C_Hazes_%28NIRCam_Closeup%29.jpg">Jupiter_JWST.jpg</option>
           <option value="https://upload.wikimedia.org/wikipedia/en/3/3b/SpongeBob_SquarePants_character.svg">SpongeBob_SquarePants_character.svg</option>
@@ -215,30 +219,25 @@
         App.appMode = _source;
         App.grayscaleMode = grayscalemode.options[grayscalemode.selectedIndex].value;
         App.ditherMode    = dithering.options[dithering.selectedIndex].value;
-        Image1Bpp.threject({cause:'no file to load'});
-        resolve(file.files[0]);
+        Image1Bpp.threshold = threshold.value;
+
+        UI.showSpinner();
+        UI.showProgress();
+        UI.log("<hr>");
+        return new Promise( sourceGetter )
+          .then( imageLoader )
+          .then( this.processImage )
+          .then( UI.createBmpLink )
+          .catch( this.handleError )
+          .finally( () => {
+            UI.hideProgress();
+            UI.hideSpinner();
+          });
       },
-      handleError: function(reason)
+      loadImageFromFile: function(file)
       {
-        if (reason.cause) {
-          console.log(reason.cause);
-        } else {
-          console.error(`${reason}`);
-        }
-      },
-      grayscaleMode : 'canvas',
-      ditherMode: 'FloydSteinberg',
-      appMode: 'none'
-    };
-
-
-
-    const UI =
-    {
-      log: function(message)
-      {
-        let firstChild = document.querySelector("output > hr")
-        let div        = documen file == null )
+        return new Promise((resolve, reject) => {
+          if( file == null )
             reject({cause:'no file to load'});
 
           const fileReader = new FileReader();
@@ -322,24 +321,30 @@
       getFile: function(resolve, reject)
       {
         if (file.files.length == 0)
-              onProgressCallback: function(ratio)
-      {
-        if (ratio >= 0)
-          progress.value = ratio;
-        else
-          progress.removeAttribute('value');
+          reject({cause:'no file to load'});
+        resolve(file.files[0]);
       },
-      showProgress: function() { progress.style.display = 'block'; },
-      hideProgress: function() { progress.style.display = 'none'; },
-      showSpinner:  function() { document.body.classList.add("loading"); },
-      hideSpinner:  function() { document.body.classList.remove("loading"); },
+      handleError: function(reason)
+      {
+        if (reason.cause) {
+          console.log(reason.cause);
+        } else {
+          console.error(`${reason}`);
+        }
+      },
+      grayscaleMode : 'canvas',
+      ditherMode: 'FloydSteinberg',
+      appMode: 'none'
     };
 
 
 
-    const Image1Bpp =
+    const UI =
     {
-      et.createElement('div');
+      log: function(message)
+      {
+        let firstChild = document.querySelector("output > hr")
+        let div        = document.createElement('div');
 
         if( message.trim() == '' )
           message = '<hr>';
@@ -458,26 +463,24 @@
         });
       },
       // "onprogress" callback
-  xelsRGBA.data[i + 2] = pixelsRGBA.data[i];
-
-        }
-
-        return pixelsRGBA;
-      },
-
-
-      threshold: 150,
-
-
-      atkinson: function( pixelsRGBA, width, height, pixnum )
+      onProgressCallback: function(ratio)
       {
-        // Bill Atkinson's dithering algorithm
-        let newPixel = pixelsRGBA.data[pixnum] < this.threshold ? 0 : 255;
-        let err = Math.floor((pixelsRGBA.data[pixnum] - newPixel) / 8);
-        pixelsRGBA.data[pixnum] = newPixel;
+        if (ratio >= 0)
+          progress.value = ratio;
+        else
+          progress.removeAttribute('value');
+      },
+      showProgress: function() { progress.style.display = 'block'; },
+      hideProgress: function() { progress.style.display = 'none'; },
+      showSpinner:  function() { document.body.classList.add("loading"); },
+      hideSpinner:  function() { document.body.classList.remove("loading"); },
+    };
 
-        pixelsRGBA.data[pixnum           + 4 ] += err;
-        pixelsRGBA.data[pixnum xportToBitmap: function(filename, canvas, width, height)
+
+
+    const Image1Bpp =
+    {
+      exportToBitmap: function(filename, canvas, width, height)
       {
         const colorTable = new Uint8Array([
           0x00, 0x00, 0x00, 0x00,
@@ -570,19 +573,26 @@
             case 'None':           pixelsRGBA.data[i] = pixelsRGBA.data[i] < this.threshold ? 0 : 255;
           }
           // Set g and b values equal to r (effectively greyscales the image fully)
-          pixelsRGBA.data[i + 1] = pi new Uint8Array(14);
-        // A bitmap file starts with a "BM" in ASCII.
-        this.writeASCII(arr, "B", 0);
-        this.writeASCII(arr, "M", 1);
-        // The entire filesize.
-        this.writeInt32LE(arr, filesize, 2);
-        // 4 bytes reserved for the application creating the image.
-        this.writeInt32LE(arr, applicationHeader, 6);
-        // The byte offset to access the pixel data.
-        this.writeInt32LE(arr, imageDataOffset, 10);
-        return arr;
+          pixelsRGBA.data[i + 1] = pixelsRGBA.data[i + 2] = pixelsRGBA.data[i];
+
+        }
+
+        return pixelsRGBA;
       },
-      // Creates a DIB head          + 8 ] += err;
+
+
+      threshold: 150,
+
+
+      atkinson: function( pixelsRGBA, width, height, pixnum )
+      {
+        // Bill Atkinson's dithering algorithm
+        let newPixel = pixelsRGBA.data[pixnum] < this.threshold ? 0 : 255;
+        let err = Math.floor((pixelsRGBA.data[pixnum] - newPixel) / 8);
+        pixelsRGBA.data[pixnum] = newPixel;
+
+        pixelsRGBA.data[pixnum           + 4 ] += err;
+        pixelsRGBA.data[pixnum           + 8 ] += err;
         pixelsRGBA.data[pixnum + 4*width - 4 ] += err;
         pixelsRGBA.data[pixnum + 4*width     ] += err;
         pixelsRGBA.data[pixnum + 4*width + 4 ] += err;
@@ -686,7 +696,19 @@
       // Creates the bitmap file header
       bitmapFileHeader: function({ filesize = 0, applicationHeader = 0, imageDataOffset = 0 })
       {
-        const arr =data/tiny.json                                                                                      100755       0       0           40 14736274306  11755  0                                                                                                    ustar 00root                            root                                                                                                                                                                                                                   er, specifically a BITMAPINFOHEADER type
+        const arr = new Uint8Array(14);
+        // A bitmap file starts with a "BM" in ASCII.
+        this.writeASCII(arr, "B", 0);
+        this.writeASCII(arr, "M", 1);
+        // The entire filesize.
+        this.writeInt32LE(arr, filesize, 2);
+        // 4 bytes reserved for the application creating the image.
+        this.writeInt32LE(arr, applicationHeader, 6);
+        // The byte offset to access the pixel data.
+        this.writeInt32LE(arr, imageDataOffset, 10);
+        return arr;
+      },
+      // Creates a DIB header, specifically a BITMAPINFOHEADER type
       // since it's the most widely supported.
       dibHeader: function({ width, height, bitsPerPixel, bitmapDataSize, numberOfColorsInPalette })
       {
