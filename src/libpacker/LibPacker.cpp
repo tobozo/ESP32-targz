@@ -39,13 +39,16 @@
 namespace LZPacker
 {
   // LZPacker uses buffered streams
-  static constexpr const size_t inputBufferSize  = 4096;// lowest possible value = 256
-  static constexpr const size_t outputBufferSize = 4096;// lowest possible value = 1024
+  static /*constexpr const*/ int inputBufferSize  = 4096;// lowest possible value = 256
+  static /*constexpr const*/ int outputBufferSize = 4096;// lowest possible value = 1024
 
   Stream* dstStream = nullptr;
   Stream* srcStream = nullptr;
 
   void (*progressCb)( size_t progress, size_t total ) = nullptr;
+  size_t lzHeader(uint8_t* buf, bool gzip_header=true);
+  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false);
+  struct GZ::uzlib_comp* lzInit();
 
   // write LZ77 header
   size_t lzHeader(uint8_t* buf, bool gzip_header)
@@ -181,9 +184,13 @@ namespace LZPacker
         Serial.printf("Processed 0%% ");
       else if( pg == 100 )
         Serial.printf(" 100%%\n");
-      else
-        // Serial.printf(".");
-        Serial.printf("%d ", pg);
+      else {
+        if( pg%25==0)
+          Serial.printf("%d", pg);
+        else if( pg%10==0)
+          Serial.printf(".");
+
+      }
       lastprogress = pg;
     }
   }
@@ -221,11 +228,20 @@ namespace LZPacker
   }
 
 
+
+  static size_t defaultgzStreamReader( uint8_t* buf, size_t bufsize )
+  {
+    if( LZPacker::srcStream )
+      return LZPacker::srcStream->readBytes(buf, bufsize);
+    return 0;
+  }
+
+
   // stream to stream
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream )
   {
-    log_d("LZPacker::compress(stream, size=%d, stream)", srcLen);
-    assert(srcStream);
+    log_v("LZPacker::compress(stream, size=%d, stream)", srcLen);
+    // assert(srcStream);
     assert(srcLen>0);
     assert(dstStream);
 
@@ -250,10 +266,10 @@ namespace LZPacker
     int prev_state = uzlib_deflate_init_stream(c, &uzstream);
 
     if(prev_state != Z_OK) {
-        // abort !
-        free(inputBuffer);
-        free(outputBuffer);
-        return 0;
+      // abort !
+      free(inputBuffer);
+      free(outputBuffer);
+      return 0;
     }
 
     uzstream.out.avail = LZPacker::outputBufferSize;
@@ -261,6 +277,19 @@ namespace LZPacker
     int input_bytes = 0; // for do..while state
     size_t total_bytes = 0; // for progress meter
     //size_t total_read_bytes = 0;
+
+    if( srcStream )
+      LZPacker::gzStreamReader = LZPacker::defaultgzStreamReader;
+
+    if( ! LZPacker::gzStreamReader ) { // no stream bypass was set
+      log_e("No srcStream substitute was set, aborting!");
+      free(inputBuffer);
+      free(outputBuffer);
+      free(c->hash_table);
+      c->hash_table = NULL;
+      if( c->outbuf != NULL ) free(c->outbuf);
+      return 0;
+    }
 
     int defl_mode  = Z_BLOCK;
 
@@ -271,7 +300,8 @@ namespace LZPacker
 
     do {
         if(uzstream.out.avail > 0){
-            input_bytes = srcStream->readBytes(inputBuffer, LZPacker::inputBufferSize); // consume input stream
+            log_v("Requesting %d bytes core%d", LZPacker::inputBufferSize, xPortGetCoreID());
+            input_bytes = LZPacker::gzStreamReader(inputBuffer, LZPacker::inputBufferSize); // consume input stream
             total_bytes += input_bytes;
 
             if( c->progress_cb )
@@ -291,9 +321,9 @@ namespace LZPacker
             uzstream.in.next   = inputBuffer;
             uzstream.in.avail  = input_bytes;
 
-            if( input_bytes != LZPacker::inputBufferSize ) {
-                log_v("Last chunk");
-                defl_mode = Z_FINISH;
+            if( input_bytes != LZPacker::inputBufferSize || total_bytes==srcLen) {
+              log_v("Last chunk");
+              defl_mode = Z_FINISH;
             }
         }
 
@@ -343,7 +373,7 @@ namespace LZPacker
     }
 
     footer_len = lzFooter(footer, srcLen, ~c->checksum);
-    log_d("Writing lz footer");
+    log_v("Writing lz footer");
     dstLen += dstStream->write(footer, footer_len);
 
     free(c->hash_table);
@@ -402,20 +432,21 @@ namespace TarPacker
 {
   using namespace TAR;
 
-  uint8_t block_buf[512];
-
-  static bool use_lock = false;
-  static bool targzlock = false;
+  static uint8_t block_buf[T_BLOCKSIZE];
 
   void (*progressCb)( size_t progress, size_t total ) = nullptr;
+
+  static TaskHandle_t tarTaskHandle = NULL;
+  static QueueHandle_t tarQueueHandle = NULL;
+  static QueueHandle_t tarGzQueueHandle = NULL;
+
+  TickType_t maxQueueWait = 2000 / portTICK_PERIOD_MS;
 
   // progress callback setter
   void setProgressCallBack(totalProgressCallback cb)
   {
     TarPacker::progressCb = cb;
   }
-
-  size_t readBytesAsync(tar_params_t *params, uint8_t* buf, size_t len);
 
   void takeLock();
   void setLock(bool set=true);
@@ -429,13 +460,13 @@ namespace TarPacker
     void * open(void *_fs, const char *filename, const char *mode);
     int close(void *fs, void *file);
     int stat(void *_fs, const char *path, void *_stat);
-    ssize_t read(void *_fs, void *_stream, void * buf, size_t count);
-    ssize_t write_finalize(void*_fs, void*_stream);
-    ssize_t write_stream(void *_fs, void *_stream, void * buf, size_t count);
+    int read(void *_fs, void *_stream, void * buf, size_t count);
+    int write_finalize(void*_fs, void*_stream);
+    int write_stream(void *_fs, void *_stream, void * buf, size_t count);
   };
 
-
-  tar_callback_t TarIOFunctions = {
+  static tar_callback_t TarIOFuncs =
+  {
     .src_fs         = nullptr,
     .dst_fs         = nullptr,
     .openfunc       = io::open,  // r/w
@@ -446,54 +477,61 @@ namespace TarPacker
     .statfunc       = io::stat
   };
 
-  std::vector<tar_entity_t> _tarEntities;
-  size_t _tar_estimated_filesize = 0;
-  TAR::TAR* _tar;
+  static tar_callback_t TarGzIOFuncs;
+  static std::vector<tar_entity_t> _tarEntities;
+  static size_t _tar_estimated_filesize = 0;
+  static TAR::TAR* _tar;
 
-  size_t readBytesAsync(tar_params_t *params, uint8_t* buf, size_t len)
+
+  static size_t getTarBytesFromQueue(tar_params_t *params, uint8_t* buf, size_t len)
   {
-    if(len%512!=0) { // not a multiple of 512
-      log_e("%d is not a multiple of 512!", len);
+    if(len%T_BLOCKSIZE!=0) {
+      log_e("%d is not a multiple of %d!", len, T_BLOCKSIZE);
       return 0;
     }
-    int idx = 0;
+    if(params->ret!=1) {
+      log_e("polling %d bytes after EOF ???", len);
+      return 0;
+    }
+    size_t idx = 0;
+    log_v("[core:%d] fetching %d bytes", xPortGetCoreID(), len);
     do {
-      while(!targzlock)
-        vTaskDelay(1);
-      memcpy(&buf[idx], block_buf, 512);
-      releaseLock();
-      idx += 512;
+      if( !xQueueReceive( tarGzQueueHandle, &buf[idx], maxQueueWait ) ) {
+        log_e("failed to receive buffer");
+        return 0;
+      }
+      idx += T_BLOCKSIZE;
       if( idx == len )
         return len;
     } while(params->ret == 1);
+
+    log_v("all bytes consumed");
 
     return idx;
   }
 
 
-  void takeLock()
+  // send 512 bytes
+  static int sendTarBytesToQueue(uint8_t* buf, size_t count)
   {
-    if( use_lock ) {
-      while(targzlock)
-        vTaskDelay(1);
+    if(count!=T_BLOCKSIZE) {
+      log_e("BAD block write (req=%d, avail=%d)", count, T_BLOCKSIZE );
+      return -1;
     }
+    if( tarGzQueueHandle == NULL ) {
+      log_e("No queue to send to!");
+      return -1;
+    }
+
+    log_v("[%d] Sending one packet to tarGzQueueHandle", xPortGetCoreID());
+    if( xQueueSend(tarGzQueueHandle, buf, maxQueueWait ) != pdTRUE ) {
+      log_e("failed to send one packet");
+      return 0;
+    }
+    return T_BLOCKSIZE;
   }
 
 
-  void setLock(bool set)
-  {
-    if( use_lock ) {
-      targzlock = set;
-    }
-  }
-
-
-  void releaseLock()
-  {
-    if( use_lock ) {
-      setLock( false );
-    }
-  }
 
 
   // i/o functions
@@ -543,14 +581,10 @@ namespace TarPacker
       if(!_fs || !_stat)
         return -1;
       fs::FS* fs = (fs::FS*)_fs;
-      struct stat *s = (struct stat *)_stat;
+      struct_stat_t *s = (struct_stat_t *)_stat;
       static int inode_num = 0;
 
-      if(!fs->exists(path)) {
-        log_e("Path %s does not exist", path);
-        return -1;
-      }
-
+      vTaskDelay(10); // commit previous fs access, if any, RP2040 seems to need this with LittleFS
       fs::File f = fs->open(path, "r");
       if(!f) {
         log_e("Unable to open %s for stat", path);
@@ -567,12 +601,15 @@ namespace TarPacker
       s->st_mtime = strcmp(path, "/") == 0 ? 0 : f.getLastWrite();
 
       f.close();
+      vTaskDelay(10); // commit file close
+
       log_v("stat_func: [%s] %s %d bytes", is_dir?"dir":"file", path, s->st_size );
+
       return 0;
     }
 
 
-    ssize_t read(void *_fs, void *_stream, void * buf, size_t count)
+    int read(void *_fs, void *_stream, void * buf, size_t count)
     {
       assert(_stream);
       Stream* streamPtr = (Stream*)_stream;
@@ -580,7 +617,7 @@ namespace TarPacker
     }
 
 
-    ssize_t write_finalize(void*_fs, void*_stream)
+    int write_finalize(void*_fs, void*_stream)
     {
       assert(_stream);
       // Stream* streamPtr = (Stream*)_stream;
@@ -589,7 +626,7 @@ namespace TarPacker
 
 
     // direct writes
-    ssize_t write_stream(void *_fs, void *_stream, void * buf, size_t count)
+    int write_stream(void *_fs, void *_stream, void * buf, size_t count)
     {
       Stream* streamPtr = (Stream*)_stream;
       return streamPtr->write((uint8_t*)buf, count);
@@ -602,9 +639,7 @@ namespace TarPacker
 
   int add_header(TAR::TAR* tar, tar_entity_t tarEntity)
   {
-    takeLock();
-
-    struct stat entity_stat;
+    struct_stat_t entity_stat;
 
     if( tar->io->statfunc(tar->io->src_fs, tarEntity.realpath.c_str(), &entity_stat) != 0) {
       // file or dir not found
@@ -614,34 +649,32 @@ namespace TarPacker
     memset(&(tar->th_buf), 0, sizeof(struct tar_header)); // clear header buffer
     th_set_from_stat(tar, &entity_stat); // set header block
     th_set_path(tar, tarEntity.savepath.c_str()); // set the header path
-    ssize_t written_bytes = 0;
+    int written_bytes = 0;
     if (th_write(tar, &written_bytes) != 0) { // header write failed?
       return -1;
     }
-    if( written_bytes != 512 ) { // th_write() made a boo boo!
+    if( written_bytes != T_BLOCKSIZE ) { // th_write() made a boo boo!
       log_e("header write failed for: %s", tarEntity.realpath.c_str() );
       return -1;
     }
-    setLock();
-    return 512;
+    vTaskDelay(10); // commit header write, or next file->open() may fail
+    return T_BLOCKSIZE;
   }
 
 
 
   int add_body_chunk(TAR::TAR* tar)
   {
-    takeLock();
-    memset(block_buf, 0, 512);
-    ssize_t read_bytes = tar->io->readfunc(tar->io->src_fs, tar->src_file, block_buf, 512);
+    memset(block_buf, 0, T_BLOCKSIZE);
+    int read_bytes = tar->io->readfunc(tar->io->src_fs, tar->src_file, block_buf, T_BLOCKSIZE);
     if( read_bytes <= 0 ) {
       log_e("ReadBytes Failed");
       return -1;
     }
-    if( read_bytes != 512 ) { // block was zero padded anyway
-      log_v("only got %d bytes of %d requested", read_bytes, 512 );
+    if( read_bytes != T_BLOCKSIZE ) { // block was zero padded anyway
+      log_v("only got %d bytes of %d requested", read_bytes, T_BLOCKSIZE );
     }
-    auto ret = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, 512);
-    setLock();
+    auto ret = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, T_BLOCKSIZE);
     return ret;
   }
 
@@ -649,10 +682,9 @@ namespace TarPacker
 
   int add_eof_chunk(TAR::TAR* tar)
   {
-    takeLock();
-    memset(block_buf, 0, 512);
-    size_t written_bytes = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, 512);
-    setLock();
+    log_v("add_eof_chunk");
+    memset(block_buf, 0, T_BLOCKSIZE);
+    size_t written_bytes = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, T_BLOCKSIZE);
     return written_bytes;
   }
 
@@ -664,14 +696,14 @@ namespace TarPacker
 
     _tar_estimated_filesize = 0;
 
-    for(int i=0;i<dirEntities.size();i++) {
+    for(size_t i=0;i<dirEntities.size();i++) {
       auto d = dirEntities.at(i);
       if( String(output_file_path)==d.path ) // ignore self
         continue;
 
-      _tar_estimated_filesize += 512; // entity header
+      _tar_estimated_filesize += T_BLOCKSIZE; // entity header
       if(d.size>0) {
-        _tar_estimated_filesize += d.size + (512 - (d.size%512)); // align to 512 bytes
+        _tar_estimated_filesize += d.size + (T_BLOCKSIZE - (d.size%T_BLOCKSIZE)); // align to 512 bytes
       }
 
       auto realpath = d.path;
@@ -686,7 +718,7 @@ namespace TarPacker
 
     _tar_estimated_filesize += 1024; //tar footer
 
-    log_i("TAR estimated file size: %d", _tar_estimated_filesize );
+    log_i("TAR estimated file size: %d bytes", _tar_estimated_filesize );
 
     _tar = (TAR::TAR*)calloc(1, sizeof(TAR::TAR));
     if( _tar == NULL ) {
@@ -707,13 +739,13 @@ namespace TarPacker
 
 
 
-  int pack_tar_impl()
+  int pack_tar_impl(tar_params_t *p=nullptr)
   {
     size_t total_bytes = 0;
-    size_t chunk_size = 0;
     size_t chunks = 0;
     size_t entities_size = _tarEntities.size();
     tar_entity_t current_entity;
+    int chunk_size;
 
     if(_tar_estimated_filesize==0)
       return -1;
@@ -721,26 +753,24 @@ namespace TarPacker
     if( TarPacker::progressCb )
       TarPacker::progressCb(0,_tar_estimated_filesize);
 
-    for(int i=0;i<entities_size;i++) {
+    for(size_t i=0;i<entities_size;i++) {
       current_entity = _tarEntities.at(i);
       chunk_size = add_header(_tar, current_entity);
-      if( chunk_size == -1 ) {
+      if( chunk_size == -1 )
         return -1;
-      }
       total_bytes += chunk_size;
       if( current_entity.size>0 ) {
-        chunks = ceil(float(current_entity.size)/512.0);
+        chunks = ceil(float(current_entity.size)/T_BLOCKSIZE);
         _tar->src_file = _tar->io->openfunc( _tar->io->src_fs, current_entity.realpath.c_str(), "r" );
         if( _tar->src_file == (void*)-1 ) {
           log_e("Open failed for: %s", current_entity.realpath.c_str() );
           return -1;
         }
         // log_d("got %d chunks in %d bytes for %s", chunks, current_entity.size, current_entity.realpath.c_str() );
-        for(int c=0;c<chunks;c++) {
+        for(size_t c=0;c<chunks;c++) {
           chunk_size = add_body_chunk(_tar);
-          if( chunk_size == -1 ) {
+          if( chunk_size == -1 )
             return -1;
-          }
           total_bytes += chunk_size;
           if( TarPacker::progressCb )
             TarPacker::progressCb(total_bytes,_tar_estimated_filesize);
@@ -751,10 +781,22 @@ namespace TarPacker
     total_bytes += add_eof_chunk(_tar);
     total_bytes += add_eof_chunk(_tar);
 
-    if( TarPacker::progressCb )
+    // all writes have been done, the rest is decoration
+
+    if( TarPacker::progressCb ) {
       TarPacker::progressCb(_tar_estimated_filesize,_tar_estimated_filesize); // send end signal, whatever the outcome
+      vTaskDelay(1); // let the progress meter fire
+    }
+
+    if( _tar_estimated_filesize != total_bytes )
+      log_e("Tar data length (%d bytes) does not match the initial estimation (%d bytes)!", total_bytes, _tar_estimated_filesize);
+    else
+      log_d("Success: estimated size %d matches output size.", total_bytes);
 
     tar_close(_tar);
+
+    if(p)
+      p->ret = total_bytes;
 
     return total_bytes;
   }
@@ -763,49 +805,61 @@ namespace TarPacker
 
   void pack_tar_task(void* params)
   {
-    tar_params_t *p = (tar_params_t*)params;
-    p->ret = pack_tar_impl();
+    log_d("entering pack_tar_task(%d)", xPortGetCoreID());
+
+    tar_params_t tp;
+    size_t tar_bytes = 0;
+
+    if( tarQueueHandle == NULL ) {
+      log_d("Waiting for queue handle to be created");
+      while( tarQueueHandle == NULL )
+        vTaskDelay(1);
+      log_d("queue handle was created!");
+    }
+
+    // notify readiness
+    if (xQueueSend(tarQueueHandle, &tar_bytes, maxQueueWait) != pdTRUE) {
+      log_e("Error sending readiness signal, aborting");
+      vTaskDelete(NULL);
+      return;
+    }
+
+    // wait until something is sent to the queue
+    while( !xQueueReceive( tarQueueHandle, &tar_bytes, 1 ) )
+      vTaskDelay(1);
+
+    log_d("Received queue req, sending ack");
+
+    tar_bytes = pack_tar_impl();
+
+    log_d("tar task finished, xQueueSend(ret=%d)", tar_bytes);
+
+    if (xQueueSend( tarQueueHandle, &tar_bytes, maxQueueWait) != pdTRUE)
+      log_e("Error sending pack_tar_impl() return status");
+
     vTaskDelete(NULL);
   }
 
 
 
+
   int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
-    auto TarStreamFunctions = TarIOFunctions;
+    auto TarStreamFunctions = TarIOFuncs;
     TarStreamFunctions.src_fs = srcFS;
     TarStreamFunctions.dst_fs = nullptr;
 
-    tar_params_t params =
-    {
-      .srcFS            = srcFS,
-      .dirEntities      = dirEntities,
-      .dstFS            = nullptr,
-      .output_file_path = nullptr,
-      .tar_prefix       = tar_prefix,
-      .io               = &TarStreamFunctions,
-      .ret              = 1
-    };
-
-    ssize_t tar_estimated_filesize = pack_tar_init(params.io, params.srcFS, params.dirEntities, params.dstFS, params.output_file_path, params.tar_prefix);
+    int tar_estimated_filesize = pack_tar_init(&TarStreamFunctions, srcFS, dirEntities, nullptr, nullptr, tar_prefix);
     if( tar_estimated_filesize <=0 )
       return -1;
 
     _tar->dst_file = dstStream;
-    use_lock = false;
 
-    TaskHandle_t tarTaskHandle = NULL;
-    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, &params, tskIDLE_PRIORITY, &tarTaskHandle );
-
-    while(params.ret == 1) {
-      vTaskDelay(1);
-    }
-
-    vTaskDelay(1);
+    auto ret = pack_tar_impl();
 
     free(_tar);
 
-    return params.ret;
+    return ret;
   }
 
 
@@ -830,77 +884,143 @@ namespace TarGzPacker
   using namespace TAR;
   using namespace TarPacker;
 
+  static tar_params_t targz_params;
 
-  class TarGzStreamReader : public Stream
+  void listTasks()
   {
-    private:
-      TAR::tar_params_t* tar_params;
-    public:
-      TarGzStreamReader(TAR::tar_params_t* tar_params) : tar_params(tar_params) { };
-      ~TarGzStreamReader() { };
-      // read bytes from input tarPacker
-      virtual size_t readBytes(uint8_t* dest, size_t count) { return TarPacker::readBytesAsync(tar_params, dest, count); }
-      // all other methods are unused
-      virtual size_t write(const uint8_t* data, size_t len) { return 0; };
-      virtual int available() { return 0; };
-      virtual int read() { return 0; };
-      virtual int peek() { return 0; };
-      virtual void flush() { };
-      virtual void end() { };
-      virtual size_t write(uint8_t c) { return c?0:0; };
-  };
+    char stats_buffer[1024];
+    Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
+    Serial.printf( "Task Name\tStatus\tPrio\tHWM\tTask\tAffinity\n");
+    vTaskList(stats_buffer);
+    Serial.printf("%s\n", stats_buffer);
+  }
+
+
+  bool createTask(tar_params_t *targz_params)
+  {
+    if( tarQueueHandle != NULL || tarGzQueueHandle != NULL || tarTaskHandle != NULL ) {
+      log_e("Another job is already running!");
+      return false;
+    }
+
+    tarQueueHandle = xQueueCreate( 1, sizeof(void*) );
+    if( tarQueueHandle == NULL ) {
+      log_e("Queue could not be created");
+      return false;
+    }
+    log_d("tarQueueHandle created");
+
+    tarGzQueueHandle = xQueueCreate( 1, T_BLOCKSIZE );
+    if( tarGzQueueHandle == NULL ) {
+      log_e("Queue could not be created");
+      return false;
+    }
+    log_d("tarGzQueueHandle created");
+
+    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, nullptr, tskIDLE_PRIORITY, &tarTaskHandle );
+
+    // listTasks();
+
+    size_t dummy;
+    if( !xQueueSend(tarQueueHandle, targz_params, maxQueueWait) ) {
+      log_e("Error sending tar params to xqueue, aborting");
+      vTaskDelete(tarTaskHandle);
+      return false;
+    }
+
+    if( !xQueueReceive(tarQueueHandle, &dummy, maxQueueWait) ) {
+      log_e("Failed to receive task readiness, aborting");
+      vTaskDelete(tarTaskHandle);
+      return false;
+    }
+    return true;
+  }
 
 
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
-    auto TarGzStreamFunctions = TarIOFunctions;
 
-    TarGzStreamFunctions.src_fs = srcFS;
-    TarGzStreamFunctions.dst_fs = nullptr;
+    size_t lz_ret = -1;
+    int srcLen = 0;
+    tar_params_t tp;
 
-    TarGzStreamFunctions.writefunc = [](void *_fs, void *_stream, void * buf, size_t count)->ssize_t {
-      if(count!=512) {
-        log_e("BAD block write (req=%d, avail=512)", count );
-        return -1;
-      }
-      memcpy(block_buf, buf, count);
-      return 512;
-    };
+    // memoize last buffer size, it'll be restored on exit
+    auto lzBufferSize = LZPacker::inputBufferSize;
 
-    tar_params_t tp =
-    {
+    // i/o functions for tar low-level writes
+    TarGzIOFuncs = TarIOFuncs;
+    TarGzIOFuncs.src_fs = srcFS;
+    TarGzIOFuncs.dst_fs = nullptr;
+    // tar params for streaming to gz
+    targz_params = {
       .srcFS            = srcFS,
       .dirEntities      = dirEntities,
       .dstFS            = nullptr, // none when streaming
       .output_file_path = nullptr, // none when streaming
       .tar_prefix       = tar_prefix,
-      .io               = &TarGzStreamFunctions,
-      .ret              = 1
+      .io               = &TarGzIOFuncs,
+      .ret              = 1,
     };
 
-    ssize_t srcLen = pack_tar_init(tp.io, tp.srcFS, tp.dirEntities, tp.dstFS, tp.output_file_path, tp.tar_prefix);
-    if( srcLen <=0 )
-      return -1;
+    TarGzIOFuncs.writefunc = [](void *_f, void *_s, void *buf, size_t count)->int {
+      return sendTarBytesToQueue((uint8_t*)buf, count) == T_BLOCKSIZE ? T_BLOCKSIZE : -1;
+    };
 
-    TarGzStreamReader tarStream(&tp);
+    LZPacker::gzStreamReader = [](uint8_t* buf, size_t len)->size_t {
+      return getTarBytesFromQueue(&targz_params, buf, len);
+    };
 
-    log_d("Tar estimated data size: %d bytes", srcLen);
+    srcLen = pack_tar_init(&TarGzIOFuncs, srcFS, dirEntities, nullptr, nullptr, tar_prefix);
 
-    // set async
-    use_lock = true;
-    releaseLock();
+    if( srcLen <=0 ) // tar_open() failed
+      goto __free_tar;
 
-    TaskHandle_t tarGzTaskHandle = NULL;
-    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, &tp, tskIDLE_PRIORITY, &tarGzTaskHandle );
+    if( !createTask(&targz_params) ) // task creation failed
+      goto __free_tar;
 
-    auto ret = LZPacker::compress(&tarStream, srcLen, dstStream);
+    LZPacker::inputBufferSize = T_BLOCKSIZE;
+    lz_ret = LZPacker::compress((Stream*)nullptr, srcLen, dstStream);
 
-    vTaskDelay(1);
+    // tar task sends a last message before self-deleting
+    if( !xQueueReceive(tarQueueHandle, &targz_params.ret, maxQueueWait) ) {
+      log_e("Failed to get tar bytes count");
+      // NOTE: Checking if task needs deletion isn't worth it. If the last xQueueReceive
+      //       failed, it's a sign there are much bigger problems than a 4Kb memory leak.
+      targz_params.ret = 0;
+    }
 
-    free(_tar);
+    if((int)lz_ret == -1 ) // LZPacker failed
+      log_e("The output stream is corrupted, if it was a file, delete it.");
+    else if (lz_ret == 0) // TarPacker and/or LZPacker failed
+      log_e("Compression failed.");
+    else if( targz_params.ret != srcLen ) // TarPacker failed
+      log_w("TarPacker provided %d bytes when %d bytes were expected! LZPacker wrote %d bytes but content may be truncated.", targz_params.ret, srcLen, lz_ret);
+    else
+      log_i("Compression done, LZPacker received %d bytes from TarPacker, compressed to %d bytes", targz_params.ret, lz_ret);
 
-    return ret;
+    __free_tar:
+
+    if( _tar) {
+      free(_tar);
+      _tar = NULL;
+    }
+
+    LZPacker::gzStreamReader = NULL; // detach our queue reader
+    LZPacker::inputBufferSize = lzBufferSize; // restore initial buffer size
+
+    // free the task queues
+    vQueueDelete(tarQueueHandle);
+    vQueueDelete(tarGzQueueHandle);
+
+    // make sure all the handles are nullified for the next use
+    tarTaskHandle = NULL;
+    tarQueueHandle = NULL;
+    tarGzQueueHandle = NULL;
+
+    return lz_ret;
   }
+
+
 
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {

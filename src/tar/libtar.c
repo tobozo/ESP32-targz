@@ -117,7 +117,7 @@ int tar_close(TAR *t)
 
 
 // write EOF indicator
-int tar_append_eof(TAR *t, ssize_t *written_bytes)
+int tar_append_eof(TAR *t, int *written_bytes)
 {
   int i, j;
 
@@ -142,7 +142,7 @@ int tar_append_eof(TAR *t, ssize_t *written_bytes)
 
 
 // write a header block
-int th_write(TAR *t, ssize_t *written_bytes)
+int th_write(TAR *t, int *written_bytes)
 {
   int i;//, j;
   th_set_ustar(t);
@@ -235,7 +235,7 @@ void th_set_mtime(TAR* t, time_t fmtime) {
 
 
 // encode header size
-void th_set_size(TAR* t, ssize_t fsize) {
+void th_set_size(TAR* t, int fsize) {
   int_to_oct_nonull((fsize), (t)->th_buf.size, 12);
 }
 

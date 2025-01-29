@@ -48,7 +48,7 @@ extern "C"
 
 
 /* useful constants */
-const ssize_t T_BLOCKSIZE = 512;
+const int T_BLOCKSIZE = 512;
 #define T_NAMELEN   100
 #define T_PREFIXLEN 155
 #define T_MAXPATHLEN (T_NAMELEN + T_PREFIXLEN)
@@ -80,12 +80,12 @@ struct tar_header
 
 
 typedef void * (*openfunc_t)(void *fs, const char *filename, const char *mode);
-typedef ssize_t (*readfunc_t)(void *fs, void *file, void * buf, size_t count);
+typedef int (*readfunc_t)(void *fs, void *file, void * buf, size_t count);
 typedef int (*statfunc_t)(void *fs, const char*path, void *sptr);
 
-typedef ssize_t (*writefunc_t)(void *fs, void *file, void * buf, size_t count);
+typedef int (*writefunc_t)(void *fs, void *file, void * buf, size_t count);
 typedef int (*closefunc_t)(void *fs, void *file);
-typedef ssize_t (*closewritefunc_t)(void *fs, void *file);
+typedef int (*closewritefunc_t)(void *fs, void *file);
 
 // i/o callbacks
 typedef struct {
@@ -140,10 +140,10 @@ void th_set_from_stat(TAR *t, struct stat *s);
 void th_set_path(TAR *t, const char *pathname);
 
 // write tar header
-int th_write(TAR *t, ssize_t *written_bytes);
+int th_write(TAR *t, int *written_bytes);
 
 // write EOF indicator
-int tar_append_eof(TAR *t, ssize_t *written_bytes);
+int tar_append_eof(TAR *t, int *written_bytes);
 
 // determine file type
 int th_is_regfile(TAR *t);
@@ -155,7 +155,7 @@ void th_set_user(TAR *t, uid_t uid);
 void th_set_group(TAR *t, gid_t gid);
 void th_set_mode(TAR *t, mode_t fmode);
 void th_set_mtime(TAR* t, time_t fmtime);
-void th_set_size(TAR* t, ssize_t fsize);
+void th_set_size(TAR* t, int fsize);
 
 // encode magic, version, and crc - must be done after everything else is set
 void th_set_ustar(TAR *t);

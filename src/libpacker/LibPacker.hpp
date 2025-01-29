@@ -95,13 +95,10 @@ namespace LZPacker
   size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBufPtr );
   // stream to stream (average compression)
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
+
   // progress callback setter [](size_t bytes_read, size_t total_bytes)
   void setProgressCallBack(totalProgressCallback cb);
   void defaultProgressCallback( size_t progress, size_t total );
-
-  size_t lzHeader(uint8_t* buf, bool gzip_header=true);
-  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false);
-  struct GZ::uzlib_comp* lzInit();
 
 };
 
