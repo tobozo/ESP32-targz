@@ -9,36 +9,9 @@
 
 // Uncomment `USE_WEBSERVER` to download the generated files when using SPIFFS/LittleFS
 // Comment out `USE_WEBSERVER` if you get a "sketch too big" compilation error
-#define USE_WEBSERVER
-// Comment out `USE_ETHERNET` to use WiFi instead of Ethernet
-// #define USE_ETHERNET
-
-#if defined USE_WEBSERVER
-  #if !defined USE_ETHERNET
-    #include <WiFi.h>
-  #else
-    #include <ETH.h>
-
-    static bool eth_connected = false;
-
-    // WARNING: onEvent is called from a separate FreeRTOS task (thread)!
-    void onEvent(arduino_event_id_t event) {
-      switch (event) {
-        case ARDUINO_EVENT_ETH_START:        Serial.println("ETH Started"); ETH.setHostname("esp32-ethernet");        break;
-        case ARDUINO_EVENT_ETH_CONNECTED:    Serial.println("ETH Connected");                                         break;
-        case ARDUINO_EVENT_ETH_GOT_IP:       Serial.println("ETH Got IP"); Serial.println(ETH); eth_connected = true; break;
-        case ARDUINO_EVENT_ETH_LOST_IP:      Serial.println("ETH Lost IP"); eth_connected = false;                    break;
-        case ARDUINO_EVENT_ETH_DISCONNECTED: Serial.println("ETH Disconnected"); eth_connected = false;               break;
-        case ARDUINO_EVENT_ETH_STOP:         Serial.println("ETH Stopped"); eth_connected = false;                    break;
-        default: break;
-      }
-    }
-
-  #endif
-
-  #include <WebServer.h>
-  #include <ESPmDNS.h>
-  WebServer server(80);
+#if defined ESP32 || defined ESP8266
+  #define USE_WEBSERVER
+  #include "./network.h"
 #endif
 
 
@@ -101,7 +74,7 @@ void testTarGzPacker()
   Serial.printf("Wrote %d bytes to %s\n", ret, targz_path);
 }
 
-void testTarGzPackerStream()
+bool testTarGzPackerStream()
 {
   // targz_path: name of the .tar.gz compressed file
   // dst_path: optional path prefix in tar archive
@@ -110,10 +83,12 @@ void testTarGzPackerStream()
   Serial.printf("TarGzPacker::compress(&tarGzFS, dirEntities, &gz, dst_path); Free heap: %lu bytes\n", HEAP_AVAILABLE() );
   auto gz = tarGzFS.open(targz_path, "w");
   if(!gz)
-    return;
+    return false;
+  TarPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   auto ret = TarGzPacker::compress(&tarGzFS, dirEntities, &gz, dst_path);
   gz.close();
   Serial.printf("Wrote %d bytes to %s\n", ret, targz_path);
+  return ret>0;
 }
 
 
@@ -133,46 +108,26 @@ void setup()
   removeTempFiles(); // cleanup previous examples
   Serial.println("Gathering directory entitites");
   TarPacker::collectDirEntities(&dirEntities, &tarGzFS, src_path, 3); // collect dir and files at %{src_path}
-  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
+  // LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
 
   Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
 
-  testTarPacker();
-  testTarPackerStream();
-  testTarGzPacker();
+  // testTarPacker();
+  // testTarPackerStream();
+  // testTarGzPacker();
   testTarGzPackerStream();
 
-  Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
 
+  Serial.println();
 
   #if defined USE_WEBSERVER
-    #if !defined USE_ETHERNET // start WiFI
-      WiFi.mode(WIFI_STA);
-      WiFi.begin();
-      Serial.printf("Connect to WiFi...\n");
-      while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.printf(".");
-      }
-      Serial.printf("connected.\n");
-      Serial.printf("open <http://%s> or <http://%s>\n", WiFi.getHostname(), WiFi.localIP().toString().c_str());
-    #else // start ethernet
-      Network.onEvent(onEvent);  // Will call onEvent() from another thread.
-      ETH.begin();
-      while (!eth_connected) {
-        delay(500);
-        printf(".");
-      }
-    #endif
-    // start webserver, serve filesystem at root
-    server.serveStatic("/", tarGzFS, "/", nullptr);
-    server.begin();
+    setupNetwork();
   #endif
 }
 
 void loop()
 {
   #if defined USE_WEBSERVER
-    server.handleClient();
+    handleNetwork();
   #endif
 }
