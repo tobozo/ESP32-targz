@@ -88,7 +88,7 @@ typedef int (*closefunc_t)(void *fs, void *file);
 typedef int (*closewritefunc_t)(void *fs, void *file);
 
 // i/o callbacks
-typedef struct {
+typedef struct _tar_callback_t {
   void            *src_fs;
   void            *dst_fs;
   openfunc_t       openfunc;

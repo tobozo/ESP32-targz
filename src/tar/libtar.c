@@ -147,6 +147,7 @@ int th_write(TAR *t, int *written_bytes)
   int i;//, j;
   th_set_ustar(t);
 
+  printf("Writing header\n");
   i = t->io->writefunc(t->io->dst_fs, t->dst_file, &(t->th_buf), T_BLOCKSIZE);
   if (i != T_BLOCKSIZE) {
     //log_e("ERROR in th_write, returned block size %d didn't match expexted size %d", i, (int)T_BLOCKSIZE);

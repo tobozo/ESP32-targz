@@ -96,6 +96,8 @@
   // the fuck with spamming the console
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  #pragma GCC diagnostic ignored "-Wunused-parameter"
+  #pragma GCC diagnostic ignored "-Wformat"
 
   // Figure out the chosen fs::FS library to load for the **destination** filesystem
 
@@ -117,29 +119,16 @@
         #define tarGzFS SPIFFS
         #define FS_NAME "SPIFFS"
       #endif
-    #else // no destination filesystem defined in sketch
-      // #warning "Unspecified or invalid destination filesystem, please #define one of these before including the library: DEST_FS_USES_SPIFFS, DEST_FS_USES_LITTLEFS, DEST_FS_USES_SD, DEST_FS_USES_PSRAMFS"
-      // however, check for USE_LittleFS as it is commonly defined since SPIFFS deprecation
-      #if defined USE_LittleFS
-        #include <LittleFS.h>
-        #define tarGzFS LittleFS
-        #warning "Defaulting to LittleFS"
-        #define DEST_FS_USES_LITTLEFS
-        #define FS_NAME "LITTLEFS (defaulted)"
-      #else
-        #define tarGzFS SPIFFS
-        #warning "Defaulting to SPIFFS (soon deprecated)"
-        #define DEST_FS_USES_SPIFFS
-        #define FS_NAME "SPIFFS"
-      #endif
+    #else
+      // no destination filesystem defined in sketch
     #endif
   #endif
 
-  static FSInfo fsinfo;
+  [[maybe_unused]] static FSInfo fsinfo;
 
 #elif defined ARDUINO_ARCH_RP2040
 
-  #pragma message "Experimental RP2040 support, compression is disabled"
+  // #pragma message "Experimental RP2040 support"
 
   #undef DEST_FS_USES_SD_MMC // unsupported
   #undef DEST_FS_USES_FFAT   // unsupported
@@ -228,20 +217,10 @@ __attribute__((unused)) static size_t targzTotalBytesFn() {
   #define SPI_FLASH_SEC_SIZE 4096
 #endif
 
-// Callbacks for getting free/total space left on *destination* device.
-// Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
-// to explode during stream writes.
-typedef size_t (*fsTotalBytesCb)();
-typedef size_t (*fsFreeBytesCb)();
 
-// setup filesystem helpers (totalBytes, freeBytes)
-// must be done from outside the library since FS is an abstraction of an abstraction :(
-typedef void (*fsSetupCallbacks)( fsTotalBytesCb cbt, fsFreeBytesCb cbf );
+#include "types/esp32_targz_types.h"
 
-// Callbacks for progress and misc output messages, default is verbose
-typedef void (*totalProgressCallback)(size_t progress, size_t total); // raw values
-typedef void (*genericProgressCallback)(uint8_t progress); // percent (0...100)
-typedef void (*genericLoggerCallback)( const char* format, ... ); // same behaviour as printf()
+
 
 
 // md5sum (essentially for debug)
@@ -258,6 +237,10 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
 #if !defined ESP32_TARGZ_DISABLE_COMPRESSION
   #include <vector>
   #include "libpacker/LibPacker.hpp"
+  #if defined ARDUINO_ARCH_RP2040 && defined TARGZ_USE_TASKS
+    #warning "FreeRTOS Tasks are enabled, this may interfer with TinyUSB"
+  #endif
+
 #else
   #pragma message "Compression support is disabled"
 #endif

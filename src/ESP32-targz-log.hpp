@@ -58,7 +58,7 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) {  }
         #if defined DEBUG_ESP_VERBOSE
           #define log_v(format, ...) DEBUG_ESP_PORT.printf(ARDUHAL_LOG_FORMAT(V, format), ##__VA_ARGS__);
         #else
-          #define log_v(format, ...) NullLoggerCallback
+          #define log_v(format, ...) NullLoggerCallback(format, ##__VA_ARGS__)
         #endif
       #else
         // don't be verbose, only errors+warnings
