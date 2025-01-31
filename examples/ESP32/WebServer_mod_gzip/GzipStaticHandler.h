@@ -281,7 +281,9 @@ bool GzCacheMiddleware::run(WebServer &server, Middleware::Callback next) {
     return next();
 
   assert(gzHandler);
-  return gzHandler->handle( server, server.method(), server.uri() );
+  if( gzHandler->handle( server, server.method(), server.uri() ) )
+    return true;
+  return next();
 }
 
 

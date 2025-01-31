@@ -16,15 +16,29 @@
   - uzlib https://github.com/pfalcon/uzlib
   - TinyUntar https://github.com/dsoprea/TinyUntar
 
-ESP32-targz enables the channeling of gz :arrow_right: tar :arrow_right: filesystem data ~~without using an intermediate file~~ (bug: see [#4](https://github.com/tobozo/ESP32-targz/issues/4)).
+ESP32-targz enables the channeling of gz :arrow_left::arrow_right: tar :arrow_left::arrow_right: filesystem data in both directions.
 
-In order to reach this goal, TinyUntar was heavily modified to allow data streaming, uzlib is also customized.
+Parental advisory: this project was made under the influence of hyperfocus and its code may contain comments that are unfit for children.
 
+
+Scope
+-----
+
+  - Compressing to `.tar.gz`
+  - Decompressing from `tar.gz` 
+  - Compressing to `gz`
+  - Decompressing from `gz` 
+  - Packing files/folders to `tar`
+  - Unpacking `tar`
+  - Supports any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and Stream (HTTP, HTTPS, UDP, CAN, Ethernet)
+  - This is experimental, expect bugs!
+  - Contributions and feedback are more than welcome :-)
+  
 
 Tradeoffs
 ---------
 
-When the output is the filesystem (e.g. NOT when streaming to TAR), gzip can work without the dictionary.
+When decompressing to the filesystem (e.g. NOT when streaming to TAR), gzip can work without the dictionary.
 Disabling the dictionary can cause huge slowdowns but saves ~36KB of ram.
 
 TinyUntar requires 512bytes only so its memory footprint is negligible.
@@ -33,20 +47,10 @@ TinyUntar requires 512bytes only so its memory footprint is negligible.
 Limitations
 -----------
 
-ESP32-TarGz can only have one **output** filesystem (see *Support Matrix*), and it must be set at compilation time (see *Usage*).
+- ESP32-targz decompression can only have one **output** filesystem (see *Support Matrix*), and it must be set at compilation time (see *Usage*).
 This limitation does not apply to the **input** filesystem/stream.
 
-
-Scope
------
-
-  - Compressing to `gz` (deflate/lz77)
-  - Decompressing `gz` 
-  - Expanding `tar` 
-  - Decompressing and expanding `tar.gz` 
-  - Supports any fs::FS filesystem (SD, SD_MMC, FFat, LittleFS) and streams (HTTP, HTTPS, UDP, CAN, Ethernet)
-  - This is experimental, expect bugs!
-  - Contributions and feedback are more than welcome :-)
+- Only indirect tar-to-gz compression is available on ESP8266-arduino (an intermediate tar file must be used).
 
 
 
@@ -68,7 +72,7 @@ Usage
 -----
 
 
-:warning: Important note: setting the `#define` **before** including `<ESP32-targz.h>` is recommended to prevent the library from defaulting to SPIFFS.
+:warning: Optional: setting the `#define` **before** including `<ESP32-targz.h>` will alias a default flash filesystem to `tarGzFS`.
 
 
 ```C
@@ -345,7 +349,78 @@ Compress to `.gz` (stream to stream)
     
 
     
+    
+    
+Pack to `.tar` (entities to File)
+-------------------------------
+```C
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
+  auto packedSize = TarPacker::pack_files(&LittleFS, dirEntities, &LittleFS, "/my.archive.tar");
+```
+  
+Pack to `.tar` (entities to Stream)
+-------------------------------
+```C
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
+  File tarOutfile = LittleFS.open("/my.archive.tar", "w");  
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
+  size_t packedSize = TarPacker::pack_files(&LittleFS, dirEntities, &tarOutfile);
+  tarOutfile.close();
+```
+  
+  
+Pack & compress to `.tar.gz` File (using intermediate tar file)
+-------------------------------
 
+```C
+  const char* temporaryTarFile = "/.tmp.tar"; // will be deleted after use
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, temporaryTarFile, &LittleFS, "/my.compressed.archive.tar.gz");
+```
+  
+
+Pack & compress to `.tar.gz` Stream (using intermediate tar file)
+-------------------------------  
+
+```C
+  const char* temporaryTarFile = "/.tmp.tar"; // will be deleted after use
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, temporaryTarFile, &TarGzOutFile);
+  TarGzOutFile.close();
+```
+  
+  
+:warning: Direct tar-to-gz compression uses FreeRTOS tasks and is unavailable On ESP8266-arduino. Use the version with intermediate file instead.
+
+Pack & compress to `.tar.gz` Stream (no intermediate tar file)
+-------------------------------  
+
+```C
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, &TarGzOutFile);
+  TarGzOutFile.close();
+```
+
+Pack & compress to `.tar.gz` File (no intermediate tar file)
+-------------------------------  
+
+```C
+  std::vector<TAR::dir_entity_t> dirEntities;
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, &LittleFS, "/my.archive.tar.gz");
+  TarGzOutFile.close();
+```
+
+
+  
 
 
 Callbacks
@@ -402,7 +477,7 @@ Callbacks
 
 ```
 
-Return Codes
+Return Codes for TarGzUnpacker/GzUnpacker/TarUnpacker
 ------------
 
 `*Unpacker->tarGzGetError()` returns a value when a problem occured:
@@ -470,9 +545,9 @@ Test Suite
 Known bugs
 ----------
 
-  - tarGzStreamExpander hates SPIFFS
-  - tarGzExpander/tarExpander: some formats aren't supported with SPIFFS (e.g contains symlinks or long filename/path)
-  - tarGzExpander without intermediate file hates situations with low heap
+  - SPIFFS is deprecated, migrate to LittleFS!
+  - tarGzExpander/tarExpander: symlinks or long filename/path not supported, path limit is 100 chars
+  - tarGzExpander without intermediate file uses a lot of heap
   - tarGzExpander/gzExpander on ESP8266 : while the provided examples will work, the 32Kb dynamic allocation for gzip dictionary is unlikely to work in real world scenarios (e.g. with a webserver) and would probably require static allocation
 
 
@@ -482,13 +557,14 @@ Debugging:
 
   - ESP32: use all of the "Debug level" values from the boards menu
   - ESP8266: Warning/Error when "Debug Port:Serial" is used, and Debug/Verbose when "Debug Level:Core" is selected from the boards menu
+  - RP2040: only "Debug port: Serial" and "Debug Level: Core" enable logging
 
 
 Resources
 -----------
-  - [LittleFS for ESP32](https://github.com/lorol/LITTLEFS)
   - [ESP8266 Sketch Data Upload tool for LittleFS](https://github.com/earlephilhower/arduino-esp8266littlefs-plugin)
   - [ESP32 Sketch Data Upload tool for FFat/LittleFS/SPIFFS](https://github.com/lorol/arduino-esp32fs-plugin/releases)
+  - [Pico LittlsFS Data Upload tool](https://github.com/earlephilhower/arduino-pico-littlefs-plugin)
 
   ![image](https://user-images.githubusercontent.com/1893754/99714053-635de380-2aa5-11eb-98e3-631a94836742.png)
 
@@ -501,7 +577,6 @@ Alternate links
 
 Credits:
 --------
-
   - [pfalcon](https://github.com/pfalcon/uzlib) (uzlib maintainer)
   - [dsoprea](https://github.com/dsoprea/TinyUntar) (TinyUntar maintainer)
   - [lorol](https://github.com/lorol) (LittleFS-ESP32 + fs plugin)
@@ -511,5 +586,6 @@ Credits:
   - [scubachristopher](https://github.com/scubachristopher) (contribution and support)
   - [infrafast](https://github.com/infrafast) (feedback fueler)
   - [vortigont](https://github.com/vortigont/) (inspiration and support)
+  - [hitecSmartHome](https://github.com/hitecSmartHome) (feedback fueler)
 
 

@@ -6,6 +6,13 @@
 #include <math.h>
 #include <stdlib.h>
 
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
 #define IS_BASE256_ENCODED(buffer) (((unsigned char)buffer[0] & 0x80) > 0)
 #define GET_NUM_BLOCKS(filesize) (int)ceil((double)filesize / (double)TAR_BLOCK_SIZE)
 
@@ -120,6 +127,7 @@ struct entry_callbacks_s
 
 typedef struct entry_callbacks_s entry_callbacks_t;
 
+// C weirdness: these functions are also declared as extern in the C file
 __attribute__((unused))static void (*tar_error_logger)(const char* subject, ...);
 __attribute__((unused))static void (*tar_debug_logger)(const char* subject, ...);
 
@@ -134,5 +142,10 @@ int parse_header(unsigned const char buffer[512], header_t *header);
 int translate_header(header_t *raw_header, header_translated_t *parsed);
 enum entry_type_e get_type_from_char(char raw_type);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif
+
 

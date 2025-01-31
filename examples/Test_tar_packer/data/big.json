@@ -1,0 +1,1200 @@
+{
+  "packages": [
+    {
+      "name": "STM32",
+      "websiteURL": "http://www.st.com/en/microcontrollers.html",
+      "maintainer": "STMicroelectronics",
+      "email": "stmduino@st.com",
+      "help": {
+        "online": "http://www.stm32duino.com/"
+      },
+      "platforms": [
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "0.1.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.5.12.tar.bz2",
+          "archiveFileName": "STM32-2017.5.12.tar.bz2",
+          "checksum": "SHA-256:10b403b6b437c183d9a0a74a08ebe425766f6c3425474b1f800f6eca337075a6",
+          "size": "19788680",
+          "boards": [
+            {"name": "[DEPRECATED] Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q1-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "0.1.0"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "0.1.1",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.6.2.tar.bz2",
+          "archiveFileName": "STM32-2017.6.2.tar.bz2",
+          "checksum": "SHA-256:f01dac293fbbcf93edc52a2a3ea189e0df878acb31e71e171aee1663aba449a3",
+          "size": "20345714",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q1-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "0.1.0"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "0.2.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.7.13.tar.bz2",
+          "archiveFileName": "STM32-2017.7.13.tar.bz2",
+          "checksum": "SHA-256:229ac1f5a7617c94375cf577582a5fef77962d0e476b2642a55485897be8c465",
+          "size": "20812534",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q1-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "0.2.0"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "0.2.1",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.8.4.tar.bz2",
+          "archiveFileName": "STM32-2017.8.4.tar.bz2",
+          "checksum": "SHA-256:f74b17a2d376e063e48271307e855f76f49ae3c20a123c2861b713bbdb3da793",
+          "size": "20818236",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q1-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "0.2.0"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.0.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.8.31.tar.bz2",
+          "archiveFileName": "STM32-2017.8.31.tar.bz2",
+          "checksum": "SHA-256:7ee7e7b14a5336f0206879a69e02eec196a8dbc7a61723185ff517121f7394f6",
+          "size": "15699530",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q1-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.0.0"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.0.1",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.9.22.tar.bz2",
+          "archiveFileName": "STM32-2017.9.22.tar.bz2",
+          "checksum": "SHA-256:9211cdbb540a90143a7603519c8e9ae8ef18e61836d647fd7ef67278983b8688",
+          "size": "15703585",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.0.1"
+            },
+            {
+              "packager": "arduino",
+              "version": "4.5.0",
+              "name": "CMSIS"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.1.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2017.11.24.tar.bz2",
+          "archiveFileName": "STM32-2017.11.24.tar.bz2",
+          "checksum": "SHA-256:eeb346af520d23ee3f89022ff24d715340a6d1b1209b0982d92fe3e71dc11d48",
+          "size": "16542818",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.0.1"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.1.1",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-2018.1.18.tar.bz2",
+          "archiveFileName": "STM32-2018.1.18.tar.bz2",
+          "checksum": "SHA-256:9a1b631421ce3742146b73e3afe4a2856514fd4cb156c6c304547352f692ce84",
+          "size": "16273768",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.0.1"
+            },
+            {
+              "packager": "arduino",
+              "name": "CMSIS",
+              "version": "4.5.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.2.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-1.2.0.tar.bz2",
+          "archiveFileName": "STM32-1.2.0.tar.bz2",
+          "checksum": "SHA-256:8db457da70d1a5f3b43030a6ebb05e6f7de2fa7628922a4c08270b576d49771e",
+          "size": "16555125",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.0.2"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.3.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.3.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/packages/STM32-1.3.0.tar.bz2",
+          "archiveFileName": "STM32-1.3.0.tar.bz2",
+          "checksum": "SHA-256:c9a601c202ab850e48b0c6eaceb817bc14b3dbf6c0af89da0a4c7f785447b08b",
+          "size": "16627675",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.1.0"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.3.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.4.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.4.0/STM32-1.4.0.tar.bz2",
+          "archiveFileName": "STM32-1.4.0.tar.bz2",
+          "checksum": "SHA-256:59dfde3fbed67207148b10df5624813b48cf4c0681c4f9f2cae22edbb2bf8446",
+          "size": "16981955",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.2.0"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.3.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.5.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.5.0/STM32-1.5.0.tar.bz2",
+          "archiveFileName": "STM32-1.5.0.tar.bz2",
+          "checksum": "SHA-256:09e2d0f2aa35e189331ac2ac13faca7ed926ff257a05f6520797ae2c57e5c78a",
+          "size": "18972644",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "6-2017-q2-update"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.2.1"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.3.0"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.6.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.6.0/STM32-1.6.0.tar.bz2",
+          "archiveFileName": "STM32-1.6.0.tar.bz2",
+          "checksum": "SHA-256:540226e3f850ce1a805acfc6621493592e12584a50dcb3a07dcdb0e35301a261",
+          "size": "22038021",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "8-2018-q4-major"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.3.0"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.5.1"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.6.1",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.6.1/STM32-1.6.1.tar.bz2",
+          "archiveFileName": "STM32-1.6.1.tar.bz2",
+          "checksum": "SHA-256:a25ff69e6c77f575d23cf749fca8c97dcca2832acc9207078447d8dd2fee6498",
+          "size": "22037454",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "8.2.1-1.7"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.3.0"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.5.1"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.7.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.7.0/STM32-1.7.0.tar.bz2",
+          "archiveFileName": "STM32-1.7.0.tar.bz2",
+          "checksum": "SHA-256:1b76000f794fe0d2d90600d522a09f42640520ce18549053fa9763f6a90fbf84",
+          "size": "23982361",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "arm-none-eabi-gcc",
+              "version": "8.2.1-1.7"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.3.1"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.5.1"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.8.0",
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.8.0/STM32-1.8.0.tar.bz2",
+          "archiveFileName": "STM32-1.8.0.tar.bz2",
+          "checksum": "SHA-256:756d39fab2ca5c0bf857b64153a265dd7ef2c151464bd248d6ca94ee05ca8fe7",
+          "size": "29132822",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "xpack-arm-none-eabi-gcc",
+              "version": "9.2.1-1.1"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.3.2"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.5.1"
+            }
+          ]
+        },
+        {
+          "name": "[DEPRECATED - Please use new package index] STM32 Cores",
+          "architecture": "stm32",
+          "version": "1.9.0",
+          "deprecated": true,
+          "category": "Contributed",
+          "url": "https://github.com/stm32duino/Arduino_Core_STM32/releases/download/1.9.0/STM32-1.9.0.tar.bz2",
+          "archiveFileName": "STM32-1.9.0.tar.bz2",
+          "checksum": "SHA-256:f957056523f2f3937fcbab4a7d57ec6fa513228d66b3fc10b81c74a615691c73",
+          "size": "33617865",
+          "boards": [
+            {"name": "DEPRECATED - Please use new package index: https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"}
+          ],
+          "toolsDependencies": [
+            {
+              "packager": "STM32",
+              "name": "xpack-arm-none-eabi-gcc",
+              "version": "9.2.1-1.1"
+            },
+            {
+              "packager": "STM32",
+              "name": "STM32Tools",
+              "version": "1.4.0"
+            },
+            {
+              "packager": "STM32",
+              "name": "CMSIS",
+              "version": "5.5.1"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "xpack-arm-none-eabi-gcc",
+          "version": "9.2.1-1.1",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v9.2.1-1.1/xpack-arm-none-eabi-gcc-9.2.1-1.1-win32-x32.zip",
+              "archiveFileName": "xpack-arm-none-eabi-gcc-9.2.1-1.1-win32-x32.zip",
+              "checksum": "SHA-256:d13aaff4caae6e5f1b871d50accc1759c4f5750574dbd4d6f6e3017c33f39dc6",
+              "size": "128697954"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v9.2.1-1.1/xpack-arm-none-eabi-gcc-9.2.1-1.1-darwin-x64.tar.gz",
+              "archiveFileName": "xpack-arm-none-eabi-gcc-9.2.1-1.1-darwin-x64.tar.gz",
+              "checksum": "SHA-256:6ff68117083624273c56244cf4242989a65069b376a9727ec4a230be824340f3",
+              "size": "132371371"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v9.2.1-1.1/xpack-arm-none-eabi-gcc-9.2.1-1.1-linux-x64.tar.gz",
+              "archiveFileName": "xpack-arm-none-eabi-gcc-9.2.1-1.1-linux-x64.tar.gz",
+              "checksum": "SHA-256:bbde117b97f229dfe63721c0323c3da6839e83cf302c8f4ff25e0f36ecf7a428",
+              "size": "135081450"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v9.2.1-1.1/xpack-arm-none-eabi-gcc-9.2.1-1.1-linux-x32.tar.gz",
+              "archiveFileName": "xpack-arm-none-eabi-gcc-9.2.1-1.1-linux-x32.tar.gz",
+              "checksum": "SHA-256:e9f4b5f3ebe7e4391e2423e4106493d7cfcdee9eee4a1f0766f1c23662093a49",
+              "size": "137429272"
+            }
+          ]
+        },
+        {
+          "name": "arm-none-eabi-gcc",
+          "version": "8.2.1-1.7",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8.2.1-1.7/gcc-arm-none-eabi-8.2.1-1.7-windows.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8.2.1-1.7-windows.tar.bz2",
+              "checksum": "SHA-256:fe7305b48b92e20d71740da8723e59e89abc2e8e159350e9b302adcedbc2b25c",
+              "size": "117852054"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8.2.1-1.7/gcc-arm-none-eabi-8.2.1-1.7-mac.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8.2.1-1.7-mac.tar.bz2",
+              "checksum": "SHA-256:a6c0193a02d7cd8e411d438c6461c516d7782776f0c647a0a2168f60068b21b2",
+              "size": "103985447"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8.2.1-1.7/gcc-arm-none-eabi-8.2.1-1.7-linux64.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8.2.1-1.7-linux64.tar.bz2",
+              "checksum": "SHA-256:509f0358ae2f83612f1120fb63eda5eca3892238f793ae909a5bb1d85db0c1f1",
+              "size": "108286418"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8.2.1-1.7/gcc-arm-none-eabi-8.2.1-1.7-linux32.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8.2.1-1.7-linux32.tar.bz2",
+              "checksum": "SHA-256:008fdca0f29da0f71519bb78b088e199f30bdf9090b60a18e5372a6942ae5c7a",
+              "size": "109871000"
+            }
+          ]
+        },
+        {
+          "name": "arm-none-eabi-gcc",
+          "version": "8-2018-q4-major",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8-2018-q4-major/gcc-arm-none-eabi-8-2018-q4-major-windows.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8-2018-q4-major-windows.tar.bz2",
+              "checksum": "SHA-256:12e28bae974b3b270eb977cab28aa9a32928bba285fef45b2597acd06e385e37",
+              "size": "117135039"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8-2018-q4-major/gcc-arm-none-eabi-8-2018-q4-major-mac.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8-2018-q4-major-mac.tar.bz2",
+              "checksum": "SHA-256:d01fe94515515293529dbb145abfccc709576b80e866a0282bde69a81354f681",
+              "size": "112138851"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8-2018-q4-major/gcc-arm-none-eabi-8-2018-q4-major-linux64.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8-2018-q4-major-linux64.tar.bz2",
+              "checksum": "SHA-256:a765af2d887984d33c590a369c0c16aca1d49ac97962f6063ec5693a3db9e1fd",
+              "size": "107291807"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/8-2018-q4-major/gcc-arm-none-eabi-8-2018-q4-major-linux32.tar.bz2",
+              "archiveFileName": "gcc-arm-none-eabi-8-2018-q4-major-linux32.tar.bz2",
+              "checksum": "SHA-256:d321d3585b1c13a9adf8e4bff403d1348878b5756d40ec2d1fd3647e28664930",
+              "size": "105453401"
+            }
+          ]
+        },
+        {
+          "name": "arm-none-eabi-gcc",
+          "version": "6-2017-q2-update",
+          "systems": [
+            {
+              "size": "94146952",
+              "checksum": "SHA-256:37a19a4b987aeb077c29bcc3854e9cc58210292ab08eb990c4ef945a59d86c0d",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q2-update-windows.tar.bz2",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q2-update/gcc-arm-none-eabi-6-2017-q2-update-windows.tar.bz2",
+              "host": "i686-mingw32"
+            },
+            {
+              "size": "88715718",
+              "checksum": "SHA-256:0305683c9a7cd368c6cff891883979982f3917ae6edc38fd64f920c188ad4972",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q2-update-mac.tar.bz2",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q2-update/gcc-arm-none-eabi-6-2017-q2-update-mac.tar.bz2",
+              "host": "x86_64-apple-darwin"
+            },
+            {
+              "size": "83912523",
+              "checksum": "SHA-256:81c5b83fd134a34a2f1dd1bd93ece223d4a511134932d41e5dd54a00943c0402",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q2-update-linux64.tar.bz2",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q2-update/gcc-arm-none-eabi-6-2017-q2-update-linux64.tar.bz2",
+              "host": "x86_64-pc-linux-gnu"
+            },
+            {
+              "size": "82511589",
+              "checksum": "SHA-256:8384a1200b770b34d3a31f41b4125bb9c7707fa69ecaf8b9f3afe9b2b01fa98c",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q2-update-linux32.tar.bz2",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q2-update/gcc-arm-none-eabi-6-2017-q2-update-linux32.tar.bz2",
+              "host": "i686-pc-linux-gnu"
+            }
+          ]
+        },
+        {
+          "name": "arm-none-eabi-gcc",
+          "version": "6-2017-q1-update",
+          "systems": [
+            {
+              "size": "91550932",
+              "checksum": "SHA-256:f8b058a319759fa00b5d396cea235ea79a269de298d3b7fc661fab5ae52475d7",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q1-update-windows.tar.gz",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q1-update/gcc-arm-none-eabi-6-2017-q1-update-windows.tar.gz",
+              "host": "i686-mingw32"
+            },
+            {
+              "size": "85435005",
+              "checksum": "SHA-256:da7886bcb1023d17af22cef308f59df37297625344de7598e642ed77d3dc438e",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q1-update-mac.tar.gz",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q1-update/gcc-arm-none-eabi-6-2017-q1-update-mac.tar.gz",
+              "host": "x86_64-apple-darwin"
+            },
+            {
+              "size": "79681392",
+              "checksum": "SHA-256:0f5df0a90e72b13ebff418ff17dfbb654eaa7d8ea9504ddc1ad05c46707c8ca5",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q1-update-linux64.tar.gz",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q1-update/gcc-arm-none-eabi-6-2017-q1-update-linux64.tar.gz",
+              "host": "x86_64-pc-linux-gnu"
+            },
+            {
+              "size": "78486827",
+              "checksum": "SHA-256:cda742224f579a06f5209bc3c55dbf51667604308eaff51cde6cfeed4fedc5ae",
+              "archiveFileName": "gcc-arm-none-eabi-6-2017-q1-update-linux32.tar.gz",
+              "url": "https://github.com/stm32duino/arm-none-eabi-gcc/releases/download/6-2017-q1-update/gcc-arm-none-eabi-6-2017-q1-update-linux32.tar.gz",
+              "host": "i686-pc-linux-gnu"
+            }
+          ]
+        },
+        {
+          "name": "CMSIS",
+          "version": "5.5.1",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            },
+            {
+              "host": "arm-linux-gnueabihf",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            },
+            {
+              "host": "all",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.5.1/CMSIS-5.5.1.tar.bz2",
+              "archiveFileName": "CMSIS-5.5.1.tar.bz2",
+              "checksum": "SHA-256:3dddbd241986fc7a7861a62c748abf350055ac4542d362f38f1778caad2c4bf8",
+              "size": "24351965"
+            }
+          ]
+        },
+        {
+          "name": "CMSIS",
+          "version": "5.3.0",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.3.0/CMSIS-5.3.0.tar.bz2",
+              "archiveFileName": "CMSIS-5.3.0.tar.bz2",
+              "checksum": "SHA-256:7f1a669fa23fc51532d807955aa32976b89cb14675189d07a5ce3652bc1c8e3c",
+              "size": "42816664"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.3.0/CMSIS-5.3.0.tar.bz2",
+              "archiveFileName": "CMSIS-5.3.0.tar.bz2",
+              "checksum": "SHA-256:7f1a669fa23fc51532d807955aa32976b89cb14675189d07a5ce3652bc1c8e3c",
+              "size": "42816664"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.3.0/CMSIS-5.3.0.tar.bz2",
+              "archiveFileName": "CMSIS-5.3.0.tar.bz2",
+              "checksum": "SHA-256:7f1a669fa23fc51532d807955aa32976b89cb14675189d07a5ce3652bc1c8e3c",
+              "size": "42816664"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/ArduinoModule-CMSIS/releases/download/5.3.0/CMSIS-5.3.0.tar.bz2",
+              "archiveFileName": "CMSIS-5.3.0.tar.bz2",
+              "checksum": "SHA-256:7f1a669fa23fc51532d807955aa32976b89cb14675189d07a5ce3652bc1c8e3c",
+              "size": "42816664"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "0.1.0",
+          "systems": [
+            {
+              "size": "7919425",
+              "checksum": "SHA-256:e73aac594b92d36e9c243d401229b10b636060697d037219dbb4c517f3f9a6f3",
+              "archiveFileName": "STM32Tools-2017.5.12.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.5.12.tar.bz2",
+              "host": "i686-linux-gnu"
+            },
+            {
+              "size": "7919425",
+              "checksum": "SHA-256:e73aac594b92d36e9c243d401229b10b636060697d037219dbb4c517f3f9a6f3",
+              "archiveFileName": "STM32Tools-2017.5.12.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.5.12.tar.bz2",
+              "host": "x86_64-pc-linux-gnu"
+            },
+            {
+              "size": "7919425",
+              "checksum": "SHA-256:e73aac594b92d36e9c243d401229b10b636060697d037219dbb4c517f3f9a6f3",
+              "archiveFileName": "STM32Tools-2017.5.12.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.5.12.tar.bz2",
+              "host": "i686-mingw32"
+            },
+            {
+              "size": "7919425",
+              "checksum": "SHA-256:e73aac594b92d36e9c243d401229b10b636060697d037219dbb4c517f3f9a6f3",
+              "archiveFileName": "STM32Tools-2017.5.12.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.5.12.tar.bz2",
+              "host": "i386-apple-darwin11"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "0.2.0",
+          "systems": [
+            {
+              "host": "i686-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.7.13.tar.bz2",
+              "archiveFileName": "STM32Tools-2017.7.13.tar.bz2",
+              "checksum": "SHA-256:3cbdc522db8f64eff887d56d70bfefd5ed7db5f5376d8a88879b7c1172a8335b",
+              "size": "7929231"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.7.13.tar.bz2",
+              "archiveFileName": "STM32Tools-2017.7.13.tar.bz2",
+              "checksum": "SHA-256:3cbdc522db8f64eff887d56d70bfefd5ed7db5f5376d8a88879b7c1172a8335b",
+              "size": "7929231"
+            },
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.7.13.tar.bz2",
+              "archiveFileName": "STM32Tools-2017.7.13.tar.bz2",
+              "checksum": "SHA-256:3cbdc522db8f64eff887d56d70bfefd5ed7db5f5376d8a88879b7c1172a8335b",
+              "size": "7929231"
+            },
+            {
+              "host": "i386-apple-darwin11",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.7.13.tar.bz2",
+              "archiveFileName": "STM32Tools-2017.7.13.tar.bz2",
+              "checksum": "SHA-256:3cbdc522db8f64eff887d56d70bfefd5ed7db5f5376d8a88879b7c1172a8335b",
+              "size": "7929231"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.0.0",
+          "systems": [
+            {
+              "size": "7929806",
+              "checksum": "SHA-256:2711544bf4d10ce7511e501cc442527fc9169f04311ba081c997b243a53a8adb",
+              "archiveFileName": "STM32Tools-2017.8.31.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.8.31.tar.bz2",
+              "host": "i686-linux-gnu"
+            },
+            {
+              "size": "7929806",
+              "checksum": "SHA-256:2711544bf4d10ce7511e501cc442527fc9169f04311ba081c997b243a53a8adb",
+              "archiveFileName": "STM32Tools-2017.8.31.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.8.31.tar.bz2",
+              "host": "x86_64-pc-linux-gnu"
+            },
+            {
+              "size": "7929806",
+              "checksum": "SHA-256:2711544bf4d10ce7511e501cc442527fc9169f04311ba081c997b243a53a8adb",
+              "archiveFileName": "STM32Tools-2017.8.31.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.8.31.tar.bz2",
+              "host": "i686-mingw32"
+            },
+            {
+              "size": "7929806",
+              "checksum": "SHA-256:2711544bf4d10ce7511e501cc442527fc9169f04311ba081c997b243a53a8adb",
+              "archiveFileName": "STM32Tools-2017.8.31.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.8.31.tar.bz2",
+              "host": "i386-apple-darwin11"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.0.1",
+          "systems": [
+            {
+              "size": "7929670",
+              "checksum": "SHA-256:91dfc620f46b42707bba4a633ee8e332a1e2d7743a3204b130f9bc74b0933322",
+              "archiveFileName": "STM32Tools-2017.9.22.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.9.22.tar.bz2",
+              "host": "i686-linux-gnu"
+            },
+            {
+              "size": "7929670",
+              "checksum": "SHA-256:91dfc620f46b42707bba4a633ee8e332a1e2d7743a3204b130f9bc74b0933322",
+              "archiveFileName": "STM32Tools-2017.9.22.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.9.22.tar.bz2",
+              "host": "x86_64-pc-linux-gnu"
+            },
+            {
+              "size": "7929670",
+              "checksum": "SHA-256:91dfc620f46b42707bba4a633ee8e332a1e2d7743a3204b130f9bc74b0933322",
+              "archiveFileName": "STM32Tools-2017.9.22.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.9.22.tar.bz2",
+              "host": "i686-mingw32"
+            },
+            {
+              "size": "7929670",
+              "checksum": "SHA-256:91dfc620f46b42707bba4a633ee8e332a1e2d7743a3204b130f9bc74b0933322",
+              "archiveFileName": "STM32Tools-2017.9.22.tar.bz2",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-2017.9.22.tar.bz2",
+              "host": "i386-apple-darwin11"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.0.2",
+          "systems": [
+            {
+              "host": "i686-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.0.2.tar.bz2",
+              "archiveFileName": "STM32Tools-1.0.2.tar.bz2",
+              "checksum": "SHA-256:0594450845a3645d5f9bb00d3f5bca8cb3dc855b04bbf78c960a4b8ed23bdf6a",
+              "size": "8137349"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.0.2.tar.bz2",
+              "archiveFileName": "STM32Tools-1.0.2.tar.bz2",
+              "checksum": "SHA-256:0594450845a3645d5f9bb00d3f5bca8cb3dc855b04bbf78c960a4b8ed23bdf6a",
+              "size": "8137349"
+            },
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.0.2.tar.bz2",
+              "archiveFileName": "STM32Tools-1.0.2.tar.bz2",
+              "checksum": "SHA-256:0594450845a3645d5f9bb00d3f5bca8cb3dc855b04bbf78c960a4b8ed23bdf6a",
+              "size": "8137349"
+            },
+            {
+              "host": "i386-apple-darwin11",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.0.2.tar.bz2",
+              "archiveFileName": "STM32Tools-1.0.2.tar.bz2",
+              "checksum": "SHA-256:0594450845a3645d5f9bb00d3f5bca8cb3dc855b04bbf78c960a4b8ed23bdf6a",
+              "size": "8137349"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.1.0",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.1.0-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.1.0-windows.tar.bz2",
+              "checksum": "SHA-256:2996fb32f778def2f21eafcedf6f32945e0487b43e4cf23462192147ad3ff3a7",
+              "size": "6171696"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.1.0-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.1.0-mac.tar.bz2",
+              "checksum": "SHA-256:5ee517a888bce7788f3cba65d20aa64d2ea97d8161f09e8c28adeb6755f9c073",
+              "size": "779406"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.1.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.1.0-linux.tar.bz2",
+              "checksum": "SHA-256:fe51763fba6ade899f178afa05eca8e95852e41226cef5203125ddfb7db4b078",
+              "size": "1445336"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/BoardManagerFiles/raw/main/STM32/tools/STM32Tools-1.1.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.1.0-linux.tar.bz2",
+              "checksum": "SHA-256:fe51763fba6ade899f178afa05eca8e95852e41226cef5203125ddfb7db4b078",
+              "size": "1445336"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.2.0",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.0/STM32Tools-1.2.0-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.0-windows.tar.bz2",
+              "checksum": "SHA-256:46f4df909a60445b814f6e2c1e73f535fe458304a2c1f054e3ae1b75fe866a59",
+              "size": "10984553"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.0/STM32Tools-1.2.0-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.0-mac.tar.bz2",
+              "checksum": "SHA-256:0a241de5b12abdf9e0dd1f1bee8621ab7c341273b0c3322000297ce005827e97",
+              "size": "765622"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.0/STM32Tools-1.2.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.0-linux.tar.bz2",
+              "checksum": "SHA-256:252a22714d77283e39b5780b242e9073ecf27f791a62065fd018526c626581f9",
+              "size": "1326482"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.0/STM32Tools-1.2.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.0-linux.tar.bz2",
+              "checksum": "SHA-256:252a22714d77283e39b5780b242e9073ecf27f791a62065fd018526c626581f9",
+              "size": "1326482"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.2.1",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.1/STM32Tools-1.2.1-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.1-windows.tar.bz2",
+              "checksum": "SHA-256:b4c83a965b88febe035e02b61ab0c5631e64f98718c00e3940a17683898f9a99",
+              "size": "10856955"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.1/STM32Tools-1.2.1-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.1-mac.tar.bz2",
+              "checksum": "SHA-256:52d162f11afcd0cec37d02106ace4d1e68bfe85633fe926094bcf8210f4d755a",
+              "size": "799691"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.1/STM32Tools-1.2.1-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.1-linux.tar.bz2",
+              "checksum": "SHA-256:ccd78966b4523966544676b119f918aa6d14ce8c2fb1ac2b9ea0e3a2e02693ad",
+              "size": "1350836"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.2.1/STM32Tools-1.2.1-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.2.1-linux.tar.bz2",
+              "checksum": "SHA-256:ccd78966b4523966544676b119f918aa6d14ce8c2fb1ac2b9ea0e3a2e02693ad",
+              "size": "1350836"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.3.0",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.0/STM32Tools-1.3.0-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.0-windows.tar.bz2",
+              "checksum": "SHA-256:b0cfabf34904201264341b295143952e969df3f2ed0a0e70088bb99272405a25",
+              "size": "2571572"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.0/STM32Tools-1.3.0-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.0-mac.tar.bz2",
+              "checksum": "SHA-256:e66bc30f9df60eb436303613ef061233937d55451847a01b11d95be12fd62e39",
+              "size": "672710"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.0/STM32Tools-1.3.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.0-linux.tar.bz2",
+              "checksum": "SHA-256:8a887969173cd93a4189f7a4085cbdb8572ef160ac5bfad378010022c0614aa8",
+              "size": "813324"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.0/STM32Tools-1.3.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.0-linux.tar.bz2",
+              "checksum": "SHA-256:8a887969173cd93a4189f7a4085cbdb8572ef160ac5bfad378010022c0614aa8",
+              "size": "813324"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.3.1",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.1/STM32Tools-1.3.1-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.1-windows.tar.bz2",
+              "checksum": "SHA-256:7421034f2bb4172260d456589995199c4fa28b967a38748e14be00c2a54f347c",
+              "size": "2495092"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.1/STM32Tools-1.3.1-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.1-mac.tar.bz2",
+              "checksum": "SHA-256:ce42eb8be2b0d915e0a382ac4e669d441800567e08473b36501a8903cd84f5ab",
+              "size": "725690"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.1/STM32Tools-1.3.1-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.1-linux.tar.bz2",
+              "checksum": "SHA-256:82088da960965fe982510fca85993b098246932a53d27afd2f87fe912f323ff3",
+              "size": "1005934"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.1/STM32Tools-1.3.1-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.1-linux.tar.bz2",
+              "checksum": "SHA-256:82088da960965fe982510fca85993b098246932a53d27afd2f87fe912f323ff3",
+              "size": "1005934"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.3.2",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.2/STM32Tools-1.3.2-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.2-windows.tar.bz2",
+              "checksum": "SHA-256:d77027f907b5351ecc7a78113df6b7c830e6b556e571db0394ba7407602aa9c4",
+              "size": "2848388"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.2/STM32Tools-1.3.2-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.2-mac.tar.bz2",
+              "checksum": "SHA-256:7737bdb0ea3cd69cf45dfbb19ee015cde09fa986026c08a4bc85009e0f8103f0",
+              "size": "761023"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.2/STM32Tools-1.3.2-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.2-linux.tar.bz2",
+              "checksum": "SHA-256:ba62b6261d9870db5e359feb72efd9a6cc99b1a966054e547432a9dac9295254",
+              "size": "995993"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.3.2/STM32Tools-1.3.2-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.3.2-linux.tar.bz2",
+              "checksum": "SHA-256:ba62b6261d9870db5e359feb72efd9a6cc99b1a966054e547432a9dac9295254",
+              "size": "995993"
+            }
+          ]
+        },
+        {
+          "name": "STM32Tools",
+          "version": "1.4.0",
+          "systems":
+          [
+            {
+              "host": "i686-mingw32",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.4.0/STM32Tools-1.4.0-windows.tar.bz2",
+              "archiveFileName": "STM32Tools-1.4.0-windows.tar.bz2",
+              "checksum": "SHA-256:9d0e5401c28f83de6b9e5c1d3dd08c71f89ed574113af8a0b78c3e677653be07",
+              "size": "2818862"
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.4.0/STM32Tools-1.4.0-mac.tar.bz2",
+              "archiveFileName": "STM32Tools-1.4.0-mac.tar.bz2",
+              "checksum": "SHA-256:861ab52fbfd6aa02e9efbd4f568bc536c6669975675660417b4c2e719fe15304",
+              "size": "757807"
+            },
+            {
+              "host": "x86_64-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.4.0/STM32Tools-1.4.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.4.0-linux.tar.bz2",
+              "checksum": "SHA-256:03ce112090a39ea5176b4401ec06208b8d8cccb4eb705c8f03c5aa74f3c99918",
+              "size": "755585"
+            },
+            {
+              "host": "i686-pc-linux-gnu",
+              "url": "https://github.com/stm32duino/Arduino_Tools/releases/download/1.4.0/STM32Tools-1.4.0-linux.tar.bz2",
+              "archiveFileName": "STM32Tools-1.4.0-linux.tar.bz2",
+              "checksum": "SHA-256:03ce112090a39ea5176b4401ec06208b8d8cccb4eb705c8f03c5aa74f3c99918",
+              "size": "755585"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
