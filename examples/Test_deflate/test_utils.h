@@ -60,7 +60,7 @@ void verify(const char* fzFileName, const char* srcFilename)
   vprogress.lastprogress = -1;
   vprogress.src = tarGzFS.open(srcFilename, "r");
 
-  if(!vprogress.src)
+  if(!vprogress.src || vprogress.src.size()==0)
   {
     Serial.printf("[verify] Unable to read input file %s, halting\n", srcFilename);
     while(1) yield();
@@ -87,23 +87,21 @@ void verify(const char* fzFileName, const char* srcFilename)
   );
 
   // inflate+verify!
-  GZUnpacker->gzStreamExpander(&flz, flz.size());
-
-  if( vprogress.verified != vprogress.src.size() || vprogress.src.position() != vprogress.src.size()  ) {
-      const char* diffStr = vprogress.src.size()>vprogress.verified?"bigger":"smaller";
-      int diffSize = vprogress.src.size()-vprogress.verified;
-      Serial.printf("[VERIFY ERROR] Source (%d bytes) is %s (offset=%d, readpos=%d) than Deflated (%d bytes).\n",
-        vprogress.src.size(),
-        diffStr, diffSize,
-        vprogress.src.position(),
-        vprogress.verified
-      );
-      if(diffSize>0) {
-        Serial.println("Remaining bytes:");
-        for(int i=0;i<diffSize;i++)
-            Serial.write(vprogress.src.read());
-        Serial.println();
-      }
+  if( !GZUnpacker->gzStreamExpander(&flz, flz.size()) || vprogress.verified != vprogress.src.size() || vprogress.src.position() != vprogress.src.size()  ) {
+    const char* diffStr = vprogress.src.size()>vprogress.verified?"bigger":"smaller";
+    int diffSize = vprogress.src.size()-vprogress.verified;
+    Serial.printf("[VERIFY ERROR] Source (%d bytes) is %s (offset=%d, readpos=%d) than Deflated (%d bytes).\n",
+      vprogress.src.size(),
+      diffStr, diffSize,
+      vprogress.src.position(),
+      vprogress.verified
+    );
+    if(diffSize>0) {
+      Serial.println("Remaining bytes:");
+      for(int i=0;i<diffSize;i++)
+          Serial.write(vprogress.src.read());
+      Serial.println();
+    }
   }
 
   flz.close();

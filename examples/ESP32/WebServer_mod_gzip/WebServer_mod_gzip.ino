@@ -203,6 +203,49 @@ void setup()
   // mod_gzip.enableCache(); // cache gz files
   mod_gzip.disableCache(); // ignore existing gz files, compress on the fly
 
+
+  server.on("/json", []() { // send gz compressed JSON
+      // building HTTP response without "Content-Length" header isn't 100% standard, so we have to do this
+      int responseCode = 200;
+      const char* myJsonData = "{\"ceci\":\"cela\",\"couci\":\"couça\",\"patati\":\"patata\"}";
+      server.sendHeader(String(F("Content-Type")), String(F("application/json")), true);
+      server.sendHeader(String(F("Content-Encoding")), String(F("gzip")));
+      server.sendHeader(String(F("Connection")), String(F("close")));
+      String HTTPResponse = String(F("HTTP/1.1"))+' '+String(responseCode)+' '+server.responseCodeToString(responseCode)+"\r\n";
+      size_t headersCount = server.responseHeaders();
+      for(size_t i=0;i<headersCount;i++)
+        HTTPResponse.concat(server.responseHeaderName(i) + F(": ") + server.responseHeader(i) + F("\r\n"));
+      HTTPResponse.concat(F("\r\n"));
+      // sent HTTP response
+      server.client().write(HTTPResponse.c_str(), HTTPResponse.length());
+
+      // stream compressed json
+      size_t compressed_size = LZPacker::compress( (uint8_t*)myJsonData, strlen(myJsonData), &server.client() );
+      log_i("Sent %d compressed bytes", compressed_size);
+  });
+
+
+  server.on("/spiffs.tar.gz", []() { // compress all filesystem files/folders on the fly
+    // building HTTP response without "Content-Length" header isn't 100% standard, so we have to do this
+    int responseCode = 200;
+    server.sendHeader(String(F("Content-Type")), String(F("application/tar+gzip")), true);
+    server.sendHeader(String(F("Connection")), String(F("close")));
+    String HTTPResponse = String(F("HTTP/1.1"))+' '+String(responseCode)+' '+server.responseCodeToString(responseCode)+"\r\n";
+    size_t headersCount = server.responseHeaders();
+    for(size_t i=0;i<headersCount;i++)
+      HTTPResponse.concat(server.responseHeaderName(i) + F(": ") + server.responseHeader(i) + F("\r\n"));
+    HTTPResponse.concat(F("\r\n"));
+    // sent HTTP response
+    server.client().write(HTTPResponse.c_str(), HTTPResponse.length());
+
+    // stream tar.gz data
+    std::vector<TAR::dir_entity_t> dirEntities; // storage for scanned dir entities
+    TarPacker::collectDirEntities(&dirEntities, &tarGzFS, "/"); // collect dir and files
+    size_t compressed_size = TarGzPacker::compress(&tarGzFS, dirEntities, &server.client());
+    log_i("Sent %d compressed bytes", compressed_size);
+  });
+
+
   server.addMiddleware( &mod_gzip );
 
   server.begin();

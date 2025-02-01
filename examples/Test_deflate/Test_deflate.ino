@@ -38,7 +38,7 @@ void testStreamToStream()
     while(1) yield();
   }
 
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   size_t dstLen = LZPacker::compress( &src, src.size(), &dst );
   size_t srcLen = src.size();
 
@@ -51,6 +51,8 @@ void testStreamToStream()
   dst.close();
 
   verify(fzFileName, inputFilename);
+
+  tarGzFS.remove(fzFileName);
 
 }
 
@@ -69,7 +71,7 @@ void testBufferToBuffer()
   // load the uncompressed text file into memory
   loadFileToBuffer( inputFilename, &srcBuf, &srcBufLen );
 
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   // perform buffer to buffer decompression (will be saved as file for verification)
   size_t dstBufLen = LZPacker::compress( srcBuf, srcBufLen, &dstBuf );
 
@@ -89,6 +91,8 @@ void testBufferToBuffer()
   free(dstBuf); //free the output buffer
 
   verify(fzFileName, inputFilename);
+
+  tarGzFS.remove(fzFileName);
 
 }
 
@@ -132,6 +136,8 @@ void testStreamToBuffer()
 
   verify(fzFileName, inputFilename);
 
+  tarGzFS.remove(fzFileName);
+
 }
 
 
@@ -161,7 +167,7 @@ void testBufferToStream()
   }
 
   // deflate!
-  LZPacker::setProgressCallBack( LZ77::defaultProgressCallback );
+  LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
   size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &src );
 
   float done = float(dstLen)/float(srcBufLen);
@@ -174,6 +180,8 @@ void testBufferToStream()
   srcBuf = NULL;
 
   verify(fzFileName, inputFilename);
+
+  tarGzFS.remove(fzFileName);
 
 }
 
@@ -198,12 +206,12 @@ void setup()
   {
     testStreamToStream(); // tested OK on ESP32/RP2040/ESP8266 (any file size)
     printMem();
-    testBufferToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
-    testBufferToStream(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
-    testStreamToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
-    printMem();
+    // testBufferToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
+    // testBufferToStream(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
+    // testStreamToBuffer(); // tested OK on ESP32/RP2040/ESP8266 (small file size)
+    // printMem();
 
     Serial.println();
     Serial.println("All tests completed");

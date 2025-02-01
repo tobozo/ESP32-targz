@@ -37,14 +37,7 @@
 
 \*/
 
-#ifdef ESP8266
-// stop GCC from whining about unused ESP32 signatures
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-
-#include "ESP32-targz-lib.hpp"
+#include "LibUnpacker.hpp"
 
 struct TarGzIO
 {
@@ -58,8 +51,8 @@ struct TarGzIO
 
 TarGzIO tarGzIO;
 
-static fs::File untarredFile;
-static fs::FS *tarFS = nullptr;
+fs::File untarredFile;
+fs::FS *tarFS = nullptr;
 
 TAR::entry_callbacks_t tarCallbacks;
 
@@ -68,77 +61,77 @@ void* (*tgz_calloc)(size_t n, size_t size) = nullptr;
 void* (*tgz_realloc)(void *ptr, size_t size) = nullptr;
 bool tgz_use_psram = false;
 
-void          (*tgzLogger)( const char* format, ...) = nullptr;
-static size_t (*fstotalBytes)() = nullptr;
-static size_t (*fsfreeBytes)()  = nullptr;
-static void   (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf ) = nullptr;
+void   (*tgzLogger)( const char* format, ...) = nullptr;
+size_t (*fstotalBytes)() = nullptr;
+size_t (*fsfreeBytes)()  = nullptr;
+void   (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf ) = nullptr;
 
-static void   (*tarProgressCallback)( uint8_t progress ) = nullptr;
-static void   (*tarMessageCallback)( const char* format, ...) = nullptr;
-static bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
-static bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
-static void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
-static bool   tarSkipThisEntry = false;
+void   (*tarProgressCallback)( uint8_t progress ) = nullptr;
+void   (*tarMessageCallback)( const char* format, ...) = nullptr;
+bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
+bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
+void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
+bool   tarSkipThisEntry = false;
 
-static void   (*gzMessageCallback)( const char* format, ...) = nullptr;
-static void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
-static bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
-static unsigned int (*gzReadDestByte)(int offset, unsigned char *out);
+void   (*gzMessageCallback)( const char* format, ...) = nullptr;
+void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
+bool   (*gzWriteCallback)( unsigned char* buff, size_t buffsize ) = nullptr;
+unsigned int (*gzReadDestByte)(int offset, unsigned char *out);
 
 
-static const char* tarDestFolder = nullptr;
-static unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
-static unsigned char *uzlib_gzip_dict = nullptr; // gz dictionnary buffer
-static struct GZ::TINF_DATA uzLibDecompressor; // uzlib object
+const char* tarDestFolder = nullptr;
+unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
+unsigned char *uzlib_gzip_dict = nullptr; // gz dictionnary buffer
+struct GZ::TINF_DATA uzLibDecompressor; // uzlib object
 
-static tarGzErrorCode _error = ESP32_TARGZ_OK;
+tarGzErrorCode _error = ESP32_TARGZ_OK;
 
-static bool     targz_halt_on_error = false;
-static bool     firstblock = true; // for gzProcessTarBuffer
-static bool     lastblock = false; // for gzProcessTarBuffer
-static uint32_t targz_read_timeout = 10000; // ms, should be larger than stream timeout
-static size_t   tarCurrentFileSize = 0;
-static size_t   tarCurrentFileSizeProgress = 0;
-static size_t   tarTotalSize = 0;
-static size_t   min_output_buffer_size = TAR_BLOCK_SIZE;
-static int32_t  untarredBytesCount = 0;
-static size_t   totalFiles = 0;
-static size_t   totalFolders = 0;
-static int64_t  uzlib_bytesleft = 0;
-static int64_t  stream_bytesleft = 0;
-static uint32_t output_position = 0;  // position in output_buffer
-static uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE; // how many tar blocks can fit in the gzip buffer
-static uint16_t gzTarBlockPos = 0; // tar block number being decompressed
-static size_t   tarReadGzStreamBytes = 0;
-static char*    tar_file_path = nullptr; // temporary storage for filenames
+bool     targz_halt_on_error = false;
+bool     firstblock = true; // for gzProcessTarBuffer
+bool     lastblock = false; // for gzProcessTarBuffer
+uint32_t targz_read_timeout = 10000; // ms, should be larger than stream timeout
+size_t   tarCurrentFileSize = 0;
+size_t   tarCurrentFileSizeProgress = 0;
+size_t   tarTotalSize = 0;
+size_t   min_output_buffer_size = TAR_BLOCK_SIZE;
+int32_t  untarredBytesCount = 0;
+size_t   totalFiles = 0;
+size_t   totalFolders = 0;
+int64_t  uzlib_bytesleft = 0;
+int64_t  stream_bytesleft = 0;
+uint32_t output_position = 0;  // position in output_buffer
+uint16_t blockmod = GZIP_BUFF_SIZE / TAR_BLOCK_SIZE; // how many tar blocks can fit in the gzip buffer
+uint16_t gzTarBlockPos = 0; // tar block number being decompressed
+size_t   tarReadGzStreamBytes = 0;
+char*    tar_file_path = nullptr; // temporary storage for filenames
 #if defined HAS_OTA_SUPPORT
-  static bool     tarBlockIsUpdateData = false;
+  bool     tarBlockIsUpdateData = false;
 #endif
 
 
 #if defined ESP32
-  static bool unTarDoHealthChecks = true; // set to false for faster writes
+  bool unTarDoHealthChecks = true; // set to false for faster writes
 #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
-  static bool unTarDoHealthChecks = false; // ESP8266 is unstable with health checks
+  bool unTarDoHealthChecks = false; // ESP8266 is unstable with health checks
   void vTaskDelay(int ms) { delay(ms); }   // ESP8266 has no OS
 #else
-  static bool unTarDoHealthChecks = false;
+  bool unTarDoHealthChecks = false;
   void vTaskDelay(int ms) { delay(ms); }
 #endif
 
 
 
-static bool halt_on_error()
+bool halt_on_error()
 {
   return targz_halt_on_error;
 }
 
-static void targz_system_halt()
+void targz_system_halt()
 {
   log_e("System halted after error code #%d", _error); while(1) { yield(); }
 }
 
-static void setError( tarGzErrorCode code )
+void setError( tarGzErrorCode code )
 {
   _error = code;
   if( _error != ESP32_TARGZ_OK && halt_on_error() ) targz_system_halt();
@@ -1504,6 +1497,8 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   return true;
 }
 
+
+
 bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile ) {
     tarGzClearError();
     initFSCallbacks();
@@ -2383,329 +2378,6 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     return len;
   }
 
-#endif
+#endif // #if defined ESP32 && defined HAS_OTA_SUPPORT
 
 
-namespace LZ77
-{
-
-  class StreamBuffer : public Stream
-  {
-    uint8_t * buffer;
-    int writePosition;
-    int readPosition;
-    int size;
-    size_t capacity = 0;
-    size_t grow_size = 64;
-
-  public:
-
-      StreamBuffer(uint8_t * buffer=nullptr, int size=0) : writePosition(0), readPosition(0)
-      {
-        this->buffer = buffer;
-        this->size = size;
-        if( buffer == nullptr ) { // write mode
-          this->buffer = (uint8_t*)malloc(grow_size);
-          this->capacity = grow_size;
-        }
-      }
-
-      uint8_t * getBuffer() { return buffer; }
-      size_t getSize() { return size; }
-
-      // Stream methods
-      virtual int available(){ return writePosition - readPosition; }
-      virtual int read(){ if(readPosition == writePosition) return -1; return buffer[readPosition++]; }
-      virtual int peek(){ if(readPosition == writePosition) return -1; return buffer[readPosition]; }
-      virtual void flush() { readPosition=0; writePosition = 0; }
-      // Print methods
-      virtual void end(){ buffer[writePosition] = '\0'; }
-      virtual size_t write(uint8_t c) { return this->write(&c, 1); }
-      virtual size_t write(const uint8_t* data, size_t len)
-      {
-        size_t target_size = size + len;
-        if (target_size >= capacity) {
-          while( capacity<target_size )
-              capacity += grow_size;
-          buffer = (uint8_t*)realloc(buffer, capacity);
-        }
-        memcpy(buffer + size, data, len);
-        size += len;
-        writePosition += len;
-        return len;
-      }
-  };
-
-
-  void (*progressCb)( size_t progress, size_t total ) = nullptr;
-
-  Stream* dstStream = nullptr;
-  Stream* srcStream = nullptr;
-
-
-  void defaultProgressCallback( size_t progress, size_t total )
-  {
-    assert(total>0);
-    static size_t lastprogress = 0xff; // percent progress
-    size_t pg = 100*(float(progress) / float(total));
-
-    if( progress !=0 && pg > 100 )
-    {
-      Serial.printf("WTF!! progress=%d, total=%d, pg=%d, lastprogress=%d\n", progress, total, pg, lastprogress);
-      while(1) yield();
-    }
-
-    if( pg != lastprogress )
-    {
-      if( pg == 0 )
-        Serial.printf("Processed 0%% ");
-      else if( pg == 100 )
-        Serial.printf(" 100%%\n");
-      else
-        // Serial.printf(".");
-        Serial.printf("%d ", pg);
-      lastprogress = pg;
-    }
-  }
-
-
-
-  size_t lzHeader(uint8_t* buf, bool gzip_header=true)
-  {
-    assert(buf);
-    size_t len = 0;
-
-    // see https://www.ietf.org/rfc/rfc1950.txt and https://www.ietf.org/rfc/rfc1951.txt
-    if(gzip_header) {
-      buf[len++] = ((uint8_t)0x1f);
-      buf[len++] = ((uint8_t)0x8b);
-    }
-    // CMF (Compression Method and flags)
-    //     This byte is divided into a 4-bit compression method and a 4- bit information field depending on the compression method.
-    //       bits 0 to 3  CM     Compression method
-    //       bits 4 to 7  CINFO  Compression info
-    // CM = 8 denotes the "deflate" compression method with a window size up to 32K
-    buf[len++] = ((uint8_t)0x08);
-    // FLG (FLaGs)
-    //    This flag byte is divided as follows:
-    //
-    //       bits 0 to 4  FCHECK  (check bits for CMF and FLG)
-    //       bit  5       FDICT   (preset dictionary)
-    //       bits 6 to 7  FLEVEL  (compression level)
-    buf[len++] = ((uint8_t)0x00); // FLG
-    for(size_t i=0;i<sizeof(int);i++)
-      buf[len++] = 0; // mtime
-    buf[len++] = ((uint8_t)0x04); // XFL
-    buf[len++] = ((uint8_t)0x03); // OS
-    return len;
-  }
-
-
-  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false)
-  {
-    assert(buf);
-    size_t len = 0;
-    for(size_t i=0;i<sizeof(crc);i++)
-      buf[len++] = ((uint8_t*)&crc)[i];
-    for(size_t i=0;i<sizeof(outlen);i++)
-      buf[len++] = ((uint8_t*)&outlen)[i];
-
-    if( terminate)
-      buf[len++] = 0;
-
-    return len;
-  }
-
-
-
-  // uzlib comp object initializer
-  struct GZ::uzlib_comp* lzInit()
-  {
-    auto c = (struct GZ::uzlib_comp*)calloc(1, sizeof(struct GZ::uzlib_comp)+1);
-    c->dict_size   = 32768;
-    c->hash_bits   = 12;
-    c->grow_buffer = 1;
-    size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
-    c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
-    if( c->hash_table == NULL ) {
-      printf("lz77 error: unable to allocate %d bytes for hash table, halting\n", hash_size );
-      while(1) yield();
-    }
-    c->checksum_type = TINF_CHKSUM_CRC;
-    c->checksum_cb = GZ::uzlib_crc32;    // more reliable but slightly slower
-    // comp.checksum_cb = uzlib_adler32; // slightly faster but more prone to checksum miss
-    c->checksum = ~0;
-    if( LZ77::progressCb != nullptr )
-      c->progress_cb = LZ77::progressCb;
-
-    c->outbuf = NULL;
-    return c;
-  }
-
-
-
-  // LZPacker static members need to be initialized
-  size_t LZPacker::inputBufferSize  = 4096;
-  size_t LZPacker::outputBufferSize = 4096;
-
-
-
-  // progress callback setter
-  void LZPacker::setProgressCallBack(totalProgressCallback cb)
-  {
-    LZ77::progressCb = cb;
-  }
-
-
-
-  // stream to buffer
-  size_t LZPacker::compress( Stream* srcStream, size_t srcLen, uint8_t** dstBuf )
-  {
-    //StreamBufferWriter dstStream;
-    StreamBuffer dstStream(nullptr, 0);
-    size_t dstLen = LZPacker::compress( srcStream, srcLen, &dstStream);
-    if( dstLen == 0 || dstLen != dstStream.getSize() )
-      return 0;
-    *dstBuf = dstStream.getBuffer();
-    return dstStream.getSize();
-  }
-
-
-
-  // buffer to buffer
-  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf )
-  {
-    StreamBuffer dstStream(nullptr, 0);
-    size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &dstStream);
-    if( dstLen == 0 || dstLen != dstStream.getSize() )
-      return 0;
-    *dstBuf = dstStream.getBuffer();
-    return dstStream.getSize();
-  }
-
-
-
-  // stream to stream
-  size_t LZPacker::compress( Stream* srcStream, size_t srcLen, Stream* dstStream )
-  {
-    assert(srcStream);
-    assert(srcLen>0);
-    assert(dstStream);
-
-    LZ77::dstStream = dstStream;
-    LZ77::srcStream = srcStream;
-
-    uint8_t header[10];
-    size_t header_size = lzHeader(header);
-    size_t dstLen = dstStream->write(header, header_size);
-
-    unsigned char* inputBuffer  = (unsigned char*)malloc(LZPacker::inputBufferSize);
-    unsigned char* outputBuffer = (unsigned char*)malloc(LZPacker::outputBufferSize);
-
-    auto c = lzInit();
-    c->checksum_type = TINF_CHKSUM_CRC;
-    c->writeDestByte = NULL;
-    c->slen = srcLen;
-
-    GZ::uzlib_stream uzstream;
-    int prev_state = uzlib_deflate_init_stream(c, &uzstream);
-
-    if(prev_state != Z_OK) {
-        // abort !
-        free(inputBuffer);
-        free(outputBuffer);
-        return 0;
-    }
-
-    uzstream.out.avail = LZPacker::outputBufferSize;
-
-    int input_bytes = 0; // for do..while state
-    size_t total_bytes = 0; // for progress meter
-
-    int defl_mode  = Z_BLOCK;
-    do {
-        if(uzstream.out.avail > 0){
-            input_bytes = srcStream->readBytes(inputBuffer, LZPacker::inputBufferSize); // consume input stream
-            total_bytes += input_bytes;
-
-            if( c->progress_cb )
-                c->progress_cb(total_bytes, srcLen);
-
-            if(input_bytes == 0) break;
-            if(input_bytes == -1) return -1;
-            uzstream.in.next   = inputBuffer;
-            uzstream.in.avail  = input_bytes;
-
-            if( input_bytes != LZPacker::inputBufferSize ) {
-                defl_mode = Z_FINISH;
-            }
-        }
-
-        uzstream.out.next  = outputBuffer;
-        uzstream.out.avail = LZPacker::outputBufferSize;
-
-        prev_state = uzlib_deflate_stream(&uzstream, defl_mode);
-
-        dstLen += dstStream->write(outputBuffer, uzstream.out.next - outputBuffer); // write to output stream
-
-    } while(input_bytes>0);
-
-    uint8_t footer[8];
-    size_t footer_len = lzFooter(footer, srcLen, ~c->checksum);
-    dstLen += dstStream->write(footer, footer_len);
-
-    free(c->hash_table);
-    c->hash_table = NULL;
-    if( c->outbuf != NULL ) free(c->outbuf);
-
-    free(inputBuffer);
-    free(outputBuffer);
-    free(c);
-
-    return dstLen;
-  }
-
-
-
-  // buffer to stream
-  size_t LZPacker::compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream )
-  {
-    assert(srcBuf);
-    assert(srcBufLen>0);
-    assert(dstStream);
-
-    LZ77::dstStream = dstStream;
-    auto c = lzInit();
-
-    // wrap dstStream->write() in lambda byteWriter
-    c->writeDestByte  = [](struct GZ::uzlib_comp *data, unsigned char byte) -> unsigned int { return LZ77::dstStream->write(byte); };
-    c->grow_buffer = 0; // use direct writes, don't grow output buffer
-
-    uint8_t header[10];
-    size_t header_len = lzHeader(header);
-    dstStream->write(header, header_len);
-
-    GZ::zlib_start_block(c);
-    GZ::uzlib_compress(c, srcBuf, srcBufLen);
-    GZ::zlib_finish_block(c);
-
-    uint8_t footer[8];
-    c->checksum = c->checksum_cb(srcBuf, srcBufLen, c->checksum);
-    size_t footer_len = lzFooter(footer, srcBufLen, ~c->checksum);
-    dstStream->write(footer, footer_len);
-
-    free(c->hash_table);
-    c->hash_table = NULL;
-    auto ret = c->outlen;
-    free(c);
-
-    return header_len + ret + footer_len;
-  }
-
-
-};
-
-
-#ifdef ESP8266
-#pragma GCC diagnostic pop
-#endif
