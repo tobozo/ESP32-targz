@@ -50,8 +50,6 @@ Limitations
 - ESP32-targz decompression can only have one **output** filesystem (see *Support Matrix*), and it must be set at compilation time (see *Usage*).
 This limitation does not apply to the **input** filesystem/stream.
 
-- Only indirect tar-to-gz compression is available on ESP8266-arduino (an intermediate tar file must be used).
-
 
 
 Support Matrix
@@ -300,8 +298,24 @@ ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
 ```
 
 
-
-
+LZPacker::compress() signatures:
+-------------------------------
+```cpp
+  // buffer to stream (best compression)
+  size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
+  // buffer to buffer (best compression)
+  size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBufPtr );
+  // stream to buffer
+  size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBufPtr );
+  // stream to stream
+  size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
+  // stream to file
+  size_t compress( Stream* srcStream, size_t srcLen, fs::FS*dstFS, const char* dstFilename );
+  // file to file
+  size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename );
+  // file to stream
+  size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream );
+```
 
 Compress to `.gz` (buffer to stream)
 -------------------------------
@@ -348,14 +362,19 @@ Compress to `.gz` (stream to stream)
 ```
     
 
-    
+TarPacker::pack_files() signatures:
+-------------------------------
+```cpp
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*tar_output_file_path, const char* tar_prefix=nullptr);
+```
     
     
 Pack to `.tar` (entities to File)
 -------------------------------
 ```C
   std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack");
   auto packedSize = TarPacker::pack_files(&LittleFS, dirEntities, &LittleFS, "/my.archive.tar");
 ```
   
@@ -363,67 +382,74 @@ Pack to `.tar` (entities to Stream)
 -------------------------------
 ```C
   std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack");
   File tarOutfile = LittleFS.open("/my.archive.tar", "w");  
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/pack", 3);
   size_t packedSize = TarPacker::pack_files(&LittleFS, dirEntities, &tarOutfile);
   tarOutfile.close();
 ```
   
   
-Pack & compress to `.tar.gz` File (using intermediate tar file)
--------------------------------
-
-```C
-  const char* temporaryTarFile = "/.tmp.tar"; // will be deleted after use
-  std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
-  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, temporaryTarFile, &LittleFS, "/my.compressed.archive.tar.gz");
-```
-  
-
-Pack & compress to `.tar.gz` Stream (using intermediate tar file)
+TarGzPacker::compress() signatures:
 -------------------------------  
 
-```C
-  const char* temporaryTarFile = "/.tmp.tar"; // will be deleted after use
-  std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
-  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
-  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, temporaryTarFile, &TarGzOutFile);
-  TarGzOutFile.close();
+```cpp
+  int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+  
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
 ```
   
   
-:warning: Direct tar-to-gz compression uses FreeRTOS tasks and is unavailable On ESP8266-arduino. Use the version with intermediate file instead.
+Pack & compress to `.tar.gz` file/stream (no filtering on source files/folders list, recursion applies)
+-------------------------------  
+```C
+  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS/*source*/, "/folder/to/compress", &TarGzOutFile);
+  TarGzOutFile.close();
+```
 
-Pack & compress to `.tar.gz` Stream (no intermediate tar file)
+Pack & compress to `.tar.gz` file/stream
 -------------------------------  
 
 ```C
   std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS/*source*/, "/folder/to/compress");
+  // eventually filter content from dirEntities
   File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
-  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, &TarGzOutFile);
+  size_t compressedSize = TarGzPacker::compress(&LittleFS/*source*/, dirEntities, &TarGzOutFile);
   TarGzOutFile.close();
 ```
 
-Pack & compress to `.tar.gz` File (no intermediate tar file)
+Pack & compress to `.tar.gz` file (no filtering on source files/folders list, recursion applies)
+-------------------------------  
+```C
+  File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS/*source*/, "/folder/to/compress", &LittleFS/*destination*/, "/my.archive.tar.gz");
+  TarGzOutFile.close();
+```
+
+
+Pack & compress to `.tar.gz` file
 -------------------------------  
 
 ```C
   std::vector<TAR::dir_entity_t> dirEntities;
-  TarPacker::collectDirEntities(&dirEntities, &LittleFS, "/folder/to/compress", 3);
+  TarPacker::collectDirEntities(&dirEntities, &LittleFS/*source*/, "/folder/to/compress");
+  // eventually filter content from dirEntities
   File TarGzOutFile = LittleFS.open("/my.archive.tar.gz", "w");
-  size_t compressedSize = TarGzPacker::compress(&LittleFS, dirEntities, &LittleFS, "/my.archive.tar.gz");
+  size_t compressedSize = TarGzPacker::compress(&LittleFS/*source*/, dirEntities, &LittleFS/*destination*/, "/my.archive.tar.gz");
   TarGzOutFile.close();
 ```
+  
+
+
 
 
   
 
 
-Callbacks
+TarGzUnpacker/GzUnpacker/TarUnpacker Callbacks
 ---------
 
 ```C
@@ -477,7 +503,7 @@ Callbacks
 
 ```
 
-Return Codes for TarGzUnpacker/GzUnpacker/TarUnpacker
+TarGzUnpacker/GzUnpacker/TarUnpacker Return Codes 
 ------------
 
 `*Unpacker->tarGzGetError()` returns a value when a problem occured:
