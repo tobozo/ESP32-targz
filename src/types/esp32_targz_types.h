@@ -200,3 +200,14 @@ namespace TAR
     int ret{-1};                           // return status, size of the processed tar bytes if successful
   };
 }
+
+
+#if defined ESP8266
+  #define struct_stat_t struct stat
+#elif defined ARDUINO_ARCH_RP2040
+  // RP2040 loads stats.h twice and panics on ambiguity, let's hint
+  #define struct_stat_t struct TAR::stat
+#else
+  #define struct_stat_t struct stat
+#endif
+

@@ -93,14 +93,15 @@ namespace LZPacker
   size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream );
   // buffer to buffer (best compression)
   size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBufPtr );
-  // stream to buffer (average compression)
+  // stream to buffer
   size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBufPtr );
-  // stream to stream (average compression)
+  // stream to stream
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
-
-  // TODO:
+  // stream to file
   size_t compress( Stream* srcStream, size_t srcLen, fs::FS*dstFS, const char* dstFilename );
+  // file to file
   size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename );
+  // file to stream
   size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream );
 
   // progress callback setter [](size_t bytes_read, size_t total_bytes)
@@ -128,14 +129,14 @@ namespace TarGzPacker
 {
   using namespace TAR;
 
-  // indirect tar-to-gz compression, using a temporary tar file created on srcFS and deleted afterwards
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, const char* tmp_tar_filename, Stream* dstStream, const char* tar_prefix=nullptr);
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, const char* tmp_tar_filename, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+  // tar-to-gz compression, recursion applies to srcDir up to 50 folders deep
+  int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
 
-  // ESP32, RP2040, or any FreeRTOS friendly SDK: direct tar-to-gz compression, no intermediate file, using FreeRTOS task/queues
-  // These functions may be disabled if the plaform doesn't support FreeRTOS, see if `TARGZ_USE_TASKS` is defined after loading the library
+  // tar-to-gz compression
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+
 };
 
 
@@ -157,8 +158,10 @@ namespace TAR
     ;
   }
 
+  const uint8_t max_path_len=100; // change this at your own peril
+
   // helper function to collect dirEntities from the contents of a given folder
-  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, fs::FS *fs, const char *dirname, uint8_t levels)
+  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, fs::FS *fs, const char *dirname="/")
   {
     assert(fs);
     assert(dirname);
@@ -190,10 +193,11 @@ namespace TAR
           #error "unsupported architecture"
         #endif
       ;
-      if (file.isDirectory()) {
-        if (levels) {
-          collectDirEntities(dirEntities, fs, filePath.c_str(), levels - 1);
-        }
+
+      if( filePath.length()>max_path_len ) {
+        log_e("[TAR] Path too long (%d chars), skipping [%s] %s", filePath.length(), file.isDirectory()?"DIR":"FILE", filePath.c_str() );
+      } else if (file.isDirectory()) {
+        collectDirEntities(dirEntities, fs, filePath.c_str());
       } else {
         dirEntities->push_back( { filePath, false, file.size() } );
         log_d("  FILE: %-16s\tSIZE: %6d", filePath.c_str(), file.size() );

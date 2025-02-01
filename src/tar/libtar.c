@@ -41,7 +41,7 @@
 #include <ctype.h> // for isprint()
 #include <stdlib.h> // for calloc(), because RP2040 wants it
 
-// #include "../ESP32-targz-log.hpp" // import log_e(), log_w(), log_d() and log_i(), all behaving like printf()
+//#include "../ESP32-targz-log.hpp" // import //log_e(), //log_w(), //log_d() and //log_i(), all behaving like printf()
 
 #define UID "root"
 #define GID "root"
@@ -147,7 +147,7 @@ int th_write(TAR *t, int *written_bytes)
   int i;//, j;
   th_set_ustar(t);
 
-  printf("Writing header\n");
+  //log_d("Writing header");
   i = t->io->writefunc(t->io->dst_fs, t->dst_file, &(t->th_buf), T_BLOCKSIZE);
   if (i != T_BLOCKSIZE) {
     //log_e("ERROR in th_write, returned block size %d didn't match expexted size %d", i, (int)T_BLOCKSIZE);

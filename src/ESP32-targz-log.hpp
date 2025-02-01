@@ -117,9 +117,6 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) {  }
     }
   #endif
 
-  #if !defined LOG_PRINTF
-    #define LOG_PRINTF printf
-  #endif
 
   #if !defined TGZ_DEFAULT_LOG_LEVEL
     //#define TGZ_DEFAULT_LOG_LEVEL LogLevelWarning

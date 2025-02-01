@@ -46,45 +46,6 @@ namespace GZ
 }
 
 
-#if defined ESP8266
-
-  #if __has_include(<FreeRTOS.h>) // NON-OS/RTOS SDK?
-    #warning "NON-OS/RTOS SDK is untested with ESP32-targz, please report any problem"
-    #include <FreeRTOS.h>
-    #include <task.h>
-    #include <queue.h>
-    #define TARGZ_USE_TASKS
-  #else // no RTOS task/queues available, mock a couple of necessary functions to satisfy the compiler
-    #define xPortGetCoreID() 0
-    #define vTaskDelay delay
-  #endif
-
-  #define struct_stat_t struct stat
-
-#elif defined ARDUINO_ARCH_RP2040
-
-  #if __has_include("_freertos.h") // SDK supports FreeRTOS
-    // #pragma message "Loading FreeRTOS.h"
-    #include <FreeRTOS.h>
-    #include <task.h>
-    #include <queue.h>
-    #include <semphr.h>
-    #define TARGZ_USE_TASKS // enable tar-to-gz streaming via task queues
-  #else
-    extern void vTaskDelay(int ms); // declared in LibUnpacker
-  #endif
-  // RP2040 loads stats.h twice and panics on ambiguity, let's hint
-  #define struct_stat_t struct TAR::stat
-  // not sure what version of FreeRTOS is required, but xPortGetCoreID() appears to be missing
-  #define xPortGetCoreID get_core_num
-
-#else
-
-  #define struct_stat_t struct stat
-  #define TARGZ_USE_TASKS // enable tar-to-gz streaming via task queues
-
-#endif
-
 #pragma GCC optimize("O2")
 
 
@@ -99,7 +60,7 @@ namespace LZPacker
 
   void (*progressCb)( size_t progress, size_t total ) = nullptr;
   size_t lzHeader(uint8_t* buf, bool gzip_header=true);
-  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate=false);
+  size_t lzFooter(uint8_t* buf, uint32_t outlen, uint32_t crc, bool terminate=false);
   struct GZ::uzlib_comp* lzInit();
 
   // write LZ77 header
@@ -135,13 +96,13 @@ namespace LZPacker
 
 
   // write LZ77 footer
-  size_t lzFooter(uint8_t* buf, size_t outlen, unsigned crc, bool terminate)
+  size_t lzFooter(uint8_t* buf, uint32_t outlen, uint32_t crc, bool terminate)
   {
     assert(buf);
     size_t len = 0;
-    for(size_t i=0;i<sizeof(crc);i++)
+    for(size_t i=0;i<4;i++)
       buf[len++] = ((uint8_t*)&crc)[i];
-    for(size_t i=0;i<sizeof(outlen);i++)
+    for(size_t i=0;i<4;i++)
       buf[len++] = ((uint8_t*)&outlen)[i];
 
     if( terminate)
@@ -155,14 +116,19 @@ namespace LZPacker
   struct GZ::uzlib_comp* lzInit()
   {
     auto c = (struct GZ::uzlib_comp*)calloc(1, sizeof(struct GZ::uzlib_comp)+1);
+    if( c == NULL ) {
+      log_e("unable to alloc %d bytes for compressor", sizeof(struct GZ::uzlib_comp)+1);
+      return nullptr;
+    }
+
     c->dict_size   = 32768;
     c->hash_bits   = 12;
     c->grow_buffer = 1;
     size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
     c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));
     if( c->hash_table == NULL ) {
-      printf("lz77 error: unable to allocate %d bytes for hash table, halting\n", hash_size );
-      while(1) yield();
+      printf("lz77 error: unable to allocate %d bytes for hash table\n", hash_size );
+      return nullptr;
     }
     c->checksum_type = TINF_CHKSUM_CRC;
     c->checksum_cb = GZ::uzlib_crc32;    // more reliable but slightly slower
@@ -175,9 +141,233 @@ namespace LZPacker
     return c;
   }
 
+  // LZ77 Stream writer e.g. size_t compressed_size = LZStreamWriter::write(uncompressedBytes, count)
+  class LZStreamWriter : public Stream
+  {
+  private:
+    Stream* dstStream;
+    size_t srcLen;
+    const size_t bufSize = 4096;
+    size_t outputBufIdx = 0;
+    unsigned char* outputBuffer = nullptr;
+    unsigned char* inputBuffer = nullptr;
+    struct GZ::uzlib_comp* compressor = nullptr;
+    GZ::uzlib_stream uzstream;
+    int prev_state;
+    size_t dstLen;           // gz output size
+    size_t total_bytes = 0;  // progress meter and end health check
+    int defl_mode = Z_BLOCK; // gz loop control
+    bool success = false;    // return status
+    bool in_loop = false;    // stream loop control
+
+  public:
+
+    LZStreamWriter() { }
+
+    LZStreamWriter(Stream* dstStream, size_t srcLen, const size_t bufSize=4096) : dstStream(dstStream), srcLen(srcLen), bufSize(bufSize)
+    {
+      assert(dstStream);
+      setup();
+    }
+
+    ~LZStreamWriter()
+    {
+      free(compressor->hash_table);
+      compressor->hash_table = NULL;
+      if( compressor->outbuf != NULL )
+        free(compressor->outbuf);
+      if( outputBuffer )
+        free(outputBuffer);
+      if( inputBuffer )
+        free(inputBuffer);
+      if( compressor )
+        free(compressor);
+    };
+
+
+    size_t size()
+    {
+      return success ? dstLen : -1;
+    }
+
+    void setup()
+    {
+      if( srcLen == 0) {
+        log_e("Bad source length, aborting");
+        return;
+      }
+      if(!dstStream) {
+        log_e("No destination stream, aborting");
+        return;
+      }
+
+      uint8_t header[10];
+      size_t header_size = LZPacker::lzHeader(header);
+      dstLen = dstStream->write(header, header_size);
+      if( dstLen == 0 ) {
+        log_e("Failed to write lz header");
+        return;
+      }
+
+      outputBuffer = (unsigned char*)malloc(bufSize);
+      if(!outputBuffer) {
+        log_e("Failed to malloc %d bytes", bufSize);
+      }
+
+      inputBuffer = (unsigned char*)malloc(bufSize);
+      if(!inputBuffer) {
+        log_e("Failed to malloc %d bytes", bufSize);
+      }
+
+      compressor = LZPacker::lzInit();
+
+      if(!compressor)
+        return;
+
+      compressor->checksum_type = TINF_CHKSUM_CRC;
+      compressor->writeDestByte = NULL;
+      compressor->slen = srcLen;
+
+      prev_state = uzlib_deflate_init_stream(compressor, &uzstream);
+
+      if(prev_state != Z_OK) {
+        log_e("failed to init lz77");
+        return;
+      }
+
+      uzstream.out.avail = bufSize;
+      total_bytes = 0;      // reset processed bytes
+      outputBufIdx = 0;     // reset buffer index
+      defl_mode  = Z_BLOCK; // init GZ loop
+      in_loop = true;       // ready to loop
+      success = true;       // reset success state
+    }
+
+
+    virtual size_t write(const uint8_t* buf, size_t size)
+    {
+      if(!success || !in_loop || prev_state != Z_OK) {
+        log_d("Returning from previous error");
+        return -1;
+      }
+
+      if( size > bufSize ) {
+        log_e("Writing %d bytes would overflow the %d-bytes buffer, aborting", size);
+        return -1;
+      }
+
+      // index to write in the gz input buffer
+      size_t buf_idx = outputBufIdx%bufSize;
+      // append to buffer
+      memcpy(&inputBuffer[buf_idx], buf, size);
+      outputBufIdx += size;
+
+      if( outputBufIdx < srcLen   // not last chunk
+       && buf_idx+size < bufSize) // buffer not full
+      {
+        log_v("cached chunk %d bytes", size);
+        return size;
+      }
+
+      // full buffer, or maybe-partial buffer if last chunk
+      size_t input_bytes =  outputBufIdx < srcLen ? bufSize : buf_idx+size;
+
+      // print some debug if in verbose mode
+      if( outputBufIdx+1 >= srcLen ) {
+        log_v("last chunk");
+      } else {
+        log_v("chunk %d bytes, now at idx %d", input_bytes, outputBufIdx);
+      }
+
+      if(uzstream.out.avail > 0) {
+        total_bytes += input_bytes;
+
+        if( compressor->progress_cb )
+            compressor->progress_cb(total_bytes, srcLen);
+
+        uzstream.in.next   = (uint8_t*)inputBuffer;
+        uzstream.in.avail  = input_bytes;
+
+        if(total_bytes==srcLen) {
+          log_v("Last chunk");
+          defl_mode = Z_FINISH;
+        }
+      }
+
+      uzstream.out.next  = outputBuffer;
+      uzstream.out.avail = bufSize;
+
+      prev_state = uzlib_deflate_stream(&uzstream, defl_mode);
+
+      size_t write_size = uzstream.out.next - outputBuffer;
+      size_t written_bytes = dstStream->write(outputBuffer, write_size); // write to output stream
+
+      if( written_bytes == 0 ) {
+        log_e("Write failed at offset %d", outputBufIdx );
+        in_loop = false;
+        return -1;
+      }
+
+      dstLen += written_bytes;
+
+      if( total_bytes > srcLen ) {
+        log_e("Read more bytes (%d) than source contains (%d), something is wrong", total_bytes, srcLen);
+        in_loop = false;
+        return -1;
+      }
+
+      if(prev_state==Z_STREAM_END) {
+        in_loop = false;
+        end();
+      }
+
+      return size;
+    }
+
+    void end()
+    {
+      if(prev_state!=Z_STREAM_END) {
+        log_e("Premature end of gz stream (state=%d)", prev_state);
+        success = false;
+      }
+
+      if( compressor->progress_cb )
+          compressor->progress_cb(srcLen, srcLen); // send progress end signal, whatever the outcome
+
+      if( total_bytes != srcLen ) {
+        success = false;
+        int diff = srcLen - total_bytes;
+        if( diff>0 ) {
+          log_e("Bad input stream size: could not read every %d bytes, missed %d bytes.", srcLen, diff);
+          log_e("The file has been truncated, it is likely corrupted");
+        } else {
+          log_e("Bad input stream size: read %d further than %d requested bytes.", -diff, srcLen);
+          log_e("The file has been padded, it is likely corrupted");
+        }
+        // fix the size so the corrupted gzip file can be saved for inspection
+        srcLen = total_bytes;
+      }
+
+      uint8_t footer[8];
+      size_t footer_len = 0;
+
+      footer_len = LZPacker::lzFooter(footer, srcLen, ~compressor->checksum);
+      log_v("Writing lz footer");
+      dstLen += dstStream->write(footer, footer_len);
+
+    };
+
+
+    virtual size_t write(uint8_t c) { log_e("This function should not be called"); return this->write(&c, 1); }
+    virtual int available() { log_e("This function should not be called"); return 0; }
+    virtual int read() { log_e("This function should not be called"); return 0; }
+    virtual int peek() { log_e("This function should not be called"); return 0; }
+
+  };
+
 
   // Stream with in/out buffers to help with uzlib custom stream compressor
-  class StreamBuffer : public Stream
+  class LZBufferWriter : public Stream
   {
     uint8_t * buffer;
     int writePosition;
@@ -186,7 +376,7 @@ namespace LZPacker
     size_t capacity = 0;
     size_t grow_size = 64;
     public:
-      StreamBuffer(uint8_t * buffer=nullptr, int size=0) : writePosition(0), readPosition(0) {
+      LZBufferWriter(uint8_t * buffer=nullptr, int size=0) : writePosition(0), readPosition(0) {
         this->buffer = buffer;
         this->size = size;
         if( buffer == nullptr ) { // write mode
@@ -258,7 +448,8 @@ namespace LZPacker
   // stream to buffer
   size_t compress( Stream* srcStream, size_t srcLen, uint8_t** dstBuf )
   {
-    StreamBuffer dstStream(nullptr, 0);
+    log_d("Stream to buffer (source=%d bytes)", srcLen);
+    LZBufferWriter dstStream(nullptr, 0);
     size_t dstLen = LZPacker::compress( srcStream, srcLen, &dstStream);
     if( dstLen == 0 || dstLen != dstStream.getSize() )
       return 0;
@@ -267,11 +458,11 @@ namespace LZPacker
   }
 
 
-
   // buffer to buffer
   size_t compress( uint8_t* srcBuf, size_t srcBufLen, uint8_t** dstBuf )
   {
-    StreamBuffer dstStream(nullptr, 0);
+    log_d("Buffer to buffer (source=%d bytes)", srcBufLen);
+    LZBufferWriter dstStream(nullptr, 0);
     size_t dstLen = LZPacker::compress( srcBuf, srcBufLen, &dstStream);
     if( dstLen == 0 || dstLen != dstStream.getSize() )
       return 0;
@@ -280,176 +471,51 @@ namespace LZPacker
   }
 
 
-
-  static size_t defaultgzStreamReader( uint8_t* buf, size_t bufsize )
-  {
-    if( LZPacker::srcStream )
-      return LZPacker::srcStream->readBytes(buf, bufsize);
-    return 0;
-  }
-
-
   // stream to stream
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream )
   {
-    log_v("LZPacker::compress(stream, size=%d, stream)", srcLen);
-    // assert(srcStream);
-    assert(srcLen>0);
-    assert(dstStream);
-
-    LZPacker::dstStream = dstStream;
-    LZPacker::srcStream = srcStream;
-
-    uint8_t header[10];
-    size_t header_size = lzHeader(header);
-    size_t dstLen = dstStream->write(header, header_size);
-
-    bool success = true;
-
+    log_d("Stream to Stream (source=%d bytes)", srcLen);
+    if( !srcStream || srcLen==0 || !dstStream )
+      return -1;
+    LZPacker::LZStreamWriter lzStream( dstStream, srcLen, LZPacker::outputBufferSize );
+    size_t total_source_bytes = 0;
+    size_t total_gz_bytes = 0;
     unsigned char* inputBuffer  = (unsigned char*)malloc(LZPacker::inputBufferSize);
-    unsigned char* outputBuffer = (unsigned char*)malloc(LZPacker::outputBufferSize);
-
-    auto c = lzInit();
-    c->checksum_type = TINF_CHKSUM_CRC;
-    c->writeDestByte = NULL;
-    c->slen = srcLen;
-
-    GZ::uzlib_stream uzstream;
-    int prev_state = uzlib_deflate_init_stream(c, &uzstream);
-
-    if(prev_state != Z_OK) {
-      // abort !
-      free(inputBuffer);
-      free(outputBuffer);
-      return 0;
-    }
-
-    uzstream.out.avail = LZPacker::outputBufferSize;
-
-    int input_bytes = 0; // for do..while state
-    size_t total_bytes = 0; // for progress meter
-    //size_t total_read_bytes = 0;
-
-    if( srcStream )
-      LZPacker::gzStreamReader = LZPacker::defaultgzStreamReader;
-
-    if( ! LZPacker::gzStreamReader ) { // no stream bypass was set
-      log_e("No srcStream substitute was set, aborting!");
-      free(inputBuffer);
-      free(outputBuffer);
-      free(c->hash_table);
-      c->hash_table = NULL;
-      if( c->outbuf != NULL ) free(c->outbuf);
-      return 0;
-    }
-
-    int defl_mode  = Z_BLOCK;
-
-    uint8_t footer[8];
-    size_t footer_len = 0;
-    size_t write_size = 0;
-    size_t written_bytes = 0;
-
+    bool success = true;
     do {
-        if(uzstream.out.avail > 0){
-            log_v("[%d] Requesting %d bytes, received %d so far", xPortGetCoreID(), LZPacker::inputBufferSize, total_bytes);
-            input_bytes = LZPacker::gzStreamReader(inputBuffer, LZPacker::inputBufferSize); // consume input stream
-            total_bytes += input_bytes;
-
-            if( c->progress_cb )
-                c->progress_cb(total_bytes, srcLen);
-
-            if(input_bytes == 0) {
-              log_e("No more input bytes, srcStream->readBytes() miss?");
-              //prev_state = Z_STREAM_END;
-              break;
-            } else if(input_bytes == -1) {
-              log_e("srcStream->readBytes() failed");
-              return -1;
-            } else {
-              // log_d("srcStream->readBytes() returned %d bytes", input_bytes);
-            }
-
-            uzstream.in.next   = inputBuffer;
-            uzstream.in.avail  = input_bytes;
-
-            if( input_bytes != LZPacker::inputBufferSize || total_bytes==srcLen) {
-              log_v("Last chunk");
-              defl_mode = Z_FINISH;
-            }
-        }
-
-        uzstream.out.next  = outputBuffer;
-        uzstream.out.avail = LZPacker::outputBufferSize;
-
-        prev_state = uzlib_deflate_stream(&uzstream, defl_mode);
-
-        write_size = uzstream.out.next - outputBuffer;
-
-        written_bytes = dstStream->write(outputBuffer, write_size); // write to output stream
-
-        if( written_bytes == 0 ) {
-          log_e("Write failed at offset %d", input_bytes );
-          break;
-        } else {
-          log_v("Wrote %d/%d bytes from %d", written_bytes, write_size, LZPacker::inputBufferSize );
-        }
-
-        dstLen += written_bytes;
-
-        if( total_bytes > srcLen ) {
-          log_e("Read more bytes (%d) than source contains (%d), something is wrong", total_bytes, srcLen);
-          break;
-        }
-
-    } while(prev_state==Z_OK);
-
-
-    if(prev_state!=Z_STREAM_END) {
-      log_e("Premature end of gz stream (state=%d)", prev_state);
-      success = false;
-    }
-
-    if( c->progress_cb )
-        c->progress_cb(srcLen, srcLen); // send progress end signal, whatever the outcome
-
-    if( total_bytes != srcLen ) {
-      success = false;
-      int diff = srcLen - total_bytes;
-      if( diff>0 ) {
-        log_e("Bad input stream size: could not read every %d bytes, missed %d bytes.", srcLen, diff);
-      } else {
-        log_e("Bad input stream size: read %d further than %d requested bytes.", -diff, srcLen);
+      size_t read_bytes = srcStream->readBytes(inputBuffer, LZPacker::inputBufferSize);
+      if(read_bytes==0) {
+        log_e("Failed to read %d bytes from source", LZPacker::inputBufferSize);
+        success = false;
+        break;
       }
-      srcLen = total_bytes;
-    }
-
-    footer_len = lzFooter(footer, srcLen, ~c->checksum);
-    log_v("Writing lz footer");
-    dstLen += dstStream->write(footer, footer_len);
-
-    free(c->hash_table);
-    c->hash_table = NULL;
-    if( c->outbuf != NULL ) free(c->outbuf);
-
+      total_source_bytes += read_bytes;
+      size_t written_bytes = lzStream.write(inputBuffer, read_bytes);
+      if( written_bytes == 0 ) {
+        log_e("Failed to compress/write %d bytes", read_bytes);
+        success = false;
+        break;
+      }
+      total_gz_bytes += written_bytes;
+    } while( total_source_bytes < srcLen );
     free(inputBuffer);
-    free(outputBuffer);
-    free(c);
-
-    return success ? dstLen : -1;
+    return success ? lzStream.size() : -1;
   }
-
 
 
   // buffer to stream
   size_t compress( uint8_t* srcBuf, size_t srcBufLen, Stream* dstStream )
   {
+    log_d("Buffer to Stream (source=%d bytes)", srcBufLen);
     assert(srcBuf);
     assert(srcBufLen>0);
     assert(dstStream);
 
     LZPacker::dstStream = dstStream;
     auto c = lzInit();
+
+    if(!c)
+      return 0;
 
     // wrap dstStream->write() in lambda byteWriter
     c->writeDestByte  = []([[maybe_unused]]struct GZ::uzlib_comp *data, unsigned char byte) -> unsigned int {
@@ -479,8 +545,10 @@ namespace LZPacker
   }
 
 
+  // stream to file
   size_t compress( Stream* srcStream, size_t srcLen, fs::FS*dstFS, const char* dstFilename )
   {
+    log_d("Stream to file (source=%d bytes)", srcLen);
     if( !srcStream || srcLen>0 || !dstFS || !dstFilename)
       return 0;
     fs::File dstFile = dstFS->open(dstFilename, "w");
@@ -491,6 +559,8 @@ namespace LZPacker
     return ret;
   }
 
+
+  // file to file
   size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename )
   {
     if( !srcFS || !srcFilename || !dstFS || !dstFilename)
@@ -503,6 +573,8 @@ namespace LZPacker
     return ret;
   }
 
+
+  // file to stream
   size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream )
   {
     if( !srcFS || !srcFilename || !dstStream)
@@ -510,6 +582,7 @@ namespace LZPacker
     fs::File srcFile = srcFS->open(srcFilename, "r");
     if(!srcFile)
       return 0;
+    log_d("File to stream (source=%d bytes)", srcFile.size());
     auto ret = LZPacker::compress( &srcFile, srcFile.size(), dstStream );
     srcFile.close();
     return ret;
@@ -524,16 +597,14 @@ namespace TarPacker
 {
   using namespace TAR;
 
-  static uint8_t block_buf[T_BLOCKSIZE];
+  uint8_t block_buf[T_BLOCKSIZE]; // 512 bytes, not worth a malloc()
 
   void (*progressCb)( size_t progress, size_t total ) = nullptr;
   int pack_tar_impl(tar_params_t *p = nullptr);
 
   // progress callback setter
-  void setProgressCallBack(totalProgressCallback cb)
-  {
-    TarPacker::progressCb = cb;
-  }
+  void setProgressCallBack(totalProgressCallback cb);
+
 
   namespace io
   {
@@ -565,120 +636,7 @@ namespace TarPacker
   static TAR::TAR* _tar;
 
 
-#if defined TARGZ_USE_TASKS
-
-  static tar_callback_t TarGzIOFuncs;
-  static TaskHandle_t tarTaskHandle = NULL;
-  static QueueHandle_t tarQueueHandle = NULL;
-  static QueueHandle_t tarGzQueueHandle = NULL;
-  TickType_t maxQueueWait = 2000 / portTICK_PERIOD_MS;
-
-  // static xSemaphoreHandle mux = NULL;
-  //
-  // #define takeMuxSemaphore() if( mux ) { printf("[T].."); xSemaphoreTake(mux, portMAX_DELAY); printf("..[T]"); }
-  // #define giveMuxSemaphore() if( mux ) { printf("[G].."); xSemaphoreGive(mux); printf("..[G]"); }
-
-  static size_t total_fetched = 0;
-
-  static size_t getTarBytesFromQueue(tar_params_t *params, uint8_t* buf, size_t len)
-  {
-    if(len%T_BLOCKSIZE!=0) {
-      log_e("%d is not a multiple of %d!", len, T_BLOCKSIZE);
-      return 0;
-    }
-    if(params->ret!=1) {
-      log_e("polling %d bytes after EOF ???", len);
-      return 0;
-    }
-    size_t idx = 0;
-    //log_v("[core:%d] fetching %d bytes (%d so far)", xPortGetCoreID(), len, total_fetched);
-
-    do {
-      if( !xQueueReceive( tarGzQueueHandle, &buf[idx], maxQueueWait ) ) {
-        log_e("failed to receive buffer");
-        return 0;
-      }
-      idx += T_BLOCKSIZE;
-      total_fetched += T_BLOCKSIZE;
-      log_v("  [%d] Received one packet from tarGzQueueHandle (%d total bytes so far)", xPortGetCoreID(), total_fetched);
-      if( idx == len ) {
-        return len;
-      }
-    } while(params->ret == 1);
-
-    log_v("all bytes consumed");
-
-    return idx;
-  }
-
-
-  static size_t total_sent = 0;
-
-  // send 512 bytes
-  static int sendTarBytesToQueue(uint8_t* buf, size_t count)
-  {
-    if(count!=T_BLOCKSIZE) {
-      log_e("BAD block write (req=%d, avail=%d)", count, T_BLOCKSIZE );
-      return -1;
-    }
-    if( tarGzQueueHandle == NULL ) {
-      log_e("No queue to send to!");
-      return -1;
-    }
-
-    if( xQueueSend(tarGzQueueHandle, buf, maxQueueWait ) != pdTRUE ) {
-      log_e("failed to send one packet");
-      return 0;
-    }
-    total_sent += T_BLOCKSIZE;
-    log_v("  [%d] Sent one packet to tarGzQueueHandle (%d total bytes so far)", xPortGetCoreID(), total_sent);
-    return T_BLOCKSIZE;
-  }
-
-
-
-  void pack_tar_task(void* params)
-  {
-    log_d("entering pack_tar_task(%d)", xPortGetCoreID());
-
-    tar_params_t tp;
-    size_t tar_bytes = 0;
-
-    if( tarQueueHandle == NULL ) {
-      log_d("Waiting for queue handle to be created");
-      while( tarQueueHandle == NULL )
-        vTaskDelay(1);
-      log_d("queue handle was created!");
-    }
-
-    // notify readiness
-    if (xQueueSend(tarQueueHandle, &tar_bytes, maxQueueWait) != pdTRUE) {
-      log_e("Error sending readiness signal, aborting");
-      vTaskDelete(NULL);
-      return;
-    }
-
-    // wait until something is sent to the queue
-    while( !xQueueReceive( tarQueueHandle, &tar_bytes, 1 ) )
-      vTaskDelay(1);
-
-    log_d("Received tar job");
-
-    tar_bytes = pack_tar_impl();
-
-    log_d("tar task finished, xQueueSend(ret=%d). will self-delete", tar_bytes);
-
-    if (xQueueSend( tarQueueHandle, &tar_bytes, maxQueueWait*10) != pdTRUE)
-      log_e("Error sending pack_tar_impl() return status");
-
-    vTaskDelete(NULL);
-  }
-
-
-#endif
-
-
-  // i/o functions
+  // tar i/o functions
   namespace io
   {
 
@@ -732,7 +690,6 @@ namespace TarPacker
       struct_stat_t *s = (struct_stat_t *)_stat;
       static int inode_num = 0;
 
-      vTaskDelay(10); // commit previous fs access, if any, RP2040 seems to need this with LittleFS
       fs::File f = fs->open(path, "r");
       if(!f) {
         log_e("Unable to open %s for stat", path);
@@ -749,7 +706,6 @@ namespace TarPacker
       s->st_mtime = strcmp(path, "/") == 0 ? 0 : f.getLastWrite();
 
       f.close();
-      vTaskDelay(10); // commit file close
 
       log_v("stat_func: [%s] %s %d bytes", is_dir?"dir":"file", path, s->st_size );
 
@@ -787,6 +743,13 @@ namespace TarPacker
 
 
 
+  void setProgressCallBack(totalProgressCallback cb)
+  {
+    TarPacker::progressCb = cb;
+  }
+
+
+
   int add_header(TAR::TAR* tar, tar_entity_t tarEntity)
   {
     struct_stat_t entity_stat;
@@ -807,7 +770,6 @@ namespace TarPacker
       log_e("header write failed for: %s", tarEntity.realpath.c_str() );
       return -1;
     }
-    vTaskDelay(10); // commit header write, or next file->open() may fail
     return T_BLOCKSIZE;
   }
 
@@ -822,7 +784,7 @@ namespace TarPacker
       return -1;
     }
     if( read_bytes != T_BLOCKSIZE ) { // block was zero padded anyway
-      log_v("only got %d bytes of %d requested", read_bytes, T_BLOCKSIZE );
+      log_v("last TAR block was zero-padded after %d bytes", read_bytes );
     }
     auto ret = tar->io->writefunc(tar->io->dst_fs, tar->dst_file, block_buf, T_BLOCKSIZE);
     return ret;
@@ -938,8 +900,7 @@ namespace TarPacker
     // all writes have been done, the rest is decoration
 
     if( TarPacker::progressCb ) {
-      TarPacker::progressCb(_tar_estimated_filesize,_tar_estimated_filesize); // send end signal, whatever the outcome
-      vTaskDelay(1); // let the progress meter fire
+      TarPacker::progressCb(_tar_estimated_filesize, _tar_estimated_filesize); // send end signal, whatever the outcome
     }
 
     if( _tar_estimated_filesize != total_bytes ) {
@@ -1003,145 +964,7 @@ namespace TarGzPacker
   static tar_params_t targz_params;
 
 
-#if defined TARGZ_USE_TASKS
-
-  void listTasks()
-  {
-    char stats_buffer[1024];
-    Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
-    Serial.printf( "Task Name\tStatus\tPrio\tHWM\tTask\tAffinity\n");
-    vTaskList(stats_buffer);
-    Serial.printf("%s\n", stats_buffer);
-  }
-
-
-  bool createTask(tar_params_t *targz_params)
-  {
-    if( tarQueueHandle != NULL || tarGzQueueHandle != NULL || tarTaskHandle != NULL ) {
-      log_e("Another job is already running!");
-      return false;
-    }
-
-    tarQueueHandle = xQueueCreate( 1, sizeof(void*) );
-    if( tarQueueHandle == NULL ) {
-      log_e("Queue could not be created");
-      return false;
-    }
-    log_d("tarQueueHandle created");
-
-    tarGzQueueHandle = xQueueCreate( 1, T_BLOCKSIZE );
-    if( tarGzQueueHandle == NULL ) {
-      log_e("Queue could not be created");
-      return false;
-    }
-    log_d("tarGzQueueHandle created");
-
-    xTaskCreate(pack_tar_task, "pack_tar_task", 4096, nullptr, tskIDLE_PRIORITY, &tarTaskHandle );
-
-    // listTasks();
-
-    size_t dummy;
-    if( !xQueueSend(tarQueueHandle, targz_params, maxQueueWait) ) {
-      log_e("Error sending tar params to xqueue, aborting");
-      vTaskDelete(tarTaskHandle);
-      return false;
-    }
-
-    if( !xQueueReceive(tarQueueHandle, &dummy, maxQueueWait) ) {
-      log_e("Failed to receive task readiness, aborting");
-      vTaskDelete(tarTaskHandle);
-      return false;
-    }
-
-    return true;
-  }
-
-
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
-  {
-
-    size_t lz_ret = -1;
-    int srcLen = 0;
-    tar_params_t tp;
-
-    // memoize last buffer size, it'll be restored on exit
-    auto lzBufferSize = LZPacker::inputBufferSize;
-
-    // i/o functions for tar low-level writes
-    TarGzIOFuncs = TarIOFuncs;
-    TarGzIOFuncs.src_fs = srcFS;
-    TarGzIOFuncs.dst_fs = nullptr;
-    // tar params for streaming to gz
-    targz_params = {
-      .srcFS            = srcFS,
-      .dirEntities      = dirEntities,
-      .dstFS            = nullptr, // none when streaming
-      .output_file_path = nullptr, // none when streaming
-      .tar_prefix       = tar_prefix,
-      .io               = &TarGzIOFuncs,
-      .ret              = 1,
-    };
-
-    TarGzIOFuncs.writefunc = [](void *_f, void *_s, void *buf, size_t count)->int {
-      return sendTarBytesToQueue((uint8_t*)buf, count) == T_BLOCKSIZE ? T_BLOCKSIZE : -1;
-    };
-
-    LZPacker::gzStreamReader = [](uint8_t* buf, size_t len)->size_t {
-      return getTarBytesFromQueue(&targz_params, buf, len);
-    };
-
-    srcLen = pack_tar_init(&TarGzIOFuncs, srcFS, dirEntities, nullptr, nullptr, tar_prefix);
-
-    if( srcLen <=0 ) // tar_open() failed
-      goto __free_tar;
-
-    if( !createTask(&targz_params) ) // task creation failed
-      goto __free_tar;
-
-    LZPacker::inputBufferSize = T_BLOCKSIZE;
-    lz_ret = LZPacker::compress((Stream*)nullptr, srcLen, dstStream);
-
-    // tar task sends a last message before self-deleting
-    if( !xQueueReceive(tarQueueHandle, &targz_params.ret, maxQueueWait*10) ) {
-      log_e("Failed to get tar bytes count");
-      // NOTE: Checking if task needs deletion isn't worth it. If the last xQueueReceive
-      //       failed, it's a sign there are much bigger problems than a 4Kb memory leak.
-      targz_params.ret = 0;
-    }
-
-    if((int)lz_ret == -1 ) // LZPacker failed
-      log_e("The output stream is corrupted, if it was a file, delete it.");
-    else if (lz_ret == 0) // TarPacker and/or LZPacker failed
-      log_e("Compression failed.");
-    else if( targz_params.ret != srcLen ) // TarPacker failed
-      log_w("TarPacker provided %d bytes when %d bytes were expected! LZPacker wrote %d bytes but content may be truncated.", targz_params.ret, srcLen, lz_ret);
-    else
-      log_i("Compression done, LZPacker received %d bytes from TarPacker, compressed to %d bytes", targz_params.ret, lz_ret);
-
-    __free_tar:
-
-    if( _tar) {
-      free(_tar);
-      _tar = NULL;
-    }
-
-    LZPacker::gzStreamReader = NULL; // detach our queue reader
-    LZPacker::inputBufferSize = lzBufferSize; // restore initial buffer size
-
-    // free the task queues
-    vQueueDelete(tarQueueHandle);
-    vQueueDelete(tarGzQueueHandle);
-
-    // make sure all the handles are nullified for the next use
-    tarTaskHandle = NULL;
-    tarQueueHandle = NULL;
-    tarGzQueueHandle = NULL;
-
-    return lz_ret;
-  }
-
-
-
+  // tar-to-gz compression from files/folders list
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
     auto dstFile = dstFS->open(tgz_name, "w");
@@ -1154,54 +977,46 @@ namespace TarGzPacker
     return ret;
   }
 
-#else
 
-  // tar-to-gz FreeRTOS task queuing is unavailable (e.g. with ESP8266-arduino)
-  // An intermediate tar file will be used instead.
-
+  // tar-to-gz compression from files/folders list
   int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
-    return TarGzPacker::compress(srcFS, dirEntities, "/.tmp.tar", dstStream, tar_prefix );
-  }
+    auto TarStreamFunctions = TarIOFuncs;
+    TarStreamFunctions.src_fs = srcFS;
+    TarStreamFunctions.dst_fs = nullptr;
 
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
-  {
-    return TarGzPacker::compress(srcFS, dirEntities, "/.tmp.tar", dstFS, tar_prefix );
-  }
-
-#endif
-
-  // compress with intermediate tar file
-
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, const char* tmp_tar_filename, Stream* dstStream, const char* tar_prefix)
-  {
-    fs::File srcFile = srcFS->open(tmp_tar_filename, "w");
-    if(!srcFile)
+    int tar_estimated_filesize = pack_tar_init(&TarStreamFunctions, srcFS, dirEntities, nullptr, nullptr, tar_prefix);
+    if( tar_estimated_filesize <=0 )
       return -1;
-    auto srcLen = TarPacker::pack_files( srcFS, dirEntities, &srcFile, tar_prefix );
-    if( srcLen <=0 ) {
-      srcFile.close();
-      return -1;
-    }
-    srcFile.close();
 
-    log_d("Packed tar data (%d bytes) to intermediate file %s, now compressing", srcLen, tmp_tar_filename);
+    LZPacker::LZStreamWriter lzStream( dstStream, tar_estimated_filesize );
 
-    auto ret = LZPacker::compress( srcFS, tmp_tar_filename, dstStream );
-    srcFS->remove(tmp_tar_filename);
-    return ret;
+    _tar->dst_file = &lzStream; // attach gz stream to tar i/o
 
+    auto ret = pack_tar_impl();
+
+    free(_tar);
+
+    return ret ? lzStream.size() : -1;
   }
 
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, const char* tmp_tar_filename, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
+
+  // tar-to-gz compression from path
+  int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix)
   {
-    fs::File dstFile = dstFS->open(tgz_name, "w");
-    if(!dstFile)
-      return -1;
-    auto ret = TarGzPacker::compress( srcFS, dirEntities, tmp_tar_filename, &dstFile, tar_prefix);
-    dstFile.close();
-    return ret;
+    std::vector<TAR::dir_entity_t> dirEntities;
+    TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
+    return compress(srcFS, dirEntities, dstStream, tar_prefix);
   }
+
+  // tar-to-gz compression from path
+  int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
+  {
+    std::vector<TAR::dir_entity_t> dirEntities;
+    TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
+    return compress(srcFS, dirEntities, dstFS, tgz_name, tar_prefix);
+  }
+
 
 }; // end namespace TarGzPacker
 
