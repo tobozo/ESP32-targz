@@ -447,5 +447,3 @@ GzStaticRequestHandler &GzStaticRequestHandler::setFilter(WebServer::FilterFunct
   _filter = filter;
   return *this;
 }
-
-

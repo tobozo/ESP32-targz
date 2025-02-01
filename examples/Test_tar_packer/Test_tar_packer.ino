@@ -12,6 +12,8 @@
 #if defined ESP32 || defined ESP8266
   #define USE_WEBSERVER
   #include "./network.h"
+#elif defined ARDUINO_ARCH_RP2040
+  #include <SingleFileDrive.h>
 #endif
 
 
@@ -107,7 +109,7 @@ void setup()
 
   removeTempFiles(); // cleanup previous examples
   Serial.println("Gathering directory entitites");
-  TarPacker::collectDirEntities(&dirEntities, &tarGzFS, src_path, 3); // collect dir and files at %{src_path}
+  TarPacker::collectDirEntities(&dirEntities, &tarGzFS, src_path); // collect dir and files at %{src_path}
   // LZPacker::setProgressCallBack( LZPacker::defaultProgressCallback );
 
   Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
@@ -117,11 +119,16 @@ void setup()
   // testTarGzPacker();
   testTarGzPackerStream();
 
+  Serial.printf("Free heap: %lu bytes\n", HEAP_AVAILABLE() );
+
 
   Serial.println();
 
   #if defined USE_WEBSERVER
     setupNetwork();
+  #elif defined ARDUINO_ARCH_RP2040
+    // Set up the USB disk share
+    singleFileDrive.begin("test.tar.gz", "test.tar.gz");
   #endif
 }
 
