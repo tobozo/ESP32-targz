@@ -212,6 +212,14 @@ namespace TAR
   // RP2040 loads stats.h twice and panics on ambiguity, let's hint
   #define struct_stat_t struct TAR::stat
 #else
-  #define struct_stat_t struct TAR::stat
+  #if __has_include(<sys/stat.h>)
+    #define struct_stat_t struct stat
+    #include <sys/stat.h>
+  #else
+    // struct stat is namespaced from libtar.h
+    #define struct_stat_t struct TAR::stat
+  #endif
+
+
 #endif
 
