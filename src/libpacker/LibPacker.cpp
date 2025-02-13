@@ -834,7 +834,6 @@ namespace TarPacker
       e.is_dir = d.is_dir;
       e.size = d.size;
       _tarEntities.push_back( e );
-      //_tarEntities.push_back( { realpath, savepath, d.is_dir, d.size } );
       log_w("Add entity( [%4s]\t%-32s\t%d bytes -> %s (%d tar bytes)", d.is_dir?"DIR":"FILE", realpath.c_str(), d.size, savepath.c_str(), tar_entity_size );
     }
 

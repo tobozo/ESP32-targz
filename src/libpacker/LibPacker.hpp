@@ -205,7 +205,6 @@ namespace TAR
       } else if (file.isDirectory()) {
         collectDirEntities(dirEntities, fs, filePath.c_str());
       } else {
-
         dir_entity_t f;
         f.path = filePath;
         f.is_dir = false;

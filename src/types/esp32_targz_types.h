@@ -39,7 +39,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 // Common types **************************************************************
@@ -196,7 +195,7 @@ namespace TAR
   struct tar_params_t
   {
     fs::FS *srcFS{nullptr};                // source filesystem
-    dir_entities_t dirEntities; // entities to add, output_file_path will be ignored if present in the list
+    std::vector<dir_entity_t> dirEntities; // entities to add, output_file_path will be ignored if present in the list
     fs::FS *dstFS{nullptr};                // destination filesystem
     const char* output_file_path{nullptr}; // destination archive path, may be .tar or .tar.gz
     const char* tar_prefix{nullptr};       // root directory in the tar archive (all paths in will be prefixed with this)
@@ -219,7 +218,5 @@ namespace TAR
     // struct stat is namespaced from libtar.h
     #define struct_stat_t struct TAR::stat
   #endif
-
-
 #endif
 
