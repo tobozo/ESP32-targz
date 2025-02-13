@@ -111,7 +111,7 @@ void uzlib_compress(struct uzlib_comp *data, const uint8_t *src, unsigned slen)
 
 
 
-uint32_t uzlib_checksum_none([[maybe_unused]]const void *data, [[maybe_unused]]unsigned int length, uint32_t prev_sum)
+uint32_t uzlib_checksum_none(__attribute__((unused)) const void *data, __attribute__((unused)) unsigned int length, uint32_t prev_sum)
 {
   return prev_sum;
 }

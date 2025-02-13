@@ -77,10 +77,17 @@ struct BaseUnpacker
     bool   setPsram( bool enable );
   #endif
   static const char* targzFSFilePath( fs::File *file ) {
-    #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
-      return file->path();
+    #if defined ESP32
+      #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
+        return file->path();
+      #else
+        return file->name();
+      #endif
+    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
+      return file->fullName();
     #else
-      return file->name();
+      return nullptr;
+      #error "Unsupported architecture"
     #endif
   }
   static void tarNullProgressCallback( uint8_t progress ); // null progress callback

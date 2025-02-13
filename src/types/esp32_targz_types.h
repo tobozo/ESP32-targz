@@ -39,6 +39,8 @@
 
 #pragma once
 
+#include <vector>
+
 // Common types **************************************************************
 
 
@@ -184,6 +186,7 @@ namespace TAR
     size_t size{0};      // 0 if is_dir = true
   };
 
+  typedef std::vector<dir_entity_t> dir_entities_t; // shorthand for users, not used in the library but still valid
 
   struct _tar_callback_t;
   typedef struct _tar_callback_t tar_callback_t; // forward declaration
@@ -208,6 +211,12 @@ namespace TAR
   // RP2040 loads stats.h twice and panics on ambiguity, let's hint
   #define struct_stat_t struct TAR::stat
 #else
-  #define struct_stat_t struct stat
+  #if __has_include(<sys/stat.h>)
+    #define struct_stat_t struct stat
+    #include <sys/stat.h>
+  #else
+    // struct stat is namespaced from libtar.h
+    #define struct_stat_t struct TAR::stat
+  #endif
 #endif
 
