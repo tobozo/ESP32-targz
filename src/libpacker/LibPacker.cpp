@@ -828,7 +828,13 @@ namespace TarPacker
       if( !tar_prefix && savepath.startsWith("/") ) // tar paths can't be slash-prepended, add a dot
         savepath = "." + savepath;
 
-      _tarEntities.push_back( { realpath, savepath, d.is_dir, d.size } );
+      tar_entity_t e;
+      e.realpath = realpath;
+      e.savepath = savepath;
+      e.is_dir = d.is_dir;
+      e.size = d.size;
+      _tarEntities.push_back( e );
+      //_tarEntities.push_back( { realpath, savepath, d.is_dir, d.size } );
       log_w("Add entity( [%4s]\t%-32s\t%d bytes -> %s (%d tar bytes)", d.is_dir?"DIR":"FILE", realpath.c_str(), d.size, savepath.c_str(), tar_entity_size );
     }
 
@@ -1004,7 +1010,7 @@ namespace TarGzPacker
   // tar-to-gz compression from path
   int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix)
   {
-    std::vector<TAR::dir_entity_t> dirEntities;
+    std::vector<dir_entity_t> dirEntities;
     TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
     return compress(srcFS, dirEntities, dstStream, tar_prefix);
   }
@@ -1012,7 +1018,7 @@ namespace TarGzPacker
   // tar-to-gz compression from path
   int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
-    std::vector<TAR::dir_entity_t> dirEntities;
+    std::vector<dir_entity_t> dirEntities;
     TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
     return compress(srcFS, dirEntities, dstFS, tgz_name, tar_prefix);
   }

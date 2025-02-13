@@ -176,8 +176,14 @@ namespace TAR
       return;
     }
 
-    if( String(dirname) != "/" )
-      dirEntities->push_back( { String(dirname), true, 0 } );
+    if( String(dirname) != "/" ) {
+      dir_entity_t d;
+      d.path = String(dirname);
+      d.is_dir = true;
+      d.size = 0;
+      dirEntities->push_back( d );
+      // dirEntities->push_back( { String(dirname), true, (size_t)0 } );
+    }
 
     File file = root.openNextFile();
 
@@ -199,7 +205,13 @@ namespace TAR
       } else if (file.isDirectory()) {
         collectDirEntities(dirEntities, fs, filePath.c_str());
       } else {
-        dirEntities->push_back( { filePath, false, file.size() } );
+
+        dir_entity_t f;
+        f.path = filePath;
+        f.is_dir = false;
+        f.size = file.size();
+        dirEntities->push_back( f );
+        // dirEntities->push_back( { filePath, false, file.size() } );
         log_d("  FILE: %-16s\tSIZE: %6d", filePath.c_str(), file.size() );
       }
       file = root.openNextFile();

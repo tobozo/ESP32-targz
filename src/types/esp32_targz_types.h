@@ -39,6 +39,9 @@
 
 #pragma once
 
+
+#include <vector>
+
 // Common types **************************************************************
 
 
@@ -184,6 +187,7 @@ namespace TAR
     size_t size{0};      // 0 if is_dir = true
   };
 
+  typedef std::vector<dir_entity_t> dir_entities_t; // shorthand for users, not used in the library but still valid
 
   struct _tar_callback_t;
   typedef struct _tar_callback_t tar_callback_t; // forward declaration
@@ -192,7 +196,7 @@ namespace TAR
   struct tar_params_t
   {
     fs::FS *srcFS{nullptr};                // source filesystem
-    std::vector<dir_entity_t> dirEntities; // entities to add, output_file_path will be ignored if present in the list
+    dir_entities_t dirEntities; // entities to add, output_file_path will be ignored if present in the list
     fs::FS *dstFS{nullptr};                // destination filesystem
     const char* output_file_path{nullptr}; // destination archive path, may be .tar or .tar.gz
     const char* tar_prefix{nullptr};       // root directory in the tar archive (all paths in will be prefixed with this)
@@ -208,6 +212,6 @@ namespace TAR
   // RP2040 loads stats.h twice and panics on ambiguity, let's hint
   #define struct_stat_t struct TAR::stat
 #else
-  #define struct_stat_t struct stat
+  #define struct_stat_t struct TAR::stat
 #endif
 
