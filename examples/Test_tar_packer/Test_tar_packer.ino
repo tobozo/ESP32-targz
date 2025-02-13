@@ -16,6 +16,8 @@
   #include <SingleFileDrive.h>
 #endif
 
+// because some espressif cores will error instead of just emitting a warning
+#pragma GCC diagnostic ignored "-Wformat"
 
 const char* src_path   = "/";            // source folder (no ending slash except if root)
 const char* tar_path   = "/test.tar";    // output tar archive to create
