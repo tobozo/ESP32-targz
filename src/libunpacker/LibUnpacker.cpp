@@ -576,14 +576,16 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
 
   if( tarSkipThisEntryOut ) {
     if( tarSkipThisEntryOut( header ) ) {
-      tgzLogger("[TAR] Skipping: %s (filter 'Out' matches)\n", header->filename );
+      if(tgzLogger )
+        tgzLogger("[TAR] Skipping: %s (filter 'Out' matches)\n", header->filename );
       tarSkipThisEntry = true;
     }
   }
 
   if( tarSkipThisEntryIn ) {
     if( !tarSkipThisEntryIn( header ) ) {
-      tgzLogger("[TAR] Skipping: %s (filter 'In' does not match)\n", header->filename );
+      if(tgzLogger )
+        tgzLogger("[TAR] Skipping: %s (filter 'In' does not match)\n", header->filename );
       tarSkipThisEntry = true;
     }
   }
@@ -968,7 +970,8 @@ bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &
     destFS.mkdir( tarDestFolder );
   }
 
-  tgzLogger("[TAR] Expanding stream to folder %s\n", destFolder );
+  if(tgzLogger )
+    tgzLogger("[TAR] Expanding stream to folder %s\n", destFolder );
 
   untarredBytesCount = 0;
 
@@ -1433,7 +1436,8 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
     }
   }
 
-  tgzLogger("[GZ] Expanding %s to %s\n", sourceFile, destFile );
+  if(tgzLogger)
+    tgzLogger("[GZ] Expanding %s to %s\n", sourceFile, destFile );
 
   fs::File gz = sourceFS.open( sourceFile, FILE_READ );
   if( !gzProgressCallback ) {
@@ -1531,7 +1535,8 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const ch
         return false;
     }
 
-    tgzLogger("[GZ] Expanding Stream to %s\n", destFile );
+    if(tgzLogger)
+      tgzLogger("[GZ] Expanding Stream to %s\n", destFile );
 
     if( !gzProgressCallback ) {
         setGzProgressCallback( defaultProgressCallback );
@@ -1637,10 +1642,12 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
     }
 
     if( int( gz_size ) < 1 || gz_size == 0 ) {
-      tgzLogger("[GZStreamExpander] unknown binary size\n");
+      if(tgzLogger)
+        tgzLogger("[GZStreamExpander] unknown binary size\n");
       stream_bytesleft = 0;
     } else {
-      tgzLogger("[GZStreamExpander] Unzipping\n");
+      if(tgzLogger)
+        tgzLogger("[GZStreamExpander] Unzipping\n");
       stream_bytesleft = gz_size;
     }
     // process with unzipping
@@ -1822,13 +1829,15 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
       });
 
       if( int( update_size ) < 1 || update_size == UPDATE_SIZE_UNKNOWN ) {
-        tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
+        if(tgzLogger)
+          tgzLogger("[GZUpdater] Starting update with unknown binary size\n");
         if( !Update.begin( UPDATE_SIZE_UNKNOWN, partition ) ) {
           setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
           return false;
         }
       } else {
-        tgzLogger("[GZUpdater] Starting update\n");
+        if(tgzLogger)
+          tgzLogger("[GZUpdater] Starting update\n");
         if( !Update.begin( ( ( update_size + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 ) ), partition ) ) {
           setError( (tarGzErrorCode)(Update.getError()-20) ); // "-20" offset is Update error id to esp32-targz error id
           return false;
@@ -2024,7 +2033,8 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
   }
   fs::File gz = sourceFS.open( sourceFile, FILE_READ );
 
-  tgzLogger("[TGZ] Will direct-expand %s to %s\n", sourceFile, destFolder );
+  if(tgzLogger)
+    tgzLogger("[TGZ] Will direct-expand %s to %s\n", sourceFile, destFolder );
 
   if( !gzReadHeader( gz ) ) {
     log_e("[GZ ERROR] in tarGzExpanderNoTempFile: invalid gzip file or not enough space left on device ?");
@@ -2096,7 +2106,8 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
 
   if( tempFile != nullptr ) {
 
-    tgzLogger("[TGZ] Will expand using an intermediate file: %s\n", tempFile );
+    if(tgzLogger )
+      tgzLogger("[TGZ] Will expand using an intermediate file: %s\n", tempFile );
 
     mkdirp( &destFS, tempFile );
 
@@ -2111,7 +2122,8 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
     return !tarGzHasError();
   } else {
 
-    tgzLogger("[TGZ] Will expand without intermediate file\n" );
+    if(tgzLogger )
+      tgzLogger("[TGZ] Will expand without intermediate file\n" );
 
     if( gzProgressCallback && gzProgressCallback == tarProgressCallback ) {
       log_v("Disabling gzprogress callback for this instance");
@@ -2268,7 +2280,8 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const c
     }
 
     blockmod = min_output_buffer_size / TAR_BLOCK_SIZE; // adjust gz->tar buffered block modulo
-    tgzLogger("tarGzStreamExpander will unpack stream to %s folder using %d buffered bytes and %s dictionary\n", destFolder, min_output_buffer_size, use_dict ? "36Kb for the" : "NO" );
+    if(tgzLogger )
+      tgzLogger("tarGzStreamExpander will unpack stream to %s folder using %d buffered bytes and %s dictionary\n", destFolder, min_output_buffer_size, use_dict ? "36Kb for the" : "NO" );
 
   #endif
 
