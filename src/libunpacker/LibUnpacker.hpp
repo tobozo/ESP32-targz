@@ -109,7 +109,6 @@ struct TarUnpacker : virtual public BaseUnpacker
   ~TarUnpacker();
   bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
   bool tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder );
-  //TODO: tarStreamExpander( Stream* sourceStream, fs::FS &destFS, const char* destFolder );
   void setTarStatusProgressCallback( tarStatusProgressCb cb );
   void setTarProgressCallback( genericProgressCallback cb ); // for tar
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
