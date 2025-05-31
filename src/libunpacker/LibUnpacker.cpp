@@ -62,8 +62,8 @@ void* (*tgz_realloc)(void *ptr, size_t size) = nullptr;
 bool tgz_use_psram = false;
 
 void   (*tgzLogger)( const char* format, ...) = nullptr;
-size_t (*fstotalBytes)() = nullptr;
-size_t (*fsfreeBytes)()  = nullptr;
+uint64_t (*fstotalBytes)() = nullptr;
+uint64_t (*fsfreeBytes)()  = nullptr;
 void   (*fsSetupSizeTools)( fsTotalBytesCb cbt, fsFreeBytesCb cbf ) = nullptr;
 
 void   (*tarProgressCallback)( uint8_t progress ) = nullptr;
@@ -594,7 +594,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
   if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
     if( fstotalBytes &&  fsfreeBytes ) {
-      size_t freeBytes  = fsfreeBytes();
+      uint64_t freeBytes  = fsfreeBytes();
       if( freeBytes < header->filesize ) {
         // Abort before the partition is smashed!
         log_e("[TAR ERROR] Not enough space left on device (%llu bytes required / %d bytes available)!", header->filesize, freeBytes );
@@ -1121,20 +1121,20 @@ bool GzUnpacker::gzReadHeader( fs::File &gzFile )
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 3)<<8;
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 2)<<16;
     tarGzIO.output_size += gzReadByte(gzFile, tarGzIO.gz_size - 1)<<24;
-    log_v("[GZ INFO] valid gzip file detected! gz size: %d bytes, expanded size:%d bytes", tarGzIO.gz_size, tarGzIO.output_size);
+    log_v("[GZ INFO] valid gzip file detected! gz size: %lu bytes, expanded size:%lu bytes", tarGzIO.gz_size, tarGzIO.output_size);
     // Check for free space left on device before writing
     if( fstotalBytes &&  fsfreeBytes ) {
-      size_t freeBytes  = fsfreeBytes();
+      uint64_t freeBytes  = fsfreeBytes();
       if( freeBytes < tarGzIO.output_size ) {
         // not enough space on device
-        log_e("[GZ ERROR] Target medium will be out of space (required:%d, free:%d), aborting!", tarGzIO.output_size, freeBytes);
+        log_e("[GZ ERROR] Target medium will be out of space (required:%lu, free:%llu), aborting!", tarGzIO.output_size, freeBytes);
         return false;
       } else {
-        log_v("[GZ INFO] Available space:%d bytes", freeBytes);
+        log_v("[GZ INFO] Available space:%llu bytes", freeBytes);
       }
     } else {
       #if defined WARN_LIMITED_FS
-        log_w("[GZ WARNING] Can't check target medium for free space (required:%d, free:\?\?), will try to expand anyway\n", tarGzIO.output_size );
+        log_w("[GZ WARNING] Can't check target medium for free space (required:%lu, free:\?\?), will try to expand anyway\n", tarGzIO.output_size );
       #endif
     }
     ret = true;
@@ -1496,7 +1496,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   if( needs_free ) free( (char*)destFile );
 
   if( fstotalBytes &&  fsfreeBytes ) {
-    log_d("[GZ Info] FreeBytes after expansion=%d", fsfreeBytes() );
+    log_d("[GZ Info] FreeBytes after expansion=%llu", fsfreeBytes() );
   }
   return true;
 }

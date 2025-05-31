@@ -47,8 +47,8 @@
 // Callbacks for getting free/total space left on *destination* device.
 // Optional but recommended to prevent SPIFFS/LittleFS/FFat partitions
 // to explode during stream writes.
-typedef size_t (*fsTotalBytesCb)();
-typedef size_t (*fsFreeBytesCb)();
+typedef uint64_t (*fsTotalBytesCb)();
+typedef uint64_t (*fsFreeBytesCb)();
 
 // setup filesystem helpers (totalBytes, freeBytes)
 // must be done from outside the library since FS is an abstraction of an abstraction :(
