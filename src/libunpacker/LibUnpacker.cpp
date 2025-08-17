@@ -314,8 +314,13 @@ void BaseUnpacker::setFsFreeBytesCb( fsFreeBytesCb cb )
 // set logger callback
 void BaseUnpacker::setLoggerCallback( genericLoggerCallback cb )
 {
-  log_v("Assigning debug logger callback : 0x%8x", (uint)cb );
-  tgzLogger = cb;
+  if( cb ) {
+    log_v("Assigning debug logger callback : 0x%8x", (uint)cb );
+    tgzLogger = cb;
+  } else {
+    //log_v("Disabling logger callback" );
+    tgzLogger = BaseUnpacker::targzNullLoggerCallback;
+  }
 }
 
 
@@ -1204,13 +1209,14 @@ unsigned int GzUnpacker::gzReadSourceByte(CC_UNUSED struct GZ::TINF_DATA *data, 
 // show_progress => enable/disable bytes count (not always applicable)
 int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, bool show_progress )
 {
-
-  log_d("gzUncompress( isupdate = %s, stream_to_tar = %s, use_dict = %s, show_progress = %s)",
-    isupdate      ? "true" : "false",
-    stream_to_tar ? "true" : "false",
-    use_dict      ? "true" : "false",
-    show_progress ? "true" : "false"
-  );
+  if( tgzLogger != targzNullLoggerCallback ) {
+    log_d("gzUncompress( isupdate = %s, stream_to_tar = %s, use_dict = %s, show_progress = %s)",
+      isupdate      ? "true" : "false",
+      stream_to_tar ? "true" : "false",
+      use_dict      ? "true" : "false",
+      show_progress ? "true" : "false"
+    );
+  }
 
   if( !tarGzIO.gz->available() ) {
     log_e("[ERROR] in gzUncompress: gz resource doesn't exist!");
@@ -1243,7 +1249,9 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     }
     uzlib_dict_size = GZIP_DICT_SIZE;
     uzLibDecompressor.readDestByte   = NULL;
-    log_i("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, HEAP_AVAILABLE());
+    if( tgzLogger != targzNullLoggerCallback ) {
+      log_i("[INFO] gzUncompress tradeoff: faster, used %d bytes of ram (heap after alloc: %d)", GZIP_DICT_SIZE+output_buffer_size, HEAP_AVAILABLE());
+    }
     //log_w("[%d] alloc() done", HEAP_AVAILABLE() );
   } else {
     if( stream_to_tar ) {
@@ -1254,7 +1262,9 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       log_v("[INFO] gz output is file");
     }
     //output_buffer_size = SPI_FLASH_SEC_SIZE;
-    log_i("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, HEAP_AVAILABLE());
+    if( tgzLogger != targzNullLoggerCallback ) {
+      log_i("[INFO] gzUncompress tradeoff: slower will use %d bytes of ram (heap before alloc: %d)", output_buffer_size, HEAP_AVAILABLE());
+    }
     uzlib_gzip_dict = NULL;
     uzlib_dict_size = 0;
   }
@@ -1375,7 +1385,9 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     gzProgressCallback( 100 );
   }
 
-  log_d("decompressed %d bytes", outlen + output_position);
+  if( tgzLogger != targzNullLoggerCallback ) {
+    log_d("decompressed %d bytes", outlen + output_position);
+  }
 
   free( output_buffer );
   gzExpanderCleanup();

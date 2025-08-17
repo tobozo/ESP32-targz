@@ -79,6 +79,7 @@ jobs:
           # Set the build folder and file names for esp32-qemu-sim
           debug: true
           qemu-timeout: 999
+          timeout-interrupt-regex: "All tests performed"
           build-folder: examples/Test_tar_gz_tgz/build
           partitions-csv: partitions.csv
           firmware-bin: Test_tar_gz_tgz.ino.bin
