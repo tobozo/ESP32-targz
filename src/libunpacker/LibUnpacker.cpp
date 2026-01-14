@@ -927,7 +927,7 @@ int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int en
     int wlen = tarGzIO.output->write( block, length );
     if( wlen != length ) {
       //tgzLogger("\n");
-      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!\n", untarredBytesCount, length, wlen );
+      log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!", untarredBytesCount, length, wlen );
       return ESP32_TARGZ_FS_ERROR;
     }
     untarredBytesCount+=wlen;
@@ -1229,6 +1229,13 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     size_t output_buffer_size = min_output_buffer_size; // must be a multiple of 512 (tar block size)
   #endif
 
+  [[maybe_unused]] int32_t progress = 0;
+  [[maybe_unused]] size_t updatable_size = 0;
+  [[maybe_unused]] size_t zerofill_size  = 0;
+  [[maybe_unused]] unsigned int outlen = 0;
+  unsigned int return_value = ESP32_TARGZ_OK;
+  output_buffer = NULL;
+
   int uzlib_dict_size = 0;
   int res = 0;
 
@@ -1244,8 +1251,8 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
     if( uzlib_gzip_dict == NULL ) {
       log_e("[ERROR] can't alloc %d bytes for gzip dict (%d bytes free)", GZIP_DICT_SIZE, HEAP_AVAILABLE() );
-      gzExpanderCleanup();
-      return ESP32_TARGZ_UZLIB_MALLOC_FAIL; // TODO : Number this error
+      return_value = ESP32_TARGZ_UZLIB_MALLOC_FAIL;
+      goto _end;
     }
     uzlib_dict_size = GZIP_DICT_SIZE;
     uzLibDecompressor.readDestByte   = NULL;
@@ -1278,9 +1285,9 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
   res = GZ::uzlib_gzip_parse_header(&uzLibDecompressor);
   if (res != TINF_OK) {
     log_e("[ERROR] in gzUncompress: uzlib_gzip_parse_header failed (response code %d!", res);
+    return_value = ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED;
     //if( halt_on_error() ) targz_system_halt();
-    gzExpanderCleanup();
-    return ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED;
+    goto _end;
   }
 
   GZ::uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, uzlib_dict_size);
@@ -1288,13 +1295,13 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
   output_buffer = (unsigned char *)tgz_calloc( output_buffer_size+1, sizeof(unsigned char) );
   if( output_buffer == NULL ) {
     log_e("[ERROR] can't alloc %d bytes for output buffer", output_buffer_size );
-    gzExpanderCleanup();
-    return ESP32_TARGZ_UZLIB_MALLOC_FAIL; // TODO : Number this error
+    return_value = ESP32_TARGZ_UZLIB_MALLOC_FAIL;
+    goto _end;
   }
 
   /* decompress a single byte at a time */
   output_position = 0;
-  unsigned int outlen = 0;
+  outlen = 0;
 
   if( show_progress ) {
     gzProgressCallback( 0 );
@@ -1329,7 +1336,12 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       // when destination buffer is filled, write/stream it
       if (output_position == output_buffer_size) {
         log_v("[INFO] Buffer full, now writing %d bytes (total=%d)", output_buffer_size, outlen);
-        gzWriteCallback( output_buffer, output_buffer_size );
+        if( !gzWriteCallback( output_buffer, output_buffer_size ) ) {
+          return_value = _error;
+          goto _end;
+        }
+
+
         outlen += output_buffer_size;
         output_position = 0;
       }
@@ -1337,12 +1349,12 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
       if( show_progress ) {
         if( tarGzIO.output_size > 0 ) {
           uzlib_bytesleft = tarGzIO.output_size - outlen;
-          int32_t progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
+          progress = 100*(tarGzIO.output_size-uzlib_bytesleft) / tarGzIO.output_size;
           gzProgressCallback( progress );
         } else if( tarGzIO.gz_size > 0 ) {
           //uzlib_bytesleft = tarGzIO.output_size - outlen;
           //stream_bytesleft = tarGzIO.gz_size -
-          int32_t progress = 100*(tarGzIO.gz_size-stream_bytesleft) / tarGzIO.gz_size;
+          progress = 100*(tarGzIO.gz_size-stream_bytesleft) / tarGzIO.gz_size;
           gzProgressCallback( progress );
         }
 
@@ -1352,9 +1364,8 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
     if (res != TINF_DONE) {
       if( uzLibDecompressor.readSourceErrors > 0 ) {
-        free( output_buffer );
-        gzExpanderCleanup();
-        return ESP32_TARGZ_STREAM_ERROR;
+        return_value = ESP32_TARGZ_STREAM_ERROR;
+        goto _end;
       }
 
       log_w("[GZ WARNING] uzlib_uncompress_chksum[type=%s] return code=%d, %d bytes left in output buffer, %d zlib bytes left", TINF_CHKSUM_TYPE(uzLibDecompressor.checksum_type), res, output_position, (int)uzlib_bytesleft);
@@ -1362,18 +1373,24 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
     // some leftover bytes
     if( output_position > 0 ) {
-      gzWriteCallback( output_buffer, output_position );
+      if(! gzWriteCallback( output_buffer, output_position ) ) {
+        return_value = _error;
+        goto _end;
+      }
       outlen += output_position;
       output_position = 0;
     }
 
     if( isupdate && outlen > 0 ) { // Update requirement: written output size must be a multiple of SPI_FLASH_SEC_SIZE
-      size_t updatable_size = ( outlen + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 );
-      size_t zerofill_size  = updatable_size - outlen;
+      updatable_size = ( outlen + SPI_FLASH_SEC_SIZE-1 ) & ~( SPI_FLASH_SEC_SIZE-1 );
+      zerofill_size  = updatable_size - outlen;
       if( zerofill_size <= SPI_FLASH_SEC_SIZE ) {
         memset( output_buffer, 0, zerofill_size );
         // zero-fill to fit update.h required binary size
-        gzWriteCallback( output_buffer, zerofill_size );
+        if( ! gzWriteCallback( output_buffer, zerofill_size ) ) {
+          return_value = _error;
+          goto _end;
+        }
         outlen += zerofill_size;
         output_position = 0;
       }
@@ -1389,10 +1406,15 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     log_d("decompressed %d bytes", outlen + output_position);
   }
 
-  free( output_buffer );
+  return_value = outlen > 0 ? ESP32_TARGZ_OK : ESP32_TARGZ_STREAM_ERROR;
+
+  _end:
+
+  if( output_buffer != NULL )
+    free( output_buffer );
   gzExpanderCleanup();
 
-  return outlen > 0 ? ESP32_TARGZ_OK : ESP32_TARGZ_STREAM_ERROR;
+  return return_value;
 }
 
 
@@ -1936,7 +1958,7 @@ bool TarGzUnpacker::gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED
       return false;
     }
     if( response < 0 ) {
-      log_e("[WARN] gzProcessTarBuffer failed reading %d bytes (buffsize=%d) in gzip block #%d/%d, got response %d", TAR_BLOCK_SIZE, buffsize, gzTarBlockPos%blockmod, blockmod, response);
+      log_e("[ERROR] gzProcessTarBuffer failed reading %d bytes (buffsize=%d) in gzip block #%d/%d, got response %d", TAR_BLOCK_SIZE, buffsize, gzTarBlockPos%blockmod, blockmod, response);
       setError( ESP32_TARGZ_TAR_ERR_GZREAD_FAIL );
       return false;
     }
