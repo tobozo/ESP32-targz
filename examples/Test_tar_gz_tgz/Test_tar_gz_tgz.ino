@@ -392,6 +392,7 @@ bool test_tarGzStreamExpander()
 
   bool ret = false;
   const char* tarGzFile = "/targz_example.tar.gz";
+
   myPackage.folder = "/"; // for md5 tests
 
   SerialPrintCentered("Testing tarGzStreamExpander", false, true );
@@ -435,7 +436,7 @@ bool test_tarGzStreamExpander()
 
   if( !TARGZUnpacker->tarGzStreamExpander( streamptr, tarGzFS ) ) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("tarGzStreamExpander failed updating from %s with return code #%d", tarGzFile, TARGZUnpacker->tarGzGetError() );
+    SerialPrintfCentered("tarGzStreamExpander failed expanding from %s with return code #%d", tarGzFile, TARGZUnpacker->tarGzGetError() );
     Serial.println( CloseLine );
   } else {
     ret = true;
@@ -444,6 +445,9 @@ bool test_tarGzStreamExpander()
     file.close();
   #endif
   delete TARGZUnpacker;
+
+  while(1) { yield(); }
+
   return ret;
 }
 
