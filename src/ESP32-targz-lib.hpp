@@ -227,13 +227,6 @@ __attribute__((unused)) static uint64_t targzTotalBytesFn() {
 
 #define FOLDER_SEPARATOR "/"
 
-#ifndef FILE_READ
-  #define FILE_READ "r"
-#endif
-#ifndef FILE_WRITE
-  #define FILE_WRITE "w+"
-#endif
-
 #ifndef SPI_FLASH_SEC_SIZE
   #define SPI_FLASH_SEC_SIZE 4096
 #endif

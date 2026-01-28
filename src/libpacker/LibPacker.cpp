@@ -551,7 +551,7 @@ namespace LZPacker
     log_d("Stream to file (source=%d bytes)", srcLen);
     if( !srcStream || srcLen>0 || !dstFS || !dstFilename)
       return 0;
-    fs_File dstFile = dstFS->open(dstFilename, FILE_WRITE);
+    fs_File dstFile = dstFS->open(dstFilename, fs_file_write);
     if( !dstFile )
       return 0;
     auto ret = LZPacker::compress(srcStream, srcLen, &dstFile);
@@ -565,7 +565,7 @@ namespace LZPacker
   {
     if( !srcFS || !srcFilename || !dstFS || !dstFilename)
       return 0;
-    fs_File srcFile = srcFS->open(srcFilename, FILE_READ);
+    fs_File srcFile = srcFS->open(srcFilename, fs_file_read);
     if(!srcFile)
       return 0;
     auto ret = LZPacker::compress( &srcFile, srcFile.size(), dstFS, dstFilename);
@@ -579,7 +579,7 @@ namespace LZPacker
   {
     if( !srcFS || !srcFilename || !dstStream)
       return 0;
-    fs_File srcFile = srcFS->open(srcFilename, FILE_READ);
+    fs_File srcFile = srcFS->open(srcFilename, fs_file_read);
     if(!srcFile)
       return 0;
     log_d("File to stream (source=%d bytes)", srcFile.size());
@@ -666,7 +666,7 @@ namespace TarPacker
       log_v("io::open(%s, mode=%s)", filename, mode);
       if( String(mode) == "r" ) {
         flagStr = "r";
-        fileRO = fs->open(filename, FILE_READ);
+        fileRO = fs->open(filename, fs_file_read);
         if(!fileRO) {
           log_e("Unable to open %s for reading", filename);
           return (void*)-1;
@@ -674,7 +674,7 @@ namespace TarPacker
         retPtr = &fileRO;
       } else {
         flagStr = "w";
-        fileRW = fs->open(filename, FILE_WRITE);
+        fileRW = fs->open(filename, fs_file_write);
         if(!fileRW) {
           log_e("Unable to open %s for writing", filename);
           return (void*)-1;
@@ -703,7 +703,7 @@ namespace TarPacker
       struct_stat_t *s = (struct_stat_t *)_stat;
       static int inode_num = 0;
 
-      fs_File f = fs->open(path, FILE_READ);
+      fs_File f = fs->open(path, fs_file_read);
       if(!f) {
         log_e("Unable to open %s for stat", path);
         return -1;
@@ -961,7 +961,7 @@ namespace TarPacker
 
   int pack_files(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char*tar_output_file_path, const char* tar_prefix)
   {
-    auto tar = dstFS->open(tar_output_file_path, FILE_WRITE);
+    auto tar = dstFS->open(tar_output_file_path, fs_file_write);
     if(!tar)
       return -1;
     auto ret = pack_files(srcFS, dirEntities, &tar, tar_prefix);
@@ -985,7 +985,7 @@ namespace TarGzPacker
   // tar-to-gz compression from files/folders list
   int compress(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
-    auto dstFile = dstFS->open(tgz_name, FILE_WRITE);
+    auto dstFile = dstFS->open(tgz_name, fs_file_write);
     if(!dstFile) {
       log_e("Can't open %s for writing", tgz_name);
       return -1;

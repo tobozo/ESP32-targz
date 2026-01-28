@@ -168,7 +168,7 @@ namespace TAR
     assert(fs);
     assert(dirname);
 
-    File root = fs->open(dirname, FILE_READ);
+    File root = fs->open(dirname, fs_file_read);
     if (!root) {
       log_e("Failed to open directory %s", dirname);
       return;

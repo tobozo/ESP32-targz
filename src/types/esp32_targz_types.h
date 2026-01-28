@@ -70,8 +70,23 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
   #define fs_SeekMode SeekMode
   #define fs_SeekSet SeekSet
 
+  #define fs_file_read   FILE_READ
+  #define fs_file_write  FILE_WRITE
+  #define fs_file_wplus FILE_WRITE_BEGIN
+
 
 #else
+
+  #ifndef FILE_READ
+    #define FILE_READ "r"
+  #endif
+  #ifndef FILE_WRITE
+    #define FILE_WRITE "w+"
+  #endif
+
+  #define fs_file_read   FILE_READ
+  #define fs_file_write  FILE_WRITE
+  #define fs_file_wplus FILE_WRITE_BEGIN
 
   #define fs_FS fs::FS
   #define fs_File fs::File
