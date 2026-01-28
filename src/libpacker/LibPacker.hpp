@@ -163,12 +163,13 @@ namespace TAR
   const uint8_t max_path_len=100; // change this at your own peril
 
   // helper function to collect dirEntities from the contents of a given folder
-  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, fs_FS *fs, const char *dirname="/")
+  template<typename srcFS>
+  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, srcFS *fs, const char *dirname="/")
   {
     assert(fs);
     assert(dirname);
 
-    File root = fs->open(dirname, fs_file_read);
+    auto root = fs->open(dirname, fs_file_read);
     if (!root) {
       log_e("Failed to open directory %s", dirname);
       return;
@@ -187,10 +188,21 @@ namespace TAR
       // dirEntities->push_back( { String(dirname), true, (size_t)0 } );
     }
 
-    File file = root.openNextFile();
+    auto file = root.openNextFile();
 
     while (file) {
-      const char* file_path = fsFilePath(file);
+      const char* file_path =
+        #if defined ESP32
+          file.path()
+        #elif defined TEENSYDUINO // Note: hardcoded File::name() method for LittleFS
+          file.name()
+        #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
+          file.fullName()
+        #else
+          nullptr
+          #error "unsupported architecture"
+        #endif
+      ;
 
       const String filePath =
         #if defined ESP32 || defined TEENSYDUINO

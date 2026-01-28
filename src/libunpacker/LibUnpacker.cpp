@@ -387,7 +387,7 @@ void BaseUnpacker::hexDumpData( const char* buff, size_t buffsize, uint32_t outp
 // show the contents of a given file as a hex dump
 void BaseUnpacker::hexDumpFile( fs_FS &fs, const char* filename, uint32_t output_size )
 {
-  File binFile = fs.open( filename, fs_file_read );
+  auto binFile = fs.open( filename, fs_file_read );
   //log_w("File size : %d", binFile.size() );
   // only dump small files
   if( binFile.size() > 0 ) {
