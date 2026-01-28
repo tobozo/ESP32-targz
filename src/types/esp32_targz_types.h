@@ -70,11 +70,6 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
   #define fs_SeekMode SeekMode
   #define fs_SeekSet SeekSet
 
-  #define fs_file_read   FILE_READ
-  #define fs_file_write  FILE_WRITE
-  #define fs_file_wplus FILE_WRITE_BEGIN
-
-
 #else
 
   #ifndef FILE_READ
@@ -84,10 +79,6 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
     #define FILE_WRITE "w+"
   #endif
 
-  #define fs_file_read   FILE_READ
-  #define fs_file_write  FILE_WRITE
-  #define fs_file_wplus FILE_WRITE_BEGIN
-
   #define fs_FS fs::FS
   #define fs_File fs::File
   #define fs_SeekMode fs::SeekMode
@@ -95,6 +86,8 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
 
 #endif
 
+#define fs_file_read  FILE_READ
+#define fs_file_write FILE_WRITE
 
 
 // LibUnpacker types **************************************************************

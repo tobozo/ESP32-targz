@@ -665,7 +665,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
         log_v("[TAR] Creating %s", tar_file_path);
       }
 
-      untarredFile = tarFS->open(tar_file_path, fs_file_wplus);
+      untarredFile = tarFS->open(tar_file_path, fs_file_write);
       if(!untarredFile) {
         log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write, filesystem full?", tar_file_path);
         setError( ESP32_TARGZ_FS_ERROR );
@@ -1493,7 +1493,7 @@ bool GzUnpacker::gzExpander( fs_FS sourceFS, const char* sourceFile, fs_FS destF
     log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
     destFS.remove( destFile );
   }
-  fs_File outfile = destFS.open( destFile, fs_file_wplus );
+  fs_File outfile = destFS.open( destFile, fs_file_write );
   if(!outfile) {
     log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
     gz.close();
@@ -1591,7 +1591,7 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs_FS destFS, const cha
         log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
         destFS.remove( destFile );
     }
-    fs_File outFile = destFS.open(destFile, fs_file_wplus);
+    fs_File outFile = destFS.open(destFile, fs_file_write);
     if(!outFile) {
         log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
         setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
