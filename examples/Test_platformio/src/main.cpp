@@ -4,6 +4,7 @@
 
 void setup()
 {
+  Serial.begin(115200);
   if( !tarGzFS.begin() ) {
     Serial.println("Could not start filesystem");
     while(1) yield();
