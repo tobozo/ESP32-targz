@@ -28,6 +28,7 @@ jobs:
           - esp32
           - esp32s3
           - pico
+          - teensy41
 
       fail-fast: false
 
