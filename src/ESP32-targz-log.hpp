@@ -81,10 +81,17 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) {  }
     #include "esp32-hal-log.h"
   #endif
 
-#elif defined ARDUINO_ARCH_RP2040
+#elif defined ARDUINO_ARCH_RP2040 || defined(TEENSYDUINO)
   // no OTA support
-  #define DEVICE_RESTART() rp2040.restart()
-  #define HEAP_AVAILABLE() rp2040.getFreeHeap()
+
+  #if defined ARDUINO_ARCH_RP2040
+    #define DEVICE_RESTART() rp2040.restart()
+    #define HEAP_AVAILABLE() rp2040.getFreeHeap()
+  #else
+    #define DEVICE_RESTART() _restart_Teensyduino_()
+    #define HEAP_AVAILABLE() 42 // <<< TODO
+  #endif
+
 
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wformat"
@@ -207,6 +214,6 @@ inline void NullLoggerCallback( [[maybe_unused]] const char* format, ...) {  }
 
 #else
 
-  #error "Only ESP32, ESP8266 and RP2040 architectures are supported"
+  #error "Only ESP32, ESP8266, RP2040/Pico and Teensy4 architectures are supported"
 
 #endif

@@ -60,7 +60,25 @@ typedef void (*genericProgressCallback)(uint8_t progress); // percent (0...100)
 typedef void (*genericLoggerCallback)( const char* format, ... ); // same behaviour as printf()
 
 
+#if defined TEENSYDUINO
 
+  #include <LittleFS.h>
+  #include <assert.h>
+
+  #define fs_FS LittleFS
+  #define fs_File File
+  #define fs_SeekMode SeekMode
+  #define fs_SeekSet SeekSet
+
+
+#else
+
+  #define fs_FS fs::FS
+  #define fs_File fs::File
+  #define fs_SeekMode fs::SeekMode
+  #define fs_SeekSet fs::SeekSet
+
+#endif
 
 
 
@@ -194,9 +212,9 @@ namespace TAR
   // settings for tar packer implementation
   struct tar_params_t
   {
-    fs::FS *srcFS{nullptr};                // source filesystem
+    fs_FS *srcFS{nullptr};                // source filesystem
     std::vector<dir_entity_t> dirEntities; // entities to add, output_file_path will be ignored if present in the list
-    fs::FS *dstFS{nullptr};                // destination filesystem
+    fs_FS *dstFS{nullptr};                // destination filesystem
     const char* output_file_path{nullptr}; // destination archive path, may be .tar or .tar.gz
     const char* tar_prefix{nullptr};       // root directory in the tar archive (all paths in will be prefixed with this)
     tar_callback_t *io{nullptr};           // i/o functions for tar r/w operations

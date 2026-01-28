@@ -64,25 +64,27 @@ struct BaseUnpacker
   void   initFSCallbacks();
 
   // TODO: move these debug tools outside the library
-  void   tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
+  void   tarGzListDir( fs_FS &fs, const char * dirName, uint8_t levels, bool hexDump = false);
   void   hexDumpData( const char* buff, size_t buffsize, uint32_t output_size = 32 );
-  void   hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size = 32 );
+  void   hexDumpFile( fs_FS &fs, const char* filename, uint32_t output_size = 32 );
 
   void   setLoggerCallback( genericLoggerCallback cb );
   void   setupFSCallbacks( fsTotalBytesCb cbt, fsFreeBytesCb cbf ); // setup abstract filesystem helpers (totalBytes, freeBytes)
   #ifdef ESP8266
-    void   printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
+    void   printDirectory(fs_FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump);
   #endif
   #ifdef ESP32
     bool   setPsram( bool enable );
   #endif
-  static const char* targzFSFilePath( fs::File *file ) {
+  static const char* targzFSFilePath( fs_File *file ) {
     #if defined ESP32
       #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 4
         return file->path();
       #else
         return file->name();
       #endif
+    #elif defined TEENSYDUINO
+      return file->name();
     #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
       return file->fullName();
     #else
@@ -107,8 +109,8 @@ struct TarUnpacker : virtual public BaseUnpacker
 {
   TarUnpacker();
   ~TarUnpacker();
-  bool tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder );
-  bool tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder );
+  bool tarExpander( fs_FS &sourceFS, const char* fileName, fs_FS &destFS, const char* destFolder );
+  bool tarStreamExpander( Stream *stream, size_t streamSize, fs_FS &destFS, const char* destFolder );
   void setTarStatusProgressCallback( tarStatusProgressCb cb );
   void setTarProgressCallback( genericProgressCallback cb ); // for tar
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
@@ -137,8 +139,8 @@ struct TarUnpacker : virtual public BaseUnpacker
 struct GzUnpacker : virtual public BaseUnpacker
 {
   GzUnpacker();
-  bool    gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile = nullptr );
-  bool    gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile );
+  bool    gzExpander( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFile = nullptr );
+  bool    gzStreamExpander( Stream* sourceStream, fs_FS destFS, const char* destFile );
   bool    gzStreamExpander( Stream *stream, size_t gz_size = 0 ); // use with setStreamWriter
   void    setGzProgressCallback( genericProgressCallback cb );
   void    setGzMessageCallback( genericLoggerCallback cb );
@@ -148,12 +150,12 @@ struct GzUnpacker : virtual public BaseUnpacker
   void    gzExpanderCleanup();
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
   static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
-  static bool         gzReadHeader(fs::File &gzFile);
-  static uint8_t      gzReadByte(fs::File &gzFile, const int32_t addr, fs::SeekMode mode=fs::SeekSet);
+  static bool         gzReadHeader(fs_File &gzFile);
+  static uint8_t      gzReadByte(fs_File &gzFile, const int32_t addr, fs_SeekMode mode=fs_SeekSet);
   static unsigned int gzReadDestByteFS(int offset, unsigned char *out);
   static unsigned int gzReadSourceByte(struct GZ::TINF_DATA *data, unsigned char *out);
   #if defined HAS_OTA_SUPPORT
-    bool        gzUpdater( fs::FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
+    bool        gzUpdater( fs_FS &sourceFS, const char* gz_filename, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP with the content of a *gzipped* file
     bool        gzStreamUpdater( Stream *stream, size_t update_size = 0, int partition = U_FLASH, bool restart_on_update = true ); // flashes the ESP from a gzip stream, no progress callback
     static bool gzUpdateWriteCallback( unsigned char* buff, size_t buffsize );
   #endif
@@ -167,11 +169,11 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
 
   TarGzUnpacker();
   // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
-  bool tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
+  bool tarGzExpander( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFolder="/tmp", const char* tempFile = "/tmp/data.tar" );
   // same as tarGzExpander but without intermediate file
-  bool tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder="/tmp" );
+  bool tarGzExpanderNoTempFile( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFolder="/tmp" );
   // unpack stream://fileName.tar.gz contents to destFS::/destFolder/
-  bool tarGzStreamExpander( Stream *stream, fs::FS &destFs, const char* destFolder = "/", int64_t streamSize = -1 );
+  bool tarGzStreamExpander( Stream *stream, fs_FS &destFs, const char* destFolder = "/", int64_t streamSize = -1 );
 
   static bool gzProcessTarBuffer( unsigned char* buff, size_t buffsize );
   static int tarReadGzStream( unsigned char* buff, size_t buffsize );
