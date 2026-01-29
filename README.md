@@ -1,6 +1,6 @@
 # 🗜️ ESP32-targz
 
-## An ESP32/ESP8266/RP2040 Arduino library to handle .tar, .gz and .tar.gz files
+## An ESP32/ESP8266/RP2040/Teensy Arduino library to handle .tar, .gz and .tar.gz files
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/ESP32-targz.svg)](https://registry.platformio.org/packages/libraries/tobozo/ESP32-targz)
