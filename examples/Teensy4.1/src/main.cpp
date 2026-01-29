@@ -3,7 +3,6 @@
  */
 #define SD_FAT_TYPE 3 // no other mode available with esp32-targz
 #include "SD.h"
-//#include "sdios.h"
 #include <LittleFS.h>
 
 #include <ESP32-targz.h>
@@ -28,10 +27,6 @@
 #endif  // HAS_SDIO_CLASS
 //------------------------------------------------------------------------------
 
-// #if ARDUINO_TEENSY41
-// #error blah
-// #endif
-
 SdFs sd;
 
 LittleFS_Program LittleFSProgram;
@@ -42,10 +37,9 @@ LittleFS_Program LittleFSProgram;
 #define PROG_FLASH_SIZE 1024 * 1024 * 1 // Specify size to use of onboard Teensy Program Flash chip
                                         // This creates a LittleFS drive in Teensy PCB FLash.
 
-// Wrap SdFat in a fs::FS layer, this is only necessary for functions that expect that type.
-// Other Stream based functions work normally.
-fs::FS tarGzFs = unifyFS(sd);
-
+// Wrap SdFat and LittleFS in a fs::FS layer
+fs::FS srcFS = unifyFS(sd);
+fs::FS dstFS = unifyFS(LittleFSProgram);
 
 void setup() {
   Serial.begin(115200);
@@ -65,19 +59,21 @@ void setup() {
   if (!sd.begin(SD_CONFIG)) {
     sd.initErrorHalt(&Serial);
   }
+  Serial.println("SD initialized.");
 
-  // checks that the LittleFS program has started with the disk size specified
+  // Initialize LittleFS
   if (!LittleFSProgram.begin(PROG_FLASH_SIZE)) {
     Serial.printf("Error starting PROGRAM FLASH DISK, halting\n");
     while (1) {}
   }
   Serial.println("LittleFS initialized.");
 
-  File out = LittleFSProgram.open("/out.tgz", FILE_WRITE);
-
   std::vector<TAR::dir_entity_t> dirEntities; // storage for scanned dir entities
-  TarPacker::collectDirEntities(&dirEntities, &tarGzFs, "/"); // collect dir and files
-  size_t compressed_size = TarGzPacker::compress(&tarGzFs, dirEntities, &out);
+  TarPacker::collectDirEntities(&dirEntities, &srcFS, "/"); // collect dir and file names
+
+  fs::File out = dstFS.open("/out.tgz", "w"); // open output file for writing
+
+  size_t compressed_size = TarGzPacker::compress(&srcFS, dirEntities, &out); // compress!
 
   out.close();
 
