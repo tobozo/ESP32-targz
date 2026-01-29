@@ -39,7 +39,9 @@
 
 #pragma once
 
+
 #include <FS.h>
+
 #include "ESP32-targz-log.hpp"
 
 
@@ -148,19 +150,12 @@
   [[maybe_unused]] static FSInfo fsinfo;
 
 #elif defined TEENSYDUINO
-
-  // Figure out the chosen fs::FS library to load for the **destination** filesystem
-  #if defined DEST_FS_USES_SD
-    #include <SD.h>
-    #define tarGzFS SD
-    #define FS_NAME "SD (teensyduino)"
-  #else
-    #include <LittleFS.h>
-    #define tarGzFS LittleFS
-    #define FS_NAME "LITTLEFS (teensyduino)"
-  #endif
-
-  //[[maybe_unused]] static FsInfo_t fsinfo;
+  // Only SdFat and teensy's LittleFS family are supported, and they're declarative, so no tarGzFS assignation from here
+  #undef DEST_FS_USES_SPIFFS
+  #undef DEST_FS_USES_SD
+  #undef DEST_FS_USES_SD_MMC
+  #undef DEST_FS_USES_LITTLEFS
+  #undef DEST_FS_USES_PSRAMFS
 
 #else
 

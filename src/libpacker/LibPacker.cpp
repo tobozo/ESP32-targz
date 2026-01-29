@@ -646,14 +646,14 @@ namespace TarPacker
 
     uint32_t getLastWrite(fs_File &file)
     {
-      #if defined TEENSYDUINO
-        DateTimeFields dtf;
-        if( file.getModifyTime(dtf) )
-          return makeTime(dtf);
-        return 0;
-      #else
+      // #if defined TEENSYDUINO
+      //   DateTimeFields dtf;
+      //   if( file.getModifyTime(dtf) )
+      //     return makeTime(dtf);
+      //   return 0;
+      // #else
         return file.getLastWrite();
-      #endif
+      //#endif
     }
 
 

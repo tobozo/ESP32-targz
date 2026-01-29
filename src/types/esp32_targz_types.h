@@ -62,17 +62,21 @@ typedef void (*genericLoggerCallback)( const char* format, ... ); // same behavi
 
 #if defined TEENSYDUINO
 
-  #include <LittleFS.h>
+  //#include <LittleFS.h>
   #include <assert.h>
+  #include "../helpers/FSImpl.h" // SDFat to fs::FS implementation
 
   // Teensyduino is a bit late on Arduino API, <FS> is not namespaced and can't be abstracted
-  #define fs_FS LittleFS
-  #define fs_File File
+  #define fs_FS fs::FS
+  #define fs_File fs::File
   #define fs_SeekMode SeekMode
   #define fs_SeekSet SeekSet
-  #define fs_file_read  FILE_READ
-  // on Teensyduino, FILE_WRITE flag doesn't truncate existing files, so FILE_WRITE_BEGIN it is
-  #define fs_file_write FILE_WRITE_BEGIN
+  #define fs_file_read  "r"
+  #define fs_file_write "w" // TODO: check what ancient platform needed "w+" instead of "w" and remove this comment
+
+  // #define fs_file_read  FILE_READ
+  // // on Teensyduino, FILE_WRITE flag doesn't truncate existing files, so FILE_WRITE_BEGIN it is
+  // #define fs_file_write FILE_WRITE_BEGIN
 
 #else
 
