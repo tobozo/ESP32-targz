@@ -394,8 +394,6 @@
         #error "ESP32-targz only supports SdFs with SDFAT_FILE_TYPE 3"
       #endif
 
-      #define HAS_INCLUDE_FS_H
-
       #include <SD.h>
 
       // cfr https://en.cppreference.com/w/c/io/fopen + guesses
@@ -546,11 +544,12 @@
       };
 
 
+      template<typename LFS_Sibling>
       class LittleFsFSImpl : public fs::FSImpl
       {
-        LittleFS& lfs;
+        LFS_Sibling& lfs;
         public:
-          LittleFsFSImpl(LittleFS& lfs) : lfs(lfs) { }
+          LittleFsFSImpl(LFS_Sibling& lfs) : lfs(lfs) { }
           virtual ~LittleFsFSImpl() {}
           virtual fs::FileImplPtr open(const char* path, const char* mode, const bool create)
           {
@@ -572,32 +571,56 @@
     inline fs::FS unifyFS( inputFS &fs )
     {
       #if __has_include(<SD.h>)
-      if ( std::is_same<inputFS, SdFs>::value )
-      {
-        SdFs* fsPtr = (SdFs*)&fs;
-        return fs::FS(fs::FSImplPtr(new SdFsFSImpl(*fsPtr)));
-      }
+        if ( std::is_same<inputFS, SdFs>::value ) {
+          SdFs* fsPtr = (SdFs*)&fs;
+          return fs::FS(fs::FSImplPtr(new SdFsFSImpl(*fsPtr)));
+        }
       #endif
       #if __has_include(<LittleFS.h>)
-      if (
-           std::is_same<inputFS, LittleFS>::value
-        || std::is_same<inputFS, LittleFS_Program>::value
-        || std::is_same<inputFS, LittleFS_SPI>::value
-        || std::is_same<inputFS, LittleFS_SPIFlash>::value
-        || std::is_same<inputFS, LittleFS_SPINAND>::value
-        || std::is_same<inputFS, LittleFS_SPIFram>::value
-        || std::is_same<inputFS, LittleFS_RAM>::value
-        || std::is_same<inputFS, LittleFS_QSPIFlash>::value
+        if (std::is_same<inputFS, LittleFS>::value) {
+          LittleFS* fsPtr = (LittleFS*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_Program>::value) {
+          LittleFS_Program* fsPtr = (LittleFS_Program*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_SPI>::value) {
+          LittleFS_SPI* fsPtr = (LittleFS_SPI*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_SPIFlash>::value) {
+          LittleFS_SPIFlash* fsPtr = (LittleFS_SPIFlash*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_SPINAND>::value) {
+          LittleFS_SPINAND* fsPtr = (LittleFS_SPINAND*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_SPIFram>::value) {
+          LittleFS_SPIFram* fsPtr = (LittleFS_SPIFram*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_RAM>::value) {
+          LittleFS_RAM* fsPtr = (LittleFS_RAM*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
+        if (std::is_same<inputFS, LittleFS_QSPIFlash>::value) {
+          LittleFS_QSPIFlash* fsPtr = (LittleFS_QSPIFlash*)&fs;
+          return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+        }
         #if defined ARDUINO_TEENSY41 || defined ARDUINO_TEENSY40
-        || std::is_same<inputFS, LittleFS_QSPI>::value
-        || std::is_same<inputFS, LittleFS_QPINAND>::value
-        #endif
-      )
-      {
-        LittleFS* fsPtr = (LittleFS*)&fs;
-        return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
-      }
-      #endif
+          if (std::is_same<inputFS, LittleFS_QSPI>::value) {
+            LittleFS_QSPI* fsPtr = (LittleFS_QSPI*)&fs;
+            return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+          }
+          if (std::is_same<inputFS, LittleFS_QPINAND>::value) {
+            LittleFS_QPINAND* fsPtr = (LittleFS_QPINAND*)&fs;
+            return fs::FS(fs::FSImplPtr(new LittleFsFSImpl(*fsPtr)));
+          }
+        #endif // defined ARDUINO_TEENSY41 || defined ARDUINO_TEENSY40
+      #endif // __has_include(<LittleFS.h>)
+
       return fs::FS(nullptr);
     }
 
