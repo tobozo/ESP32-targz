@@ -84,7 +84,7 @@ static char *dirname(char *path)
 #endif
 // create traversing directories from a path
 __attribute__((unused))
-static int mkpath(fs::FS *fs, char *dir)
+static int mkpath(fs_FS *fs, char *dir)
 {
   if (!dir) return 1;
   if (strlen(dir) == 1 && dir[0] == '/') return 0;
@@ -95,7 +95,7 @@ static int mkpath(fs::FS *fs, char *dir)
 
 // create traversing directories from a file name
 __attribute__((unused))
-static void mkdirp( fs::FS *fs, const char* tempFile )
+static void mkdirp( fs_FS *fs, const char* tempFile )
 {
   if( fs->exists( tempFile ) ) {
     log_v("Destination file already exists, no need to create subfolders");

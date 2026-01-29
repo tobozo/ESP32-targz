@@ -53,17 +53,17 @@
 //   TarPacker();
 //
 //   std::vector<dir_entity_t> *dirEntities = nullptr;
-//   fs::FS* fs = nullptr;
+//   fs_FS* fs = nullptr;
 //
 //   // input data
-//   std::vector<dir_entity_t> dirEntities getEntities(fs::FS* fs, const char* tar_inputdir);
-//   void setEntities(fs::FS* fs, std::vector<dir_entity_t> dirEntities);
+//   std::vector<dir_entity_t> dirEntities getEntities(fs_FS* fs, const char* tar_inputdir);
+//   void setEntities(fs_FS* fs, std::vector<dir_entity_t> dirEntities);
 //
 //   // tar archive property
 //   void setRoot(const char* tar_rootdir);
 //
 //   // output data
-//   void setOutput(fs::FS*, const char* tar_output_filename);
+//   void setOutput(fs_FS*, const char* tar_output_filename);
 //   void setOutputStream(Stream* stream);
 //   void setOutputFile(Stream* stream);
 //   void setOutputBuffer(uint8_t*buffer);
@@ -98,11 +98,11 @@ namespace LZPacker
   // stream to stream
   size_t compress( Stream* srcStream, size_t srcLen, Stream* dstStream );
   // stream to file
-  size_t compress( Stream* srcStream, size_t srcLen, fs::FS*dstFS, const char* dstFilename );
+  size_t compress( Stream* srcStream, size_t srcLen, fs_FS*dstFS, const char* dstFilename );
   // file to file
-  size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename );
+  size_t compress( fs_FS *srcFS, const char* srcFilename, fs_FS*dstFS, const char* dstFilename );
   // file to stream
-  size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream );
+  size_t compress( fs_FS *srcFS, const char* srcFilename, Stream* dstStream );
 
   // progress callback setter [](size_t bytes_read, size_t total_bytes)
   void setProgressCallBack(totalProgressCallback cb);
@@ -116,8 +116,8 @@ namespace TarPacker
 {
   using namespace TAR;
 
-  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
-  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*tar_output_file_path, const char* tar_prefix=nullptr);
+  int pack_files(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int pack_files(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char*tar_output_file_path, const char* tar_prefix=nullptr);
 
   void setProgressCallBack(totalProgressCallback cb);
   void defaultProgressCallback( size_t progress, size_t total );
@@ -130,12 +130,12 @@ namespace TarGzPacker
   using namespace TAR;
 
   // tar-to-gz compression, recursion applies to srcDir up to 50 folders deep
-  int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix=nullptr);
-  int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+  int compress(fs_FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs_FS *srcFS, const char* srcDir, fs_FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
 
   // tar-to-gz compression
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
+  int compress(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix=nullptr);
+  int compress(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char* tgz_name, const char* tar_prefix=nullptr);
 
 };
 
@@ -144,11 +144,13 @@ namespace TarGzPacker
 namespace TAR
 {
   // shim for file.path()//fullName() not being consistent across arduino cores
-  inline const char* fsFilePath(fs::File file)
+  inline const char* fsFilePath(fs_File file)
   {
     return
       #if defined ESP32
         file.path()
+      #elif defined TEENSYDUINO
+        file.name()
       #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
         file.fullName()
       #else
@@ -161,12 +163,13 @@ namespace TAR
   const uint8_t max_path_len=100; // change this at your own peril
 
   // helper function to collect dirEntities from the contents of a given folder
-  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, fs::FS *fs, const char *dirname="/")
+  template<typename srcFS>
+  inline void collectDirEntities(std::vector<dir_entity_t> *dirEntities, srcFS *fs, const char *dirname="/")
   {
     assert(fs);
     assert(dirname);
 
-    File root = fs->open(dirname, "r");
+    auto root = fs->open(dirname, fs_file_read);
     if (!root) {
       log_e("Failed to open directory %s", dirname);
       return;
@@ -185,16 +188,28 @@ namespace TAR
       // dirEntities->push_back( { String(dirname), true, (size_t)0 } );
     }
 
-    File file = root.openNextFile();
+    auto file = root.openNextFile();
 
     while (file) {
-      const char* file_path = fsFilePath(file);
+      const char* file_path =
+        #if defined ESP32
+          file.path()
+        #elif defined TEENSYDUINO // Note: hardcoded File::name() method for LittleFS
+          file.name()
+        #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
+          file.fullName()
+        #else
+          nullptr
+          #error "unsupported architecture"
+        #endif
+      ;
 
       const String filePath =
-        #if defined ESP32
+        #if defined ESP32 || defined TEENSYDUINO
           String( file_path )
-        #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040 // RP2040: fullName() isn't full, misses the leading slash
+        #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
           file_path[0] == '/' ? String(file_path) : "/" + String(file_path)
+        //#elif defined TEENSYDUINO // RP2040: fullName() isn't full, misses the leading slash
         #else
           #error "unsupported architecture"
         #endif

@@ -51,8 +51,8 @@ struct TarGzIO
 
 TarGzIO tarGzIO;
 
-fs::File untarredFile;
-fs::FS *tarFS = nullptr;
+fs_File untarredFile;
+fs_FS *tarFS = nullptr;
 
 TAR::entry_callbacks_t tarCallbacks;
 
@@ -385,9 +385,9 @@ void BaseUnpacker::hexDumpData( const char* buff, size_t buffsize, uint32_t outp
 
 
 // show the contents of a given file as a hex dump
-void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t output_size )
+void BaseUnpacker::hexDumpFile( fs_FS &fs, const char* filename, uint32_t output_size )
 {
-  File binFile = fs.open( filename, FILE_READ );
+  auto binFile = fs.open( filename, fs_file_read );
   //log_w("File size : %d", binFile.size() );
   // only dump small files
   if( binFile.size() > 0 ) {
@@ -410,9 +410,9 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
 // get a directory listing of a given filesystem
 #if defined ESP32
 
-  void BaseUnpacker::tarGzListDir( fs::FS &fs, const char * dirName, uint8_t levels, bool hexDump )
+  void BaseUnpacker::tarGzListDir( fs_FS &fs, const char * dirName, uint8_t levels, bool hexDump )
   {
-    File root = fs.open( dirName, FILE_READ );
+    File root = fs.open( dirName, fs_file_read );
     if( !root ) {
       log_e("[ERROR] in tarGzListDir: Can't open %s dir", dirName );
       if( halt_on_error() ) targz_system_halt();
@@ -443,7 +443,7 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
 #elif defined ESP8266
 
 
-  void BaseUnpacker::printDirectory(fs::FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump)
+  void BaseUnpacker::printDirectory(fs_FS &fs, File dir, int numTabs, uint8_t levels, bool hexDump)
   {
     while (true) {
 
@@ -477,12 +477,12 @@ void BaseUnpacker::hexDumpFile( fs::FS &fs, const char* filename, uint32_t outpu
     }
   }
 
-  void BaseUnpacker::tarGzListDir(fs::FS &fs, const char * dirname, uint8_t levels, bool hexDump)
+  void BaseUnpacker::tarGzListDir(fs_FS &fs, const char * dirname, uint8_t levels, bool hexDump)
   {
     //void( hexDump ); // not used (yet?) with ESP82
     Serial.printf("Listing directory %s with level %d\n", dirname, levels);
 
-    File root = fs.open(dirname, "r");
+    File root = fs.open(dirname, fs_file_read);
     if( !root.isDirectory() ){
       log_e( "%s is not a directory", dirname );
       return;
@@ -640,7 +640,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
       if( tarFS->exists( tar_file_path ) ) {
         // file will be truncated
         /*
-        untarredFile = tarFS->open( file_path, FILE_READ );
+        untarredFile = tarFS->open( file_path, fs_file_read );
         bool isdir = untarredFile.isDirectory();
         untarredFile.close();
         if( isdir ) {
@@ -665,7 +665,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
         log_v("[TAR] Creating %s", tar_file_path);
       }
 
-      untarredFile = tarFS->open(tar_file_path, FILE_WRITE);
+      untarredFile = tarFS->open(tar_file_path, fs_file_write);
       if(!untarredFile) {
         log_e("[ERROR] in tarHeaderCallBack: Could not open [%s] for write, filesystem full?", tar_file_path);
         setError( ESP32_TARGZ_FS_ERROR );
@@ -738,7 +738,7 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
         return ESP32_TARGZ_FS_WRITE_ERROR;
       }
       // health check 3: reopen file to check size on filesystem
-      untarredFile = tarFS->open(tar_file_path, FILE_READ);
+      untarredFile = tarFS->open(tar_file_path, fs_file_read);
       size_t tmpsize = untarredFile.size();
       if( !untarredFile ) {
         log_e("[TAR ERROR] Failed to re-open %s for size reading", tar_file_path);
@@ -948,7 +948,7 @@ int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int en
 
 
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &destFS, const char* destFolder )
+bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs_FS &destFS, const char* destFolder )
 {
 
   tarGzClearError();
@@ -1008,14 +1008,14 @@ bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs::FS &
 
 
 // unpack sourceFS://fileName.tar contents to destFS::/destFolder/
-bool TarUnpacker::tarExpander( fs::FS &sourceFS, const char* fileName, fs::FS &destFS, const char* destFolder )
+bool TarUnpacker::tarExpander( fs_FS &sourceFS, const char* fileName, fs_FS &destFS, const char* destFolder )
 {
   if( !sourceFS.exists( fileName ) ) {
     log_e("Error: file %s does not exist or is not reachable", fileName);
     setError( ESP32_TARGZ_FS_ERROR );
     return false;
   }
-  fs::File tarFile = sourceFS.open( fileName, FILE_READ );
+  fs_File tarFile = sourceFS.open( fileName, fs_file_read );
   return tarStreamExpander( (Stream*)&tarFile, tarFile.size(), destFS, destFolder );
 }
 
@@ -1093,7 +1093,7 @@ bool GzUnpacker::gzStreamWriteCallback( unsigned char* buff, size_t buffsize )
   if( ! tarGzIO.output->write( buff, buffsize ) ) {
     log_w("[GZ WARNING] failed to write %d bytes, will try a second time", buffsize );
     if( ! tarGzIO.output->write( buff, buffsize ) ) {
-      log_e("[GZ ERROR] failed to write %d bytes (pos=%d)", buffsize, ((fs::File*)(tarGzIO.output))->position() );
+      log_e("[GZ ERROR] failed to write %d bytes (pos=%d)", buffsize, ((fs_File*)(tarGzIO.output))->position() );
       setError( ESP32_TARGZ_STREAM_ERROR );
       return false;
     }
@@ -1105,7 +1105,7 @@ bool GzUnpacker::gzStreamWriteCallback( unsigned char* buff, size_t buffsize )
 
 
 // gz filesystem helper
-uint8_t GzUnpacker::gzReadByte( fs::File &gzFile, const int32_t addr, fs::SeekMode mode )
+uint8_t GzUnpacker::gzReadByte( fs_File &gzFile, const int32_t addr, fs_SeekMode mode )
 {
   gzFile.seek( addr, mode );
   return gzFile.read();
@@ -1115,7 +1115,7 @@ uint8_t GzUnpacker::gzReadByte( fs::File &gzFile, const int32_t addr, fs::SeekMo
 // 1) check if a file has valid gzip headers
 // 2) calculate space needed for decompression
 // 2) check if enough space is available on device
-bool GzUnpacker::gzReadHeader( fs::File &gzFile )
+bool GzUnpacker::gzReadHeader( fs_File &gzFile )
 {
   tarGzIO.output_size = 0;
   tarGzIO.gz_size = gzFile.size();
@@ -1161,13 +1161,13 @@ unsigned int GzUnpacker::gzReadDestByteFS(int offset, unsigned char *out)
     //we haven't written output_buffer to persistent storage yet; we need to read from output_buffer
     data = output_buffer[delta];
   } else {
-    fs::File *f = (fs::File*)tarGzIO.output;
+    fs_File *f = (fs_File*)tarGzIO.output;
     //we need to read from persistent storage
     //save where we are in the file
     long last_pos = f->position();
-    f->seek( last_pos+delta, fs::SeekSet );
-    data = f->read();//gzReadByte(*f, last_pos+delta, fs::SeekSet);
-    f->seek( last_pos, fs::SeekSet );
+    f->seek( last_pos+delta, fs_SeekSet );
+    data = f->read();//gzReadByte(*f, last_pos+delta, fs_SeekSet);
+    f->seek( last_pos, fs_SeekSet );
   }
   *out = data;
 
@@ -1223,11 +1223,15 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     return ESP32_TARGZ_STREAM_ERROR;
   }
 
-  #if defined ESP32
-    size_t output_buffer_size = SPI_FLASH_SEC_SIZE; // SPI_FLASH_SEC_SIZE = 4Kb
-  #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
-    size_t output_buffer_size = min_output_buffer_size; // must be a multiple of 512 (tar block size)
-  #endif
+  size_t output_buffer_size =
+    #if defined ESP32
+      SPI_FLASH_SEC_SIZE // SPI_FLASH_SEC_SIZE = 4Kb
+    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
+      min_output_buffer_size // must be a multiple of 512 (tar block size)
+    #else
+      4096 // default
+    #endif
+  ;
 
   [[maybe_unused]] int32_t progress = 0;
   [[maybe_unused]] size_t updatable_size = 0;
@@ -1419,7 +1423,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
 
 // uncompress gz sourceFile to destFile
-bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFile )
+bool GzUnpacker::gzExpander( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFile )
 {
   tarGzClearError();
   initFSCallbacks();
@@ -1473,7 +1477,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   if(tgzLogger)
     tgzLogger("[GZ] Expanding %s to %s\n", sourceFile, destFile );
 
-  fs::File gz = sourceFS.open( sourceFile, FILE_READ );
+  fs_File gz = sourceFS.open( sourceFile, fs_file_read );
   if( !gzProgressCallback ) {
     setGzProgressCallback( defaultProgressCallback );
   }
@@ -1489,7 +1493,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
     log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
     destFS.remove( destFile );
   }
-  fs::File outfile = destFS.open( destFile, "w+" );
+  fs_File outfile = destFS.open( destFile, fs_file_write );
   if(!outfile) {
     log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
     gz.close();
@@ -1519,7 +1523,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
   log_v("uzLib expander finished!");
 
   /*
-  outfile = destFS.open( destFile, FILE_READ );
+  outfile = destFS.open( destFile, fs_file_read );
   log_d("Expanded %s to %s (%d bytes)", sourceFile, destFile, outfile.size() );
   outfile.close();
   */
@@ -1537,7 +1541,7 @@ bool GzUnpacker::gzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS des
 
 
 
-bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const char* destFile ) {
+bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs_FS destFS, const char* destFile ) {
     tarGzClearError();
     initFSCallbacks();
     if (!tgzLogger ) {
@@ -1587,7 +1591,7 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const ch
         log_v("[GZ INFO] Deleting %s as it is in the way", destFile);
         destFS.remove( destFile );
     }
-    fs::File outFile = destFS.open(destFile, "w+");
+    fs_File outFile = destFS.open(destFile, fs_file_write);
     if(!outFile) {
         log_e("[GZ ERROR] in gzExpander: cannot create destination file, no space left on device ?");
         setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
@@ -1615,7 +1619,7 @@ bool GzUnpacker::gzStreamExpander( Stream* sourceStream, fs::FS destFS, const ch
     log_v("uzLib expander finished!");
 
     /*
-    outfile = destFS.open( destFile, FILE_READ );
+    outfile = destFS.open( destFile, fs_file_read );
     log_d("Expanded %s to %s (%d bytes)", sourceFile, destFile, outfile.size() );
     outfile.close();
     */
@@ -1704,7 +1708,7 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
 #if defined ESP32 || defined ESP8266
 
   // uncompress gz file to flash (expected to be a valid gzipped firmware)
-  bool GzUnpacker::gzUpdater( fs::FS &fs, const char* gz_filename, int partition, bool restart_on_update )
+  bool GzUnpacker::gzUpdater( fs_FS &fs, const char* gz_filename, int partition, bool restart_on_update )
   {
     tarGzClearError();
     initFSCallbacks();
@@ -1719,7 +1723,7 @@ bool GzUnpacker::gzStreamExpander( Stream *stream, size_t gz_size )
       return false;
     }
     log_v("uzLib SPIFFS Updater start!");
-    fs::File gz = fs.open( gz_filename, FILE_READ );
+    fs_File gz = fs.open( gz_filename, fs_file_read );
     #if defined ESP8266
       int update_size = gz.size();
     #endif
@@ -2022,13 +2026,13 @@ int TarGzUnpacker::gzFeedTarBuffer( unsigned char* buff, size_t buffsize )
 
 
 /*
-bool TarGzUnpacker::tarGzExpanderNoTempFile( Stream* stream, fs::FS destFS, const char* destFolder )
+bool TarGzUnpacker::tarGzExpanderNoTempFile( Stream* stream, fs_FS destFS, const char* destFolder )
 {
 }
 */
 
 // uncompress gz sourceFile directly to untar, no intermediate file
-bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder )
+bool TarGzUnpacker::tarGzExpanderNoTempFile( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFolder )
 {
   tarGzClearError();
   initFSCallbacks();
@@ -2065,7 +2069,7 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
     setError( ESP32_TARGZ_UZLIB_INVALID_FILE );
     return false;
   }
-  fs::File gz = sourceFS.open( sourceFile, FILE_READ );
+  fs_File gz = sourceFS.open( sourceFile, fs_file_read );
 
   if(tgzLogger)
     tgzLogger("[TGZ] Will direct-expand %s to %s\n", sourceFile, destFolder );
@@ -2133,7 +2137,7 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs::FS sourceFS, const char* source
 
 
 // unzip sourceFS://sourceFile.tar.gz contents into destFS://destFolder
-bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::FS destFS, const char* destFolder, const char* tempFile )
+bool TarGzUnpacker::tarGzExpander( fs_FS sourceFS, const char* sourceFile, fs_FS destFS, const char* destFolder, const char* tempFile )
 {
   tarGzClearError();
   initFSCallbacks();
@@ -2228,7 +2232,7 @@ bool TarGzUnpacker::tarGzExpander( fs::FS sourceFS, const char* sourceFile, fs::
 
 
 // uncompress tar+gz stream (file or HTTP) to filesystem without intermediate tar file
-bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs::FS &destFS, const char* destFolder, int64_t streamSize )
+bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs_FS &destFS, const char* destFolder, int64_t streamSize )
 {
   if( nodict == true ) { // leave 1k heap for the stack
     log_e("[GZ] Function explicely disabled by ::noDict()" );

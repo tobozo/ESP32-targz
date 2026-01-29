@@ -546,12 +546,12 @@ namespace LZPacker
 
 
   // stream to file
-  size_t compress( Stream* srcStream, size_t srcLen, fs::FS*dstFS, const char* dstFilename )
+  size_t compress( Stream* srcStream, size_t srcLen, fs_FS*dstFS, const char* dstFilename )
   {
     log_d("Stream to file (source=%d bytes)", srcLen);
     if( !srcStream || srcLen>0 || !dstFS || !dstFilename)
       return 0;
-    fs::File dstFile = dstFS->open(dstFilename, "w");
+    fs_File dstFile = dstFS->open(dstFilename, fs_file_write);
     if( !dstFile )
       return 0;
     auto ret = LZPacker::compress(srcStream, srcLen, &dstFile);
@@ -561,11 +561,11 @@ namespace LZPacker
 
 
   // file to file
-  size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename )
+  size_t compress( fs_FS *srcFS, const char* srcFilename, fs_FS*dstFS, const char* dstFilename )
   {
     if( !srcFS || !srcFilename || !dstFS || !dstFilename)
       return 0;
-    fs::File srcFile = srcFS->open(srcFilename, "r");
+    fs_File srcFile = srcFS->open(srcFilename, fs_file_read);
     if(!srcFile)
       return 0;
     auto ret = LZPacker::compress( &srcFile, srcFile.size(), dstFS, dstFilename);
@@ -575,11 +575,11 @@ namespace LZPacker
 
 
   // file to stream
-  size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream )
+  size_t compress( fs_FS *srcFS, const char* srcFilename, Stream* dstStream )
   {
     if( !srcFS || !srcFilename || !dstStream)
       return 0;
-    fs::File srcFile = srcFS->open(srcFilename, "r");
+    fs_File srcFile = srcFS->open(srcFilename, fs_file_read);
     if(!srcFile)
       return 0;
     log_d("File to stream (source=%d bytes)", srcFile.size());
@@ -608,8 +608,8 @@ namespace TarPacker
 
   namespace io
   {
-    fs::File fileRO;
-    fs::File fileRW;
+    fs_File fileRO;
+    fs_File fileRW;
 
     void * open(void *_fs, const char *filename, const char *mode);
     int close(void *fs, void *file);
@@ -644,16 +644,29 @@ namespace TarPacker
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+    uint32_t getLastWrite(fs_File &file)
+    {
+      // #if defined TEENSYDUINO
+      //   DateTimeFields dtf;
+      //   if( file.getModifyTime(dtf) )
+      //     return makeTime(dtf);
+      //   return 0;
+      // #else
+        return file.getLastWrite();
+      //#endif
+    }
+
+
     void * open(void *_fs, const char *filename, const char *mode)
     {
       assert(_fs);
-      fs::FS* fs = (fs::FS*)_fs;
+      fs_FS* fs = (fs_FS*)_fs;
       String flagStr;
       void* retPtr;
       log_v("io::open(%s, mode=%s)", filename, mode);
       if( String(mode) == "r" ) {
         flagStr = "r";
-        fileRO = fs->open(filename, "r");
+        fileRO = fs->open(filename, fs_file_read);
         if(!fileRO) {
           log_e("Unable to open %s for reading", filename);
           return (void*)-1;
@@ -661,7 +674,7 @@ namespace TarPacker
         retPtr = &fileRO;
       } else {
         flagStr = "w";
-        fileRW = fs->open(filename, "w");
+        fileRW = fs->open(filename, fs_file_write);
         if(!fileRW) {
           log_e("Unable to open %s for writing", filename);
           return (void*)-1;
@@ -675,7 +688,7 @@ namespace TarPacker
     int close(void *fs, void *file)
     {
       assert(file);
-      fs::File* filePtr = (fs::File*)file;
+      fs_File* filePtr = (fs_File*)file;
       log_v("io::close(fs, %s)", filePtr->name() );
       filePtr->close();
       return 0;
@@ -686,11 +699,11 @@ namespace TarPacker
     {
       if(!_fs || !_stat)
         return -1;
-      fs::FS* fs = (fs::FS*)_fs;
+      fs_FS* fs = (fs_FS*)_fs;
       struct_stat_t *s = (struct_stat_t *)_stat;
       static int inode_num = 0;
 
-      fs::File f = fs->open(path, "r");
+      fs_File f = fs->open(path, fs_file_read);
       if(!f) {
         log_e("Unable to open %s for stat", path);
         return -1;
@@ -703,7 +716,7 @@ namespace TarPacker
       s->st_ino = ++inode_num;
       s->st_uid = 0; // root user
       s->st_gid = 0; // root group
-      s->st_mtime = strcmp(path, "/") == 0 ? 0 : f.getLastWrite();
+      s->st_mtime = strcmp(path, "/") == 0 ? 0 : getLastWrite(f);
 
       f.close();
 
@@ -802,7 +815,7 @@ namespace TarPacker
 
 
 
-  int pack_tar_init(tar_callback_t *io, fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*output_file_path, const char* tar_prefix=nullptr)
+  int pack_tar_init(tar_callback_t *io, fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char*output_file_path, const char* tar_prefix=nullptr)
   {
     _tarEntities.clear();
 
@@ -925,7 +938,7 @@ namespace TarPacker
 
 
 
-  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
+  int pack_files(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
     auto TarStreamFunctions = TarIOFuncs;
     TarStreamFunctions.src_fs = srcFS;
@@ -946,9 +959,9 @@ namespace TarPacker
 
 
 
-  int pack_files(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char*tar_output_file_path, const char* tar_prefix)
+  int pack_files(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char*tar_output_file_path, const char* tar_prefix)
   {
-    auto tar = dstFS->open(tar_output_file_path, "w");
+    auto tar = dstFS->open(tar_output_file_path, fs_file_write);
     if(!tar)
       return -1;
     auto ret = pack_files(srcFS, dirEntities, &tar, tar_prefix);
@@ -970,9 +983,9 @@ namespace TarGzPacker
 
 
   // tar-to-gz compression from files/folders list
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
+  int compress(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, fs_FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
-    auto dstFile = dstFS->open(tgz_name, "w");
+    auto dstFile = dstFS->open(tgz_name, fs_file_write);
     if(!dstFile) {
       log_e("Can't open %s for writing", tgz_name);
       return -1;
@@ -984,7 +997,7 @@ namespace TarGzPacker
 
 
   // tar-to-gz compression from files/folders list
-  int compress(fs::FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
+  int compress(fs_FS *srcFS, std::vector<dir_entity_t> dirEntities, Stream* dstStream, const char* tar_prefix)
   {
     auto TarStreamFunctions = TarIOFuncs;
     TarStreamFunctions.src_fs = srcFS;
@@ -1007,7 +1020,7 @@ namespace TarGzPacker
 
 
   // tar-to-gz compression from path
-  int compress(fs::FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix)
+  int compress(fs_FS *srcFS, const char* srcDir, Stream* dstStream, const char* tar_prefix)
   {
     std::vector<dir_entity_t> dirEntities;
     TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
@@ -1015,7 +1028,7 @@ namespace TarGzPacker
   }
 
   // tar-to-gz compression from path
-  int compress(fs::FS *srcFS, const char* srcDir, fs::FS *dstFS, const char* tgz_name, const char* tar_prefix)
+  int compress(fs_FS *srcFS, const char* srcDir, fs_FS *dstFS, const char* tgz_name, const char* tar_prefix)
   {
     std::vector<dir_entity_t> dirEntities;
     TarPacker::collectDirEntities(&dirEntities, srcFS, srcDir);
