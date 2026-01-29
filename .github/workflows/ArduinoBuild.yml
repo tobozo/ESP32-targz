@@ -22,6 +22,7 @@ jobs:
           - esp8266:esp8266:generic:eesz=4M3M,xtal=80
           - esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
           - rp2040:rp2040:rpipico
+          - teensy:avr:teensy41
 
         include:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
@@ -39,6 +40,11 @@ jobs:
             sketch-names: Test_tar_gz_tgz.ino,Test_deflate.ino
             platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
             board-name: rp2040
+
+          - arduino-boards-fqbn: teensy:avr:teensy41
+            sketch-names: Teensy4.1.ino
+            platform-url: https://www.pjrc.com/teensy/td_156/package_teensy_index.json
+            board-name: teensy
 
       fail-fast: false
 
