@@ -187,7 +187,13 @@ namespace LZPacker
 
   public:
 
-    LZStreamWriter() { }
+    LZStreamWriter()
+    {
+      dstStream = nullptr;
+      srcLen = 0;
+      dstLen = 0;
+      prev_state = 0;
+    }
 
     LZStreamWriter(Stream* dstStream, size_t srcLen, const size_t bufSize=4096) : dstStream(dstStream), srcLen(srcLen), bufSize(bufSize)
     {
