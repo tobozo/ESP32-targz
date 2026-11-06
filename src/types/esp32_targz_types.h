@@ -59,40 +59,14 @@ typedef void (*totalProgressCallback)(size_t progress, size_t total); // raw val
 typedef void (*genericProgressCallback)(uint8_t progress); // percent (0...100)
 typedef void (*genericLoggerCallback)( const char* format, ... ); // same behaviour as printf()
 
+// Arduino <FS> API is namespaced and can be abstracted (A.K.A. dynamic filesystem)
+#define fs_FS fs::FS
+#define fs_File fs::File
+#define fs_SeekMode fs::SeekMode
+#define fs_SeekSet fs::SeekSet
 
-#if defined TEENSYDUINO
-
-  //#include <LittleFS.h>
-  #include <assert.h>
-  #include "../helpers/FSImpl.h" // SDFat to fs::FS implementation
-
-  // Teensyduino is a bit late on Arduino API, <FS> is not namespaced and can't be abstracted
-  #define fs_FS fs::FS
-  #define fs_File fs::File
-  #define fs_SeekMode SeekMode
-  #define fs_SeekSet SeekSet
-  #define fs_file_read  "r"
-  #define fs_file_write "w" // TODO: check what ancient platform needed "w+" instead of "w" and remove this comment
-
-  // #define fs_file_read  FILE_READ
-  // // on Teensyduino, FILE_WRITE flag doesn't truncate existing files, so FILE_WRITE_BEGIN it is
-  // #define fs_file_write FILE_WRITE_BEGIN
-
-#else
-
-  // Arduino <FS> API is namespaced and can be abstracted (A.K.A. dynamic filesystem)
-  #define fs_FS fs::FS
-  #define fs_File fs::File
-  #define fs_SeekMode fs::SeekMode
-  #define fs_SeekSet fs::SeekSet
-
-  #define fs_file_read  "r"
-  #define fs_file_write "w" // TODO: check what ancient platform needed "w+" instead of "w" and remove this comment
-
-#endif
-
-
-
+#define fs_file_read  "r"
+#define fs_file_write "w" // TODO: check what ancient platform needed "w+" instead of "w" and remove this comment
 
 // LibUnpacker types **************************************************************
 

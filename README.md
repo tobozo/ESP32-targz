@@ -1,6 +1,6 @@
 # 🗜️ ESP32-targz
 
-## An Compression/Decompression Arduino library for ESP32/ESP8266/RP2040/Teensy to handle .tar, .gz and .tar.gz files
+## An Compression/Decompression Arduino library for ESP32/ESP8266/RP2040 to handle .tar, .gz and .tar.gz files
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/ESP32-targz.svg?)](https://www.ardu-badge.com/ESP32-targz)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/ESP32-targz.svg)](https://registry.platformio.org/packages/libraries/tobozo/ESP32-targz)
@@ -8,8 +8,6 @@
 <p align="center">
 <img src="ESP32-targz.png" alt="ES32-targz logo" width="512" />
 </p>
-
-## 🆕 ESP32-targz now supports all versions of Teensy!
 
 ## ESP32-targz is based on those two great libraries:
 
@@ -63,10 +61,7 @@ Support Matrix
 | ESP8266 | Builtin |  0.1.0    |  0.1.0  |  n/a    |  n/a  |
 |         |         |           |         |         |       |
 | RP2040  | n/a     |  0.1.0    |  2.0.0  |  n/a    |  n/a  |
-|         |         |           |         |         |       |
-| Teensy* | n/a     |  Builtin  | Builtin |  n/a    |  n/a  |
 
-:warning: (*)Teensy: because Teensyduino `FS` class is not namespaced, the builtin versions of LittleFS and SD must be wrapped using `unifyFS()` function, see the `Teensy4.1` example.
 
 Usage
 -----

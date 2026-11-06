@@ -118,6 +118,10 @@ void setup()
 
   // testTarPacker();
   // testTarPackerStream();
+
+  LZPacker::setDictSize( 4 );
+  LZPacker::setHashBits( 8 );
+
   // testTarGzPacker();
   testTarGzPackerStream();
 

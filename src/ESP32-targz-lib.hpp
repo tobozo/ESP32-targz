@@ -149,17 +149,9 @@
 
   [[maybe_unused]] static FSInfo fsinfo;
 
-#elif defined TEENSYDUINO
-  // Only SdFat and teensy's LittleFS family are supported, and they're declarative, so no tarGzFS assignation from here
-  #undef DEST_FS_USES_SPIFFS
-  #undef DEST_FS_USES_SD
-  #undef DEST_FS_USES_SD_MMC
-  #undef DEST_FS_USES_LITTLEFS
-  #undef DEST_FS_USES_PSRAMFS
-
 #else
 
-  #error "Only ESP32, ESP8266, RP2040/Pico and Teensy4 architectures are supported"
+  #error "Only ESP32, ESP8266 and RP2040/Pico architectures are supported"
 
 #endif
 
@@ -177,8 +169,6 @@ __attribute__((unused)) static uint64_t targzFreeBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes() - tarGzFS.usedBytes();
-    #elif defined TEENSYDUINO
-      return tarGzFS.totalSize() - tarGzFS.totalSize();
     #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
       if( tarGzFS.info( fsinfo ) ) {
         return fsinfo.totalBytes - fsinfo.usedBytes;
@@ -187,7 +177,7 @@ __attribute__((unused)) static uint64_t targzFreeBytesFn() {
         return 0;
       }
     #else
-      #error "Only ESP32, ESP8266, RP2040/Pico and Teensy4 architectures are supported"
+      #error "Only ESP32, ESP8266 and RP2040/Pico architectures are supported"
     #endif
   #elif defined DEST_FS_USES_FFAT
     return tarGzFS.freeBytes();
@@ -201,9 +191,7 @@ __attribute__((unused)) static uint64_t targzTotalBytesFn() {
   #if defined DEST_FS_USES_SPIFFS || defined DEST_FS_USES_SD || defined DEST_FS_USES_SD_MMC || defined DEST_FS_USES_LITTLEFS || defined DEST_FS_USES_FFAT || defined DEST_FS_USES_PSRAMFS
     #if defined ESP32
       return tarGzFS.totalBytes();
-    #elif defined TEENSYDUINO
-      return tarGzFS.totalSize();
-    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040 || defined TEENSYDUINO
+    #elif defined ESP8266 || defined ARDUINO_ARCH_RP2040
       if( tarGzFS.info( fsinfo ) ) {
         return fsinfo.totalBytes;
       } else {
@@ -211,7 +199,7 @@ __attribute__((unused)) static uint64_t targzTotalBytesFn() {
         return 0;
       }
     #else
-      #error "Only ESP32, ESP8266, RP2040/Pico and Teensy4 architectures are supported"
+      #error "Only ESP32, ESP8266 and RP2040/Pico architectures are supported"
     #endif
   #else
     // no filesystem, no helpers available, power user ?
