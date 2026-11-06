@@ -55,6 +55,9 @@ namespace LZPacker
   static int inputBufferSize  = 4096;// lowest possible value = 256 or 512 if streaming from tar
   static int outputBufferSize = 4096;// lowest possible value = 1024
 
+  static uint32_t dictSize = 32768; // to override c->dict_size
+  static uint8_t hashBits = 12;     // to override c->hash_bits
+
   Stream* dstStream = nullptr;
   Stream* srcStream = nullptr;
 
@@ -112,6 +115,28 @@ namespace LZPacker
   }
 
 
+  bool setDictSize(uint32_t size)
+  {
+    // Checks if size is a power of 2 between 4 and 32768
+    if( size >= 4 && size <= 32768 && ((size & (size - 1)) == 0) ) {
+      dictSize = size;
+      return true;
+    }
+    return false;
+  }
+
+
+  bool setHashBits(uint8_t bits)
+  {
+    // within 8...15 range
+    if( bits > 7 && bits < 16 ) {
+      hashBits = bits;
+      return true;
+    }
+    return false;
+  }
+
+
   // uzlib comp object initializer
   struct GZ::uzlib_comp* lzInit()
   {
@@ -121,8 +146,8 @@ namespace LZPacker
       return nullptr;
     }
 
-    c->dict_size   = 32768;
-    c->hash_bits   = 12;
+    c->dict_size   = dictSize;
+    c->hash_bits   = hashBits;
     c->grow_buffer = 1;
     size_t hash_size = sizeof(GZ::uzlib_hash_entry_t) * (1 << c->hash_bits);
     c->hash_table = (const uint8_t**)calloc(hash_size, sizeof(uint8_t));

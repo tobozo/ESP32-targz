@@ -108,6 +108,10 @@ namespace LZPacker
   void setProgressCallBack(totalProgressCallback cb);
   void defaultProgressCallback( size_t progress, size_t total );
 
+  // deflate settings
+  bool setDictSize(uint32_t size); // must be a power of 2 between 4 and 32768, default=32768
+  bool setHashBits(uint8_t bits);  // must be within 8...15 range, default=12
+
 };
 
 

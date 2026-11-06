@@ -317,6 +317,10 @@ LZPacker::compress() signatures:
   size_t compress( fs::FS *srcFS, const char* srcFilename, fs::FS*dstFS, const char* dstFilename );
   // file to stream
   size_t compress( fs::FS *srcFS, const char* srcFilename, Stream* dstStream );
+  // zlib dictionary size, must be a power of 2 between 4 and 32768, default=32768
+  bool setDictSize(uint32_t size); 
+  // zlib hash bits, must be within 8...15 range, default=12
+  bool setHashBits(uint8_t bits);  
 ```
 
 Compress to `.gz` (buffer to stream)
