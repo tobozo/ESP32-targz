@@ -603,6 +603,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
       if( freeBytes < header->filesize ) {
         // Abort before the partition is smashed!
         log_e("[TAR ERROR] Not enough space left on device (%llu bytes required / %d bytes available)!", header->filesize, freeBytes );
+        setError( ESP32_TARGZ_FS_FULL_ERROR );
         return ESP32_TARGZ_FS_FULL_ERROR;
       }
     } else {
@@ -730,11 +731,13 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
       // health check 1: file existence
       if( !tarFS->exists( tar_file_path ) ) {
         log_e("[TAR ERROR] File %s was not created although it was properly decoded, path is too long ?", tar_file_path );
+        setError( ESP32_TARGZ_FS_WRITE_ERROR );
         return ESP32_TARGZ_FS_WRITE_ERROR;
       }
       // health check 2: compare stream buffer position with speculated file size
       if( pos != header->filesize ) {
         log_e("[TAR ERROR] File size and data size do not match (%d vs %d)!", (int)pos, (int)header->filesize);
+        setError( ESP32_TARGZ_FS_WRITE_ERROR );
         return ESP32_TARGZ_FS_WRITE_ERROR;
       }
       // health check 3: reopen file to check size on filesystem
@@ -742,12 +745,14 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
       size_t tmpsize = untarredFile.size();
       if( !untarredFile ) {
         log_e("[TAR ERROR] Failed to re-open %s for size reading", tar_file_path);
+        setError( ESP32_TARGZ_FS_READSIZE_ERROR );
         return ESP32_TARGZ_FS_READSIZE_ERROR;
       }
       // health check 4: see if everyone (buffer, stream, filesystem) agree
       if( (header->filesize>0 && tmpsize == 0) || header->filesize != tmpsize || pos != tmpsize ) {
         log_e("[TAR ERROR] Byte sizes differ between written file %s (%d), tar headers (%d) and/or stream buffer (%d) !!", tar_file_path, (int)tmpsize, (int)header->filesize, (int)pos );
         untarredFile.close();
+        setError( ESP32_TARGZ_FS_ERROR );
         return ESP32_TARGZ_FS_ERROR;
       }
       log_d("Expanded %s (%d bytes)", tar_file_path, (int)tmpsize );
@@ -928,6 +933,7 @@ int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int en
     if( wlen != length ) {
       //tgzLogger("\n");
       log_e("[TAR ERROR] Written length differs from buffer length (unpacked bytes:%d, expected: %d, returned: %d)!", untarredBytesCount, length, wlen );
+      setError( ESP32_TARGZ_FS_WRITE_ERROR );
       return ESP32_TARGZ_FS_ERROR;
     }
     untarredBytesCount+=wlen;
@@ -1963,7 +1969,9 @@ bool TarGzUnpacker::gzProcessTarBuffer( CC_UNUSED unsigned char* buff, CC_UNUSED
     }
     if( response < 0 ) {
       log_e("[ERROR] gzProcessTarBuffer failed reading %d bytes (buffsize=%d) in gzip block #%d/%d, got response %d", TAR_BLOCK_SIZE, buffsize, gzTarBlockPos%blockmod, blockmod, response);
-      setError( ESP32_TARGZ_TAR_ERR_GZREAD_FAIL );
+      if( _error == ESP32_TARGZ_OK ) { // keep the reason the failing callback gave, such as a full filesystem
+        setError( ESP32_TARGZ_TAR_ERR_GZREAD_FAIL );
+      }
       return false;
     }
   }
