@@ -1327,10 +1327,25 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     firstblock = false;
     if( ret != TAR_OK ) {
       setError( (tarGzErrorCode)(ret-30) );
-      return (tarGzErrorCode)(ret-30);
+      return_value = (tarGzErrorCode)(ret-30);
+      goto _end;
     }
-    while( TAR::read_tar_step() == TAR_OK ) yield();
+    while( (ret = TAR::read_tar_step()) == TAR_OK ) yield();
     outlen = untarredBytesCount;
+    // TAR_ERROR is the data running out between entries, as at the end of an archive without its
+    // end blocks. Anything else is a failure partway through, such as an entry that couldn't be
+    // written, and the entries after it weren't unpacked.
+    if( ret != TAR_EXPANDING_DONE && ret != TAR_ERROR ) {
+      log_e("[ERROR] tar expanding stopped (return code #%d)", ret-30);
+      if( !tarGzHasError() ) {
+        setError( (tarGzErrorCode)(ret-30) );
+      }
+      if( untarredFile ) {
+        untarredFile.close();
+      }
+      return_value = _error;
+      goto _end;
+    }
 
   } else {
     // gz will fill a buffer and trigger a write callback
