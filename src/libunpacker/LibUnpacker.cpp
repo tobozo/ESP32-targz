@@ -38,6 +38,7 @@
 \*/
 
 #include "LibUnpacker.hpp"
+#include <new>
 
 struct TarGzIO
 {
@@ -1069,7 +1070,7 @@ void GzUnpacker::gzExpanderCleanup()
     if( tgz_use_psram ) {
       free( uzlib_gzip_dict );
     } else {
-      delete( uzlib_gzip_dict );
+      delete[] uzlib_gzip_dict;
     }
     uzlib_gzip_dict = NULL;
   }
@@ -1256,7 +1257,8 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
     if( tgz_use_psram ) {
       uzlib_gzip_dict = (unsigned char*)tgz_calloc(1, GZIP_DICT_SIZE);
     } else {
-      uzlib_gzip_dict = new unsigned char[GZIP_DICT_SIZE];
+      // nothrow: without it, too little memory in one piece aborts the program rather than failing below
+      uzlib_gzip_dict = new (std::nothrow) unsigned char[GZIP_DICT_SIZE];
     }
 
     if( uzlib_gzip_dict == NULL ) {
