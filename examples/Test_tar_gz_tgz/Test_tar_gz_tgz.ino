@@ -679,7 +679,7 @@ void setup()
 
     EEPROM.write(0, 0 );
     EEPROM.commit();
-    #if !__has_include(<PSRamFS.h>)
+    #if defined ESP32 && !__has_include(<PSRamFS.h>) // not available on pico
       BaseUnpacker *Unpacker = new BaseUnpacker();
       Unpacker->tarGzListDir( tarGzFS, "/", 3 );
     #endif
