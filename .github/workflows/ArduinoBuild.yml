@@ -5,7 +5,7 @@ on:
     - '**.ino'
     - '**.cpp'
     - '**.h'
-    - '**ArduinoBuild.yml.yml'
+    - '**ArduinoBuild.yml'
   pull_request:
   workflow_dispatch:
 
