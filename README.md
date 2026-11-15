@@ -92,6 +92,11 @@ Extract content from `.gz` file
     tarGzFS.begin();
 
     GzUnpacker *GZUnpacker = new GzUnpacker();
+    
+    //// Optionally assign a 36KB reusable memory block for gz dictionary (32KB) and output buffer (4KB).
+    //// NOTE: make sure to malloc() those 36Kb before memory becomes fragmented.
+    static uint8_t* borrowable = (uint8_t*)malloc(GZIP_DICT_SIZE + GZIP_BUFF_SIZE + 1);
+    GZUnpacker->setBuffers(borrowable);
 
     GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
     GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
@@ -614,5 +619,7 @@ Credits:
   - [infrafast](https://github.com/infrafast) (feedback fueler)
   - [vortigont](https://github.com/vortigont/) (inspiration and support)
   - [hitecSmartHome](https://github.com/hitecSmartHome) (feedback fueler)
+  - [GitHubLionel](https://github.com/GitHubLionel) (contribution)
+  - [kedube](https://github.com/kedube) (contribution)
 
 
