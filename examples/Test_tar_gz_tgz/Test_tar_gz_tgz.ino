@@ -154,6 +154,16 @@ bool test_tarStreamExpander()
 }
 
 
+static bool needsGzDictAlloc = false;
+
+template <typename Unpacker> // for GZUnpacker or TarGzUnpacker
+void gzDictAlloc(Unpacker unpacker)
+{
+  uint32_t dict_size = GZIP_DICT_SIZE + GZIP_BUFF_SIZE + 1;
+  uint8_t* borrowable = (uint8_t*)malloc(dict_size);
+  unpacker->setBuffers(borrowable);
+}
+
 
 
 // Test #2: gzExpander()
@@ -167,6 +177,9 @@ bool test_gzExpander()
   SerialPrintCentered("Testing gzExpander", false, true );
 
   GzUnpacker *GZUnpacker = new GzUnpacker();
+
+  if( needsGzDictAlloc )
+    gzDictAlloc(GZUnpacker);
 
   GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
   GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
@@ -203,6 +216,10 @@ bool test_gzStreamExpander()
   SerialPrintCentered("Testing gzExpander", false, true );
 
   GzUnpacker *GZUnpacker = new GzUnpacker();
+
+  if( needsGzDictAlloc )
+    gzDictAlloc(GZUnpacker);
+
   GZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
   GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
   GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  );    // gz log verbosity
@@ -218,7 +235,7 @@ bool test_gzStreamExpander()
 
   if (!file) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("Can't open file");
+    SerialPrintfCentered("Can't open file, halting");
     Serial.println( CloseLine );
     while(1) { yield(); }
   }
@@ -250,6 +267,9 @@ bool test_tarGzExpander()
   SerialPrintCentered("Testing tarGzExpander with intermediate file", false, true );
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+  if( needsGzDictAlloc )
+    gzDictAlloc(TARGZUnpacker);
 
   TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
   #if defined ESP32
@@ -300,6 +320,9 @@ bool test_tarGzExpander_no_intermediate()
   SerialPrintCentered("Testing tarGzExpander without intermediate file", false, true );
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+  if( needsGzDictAlloc )
+    gzDictAlloc(TARGZUnpacker);
 
   TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
   #if defined ESP32
@@ -355,6 +378,9 @@ bool test_tarGzExpander_no_intermediate()
 
     GzUnpacker *GZUnpacker = new GzUnpacker();
 
+    if( needsGzDictAlloc )
+      gzDictAlloc(GZUnpacker);
+
     GZUnpacker->haltOnError( false ); // stop on fail (manual restart/reset required)
     GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn ); // prevent the partition from exploding, recommended
     GZUnpacker->setGzProgressCallback( BaseUnpacker::defaultProgressCallback ); // targzNullProgressCallback or defaultProgressCallback
@@ -399,6 +425,9 @@ bool test_tarGzStreamExpander()
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
 
+  if( needsGzDictAlloc )
+    gzDictAlloc(TARGZUnpacker);
+
   TARGZUnpacker->haltOnError( true ); // stop on fail (manual restart/reset required)
   #if defined ESP32
     TARGZUnpacker->setTarVerify( true ); // true = enables health checks but slows down the overall process
@@ -427,7 +456,7 @@ bool test_tarGzStreamExpander()
 
     if (!file) {
       Serial.println( OpenLine );
-      SerialPrintfCentered("Can't open file");
+      SerialPrintfCentered("Can't open file, halting");
       Serial.println( CloseLine );
       while(1) { yield(); }
     }
@@ -445,8 +474,6 @@ bool test_tarGzStreamExpander()
     file.close();
   #endif
   delete TARGZUnpacker;
-
-  while(1) { yield(); }
 
   return ret;
 }
@@ -478,6 +505,10 @@ bool test_tarGzStreamUpdater()
   SerialPrintCentered("Testing tarGzStreamUpdater", false, true );
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
+
+  if( needsGzDictAlloc )
+    gzDictAlloc(TARGZUnpacker);
+
   TARGZUnpacker->haltOnError( false ); // stop on fail (manual restart/reset required)
   TARGZUnpacker->setTarVerify( false ); // nothing to verify as we're writing a partition
   // TARGZUnpacker->setupFSCallbacks( nullptr, nullptr ); // Update.h already takes care of that
@@ -499,7 +530,7 @@ bool test_tarGzStreamUpdater()
   fs::File file = sourceFS.open( bundleGzFile, "r" );
   if (!file) {
     Serial.println( OpenLine );
-    SerialPrintfCentered("Can't open file");
+    SerialPrintfCentered("Can't open file, halting");
     Serial.println( CloseLine );
     while(1) { yield(); }
   }
@@ -554,9 +585,15 @@ void setup()
   Serial.println();
 
   uint8_t testNum = EEPROM.read(0);
-  if( isManualReset() || testNum == 255 ) testNum = 0;
 
-  SerialPrintCentered("ESP32-Targz Test Suite", true);
+  if( isManualReset() || testNum == 255 ) {
+    SerialPrintCentered("ESP32-Targz Test Suite (power cycle)", true);
+    testNum = 0;
+  } else {
+    SerialPrintCentered("ESP32-Targz Test Suite (self reset)", true);
+    needsGzDictAlloc = true;
+  }
+
   Serial.println( MiddleLine );
 
   #if defined DEST_FS_USES_SD
@@ -601,21 +638,24 @@ void setup()
 
   _test_begin:
 
-  if( testNum < max_tests ) {
-    Serial.println( MiddleLine );
-    SerialPrintfCentered("System Available heap: %d bytes", HEAP_AVAILABLE() );
-    Serial.println( MiddleLine );
-
-    SerialPrintfCentered("Device ready for test #%d", testNum+1 );
-    Serial.println( MiddleLine );
-  }
-
   bool test_succeeded = false;
   bool tests_finished = false;
 
   // save the current test-suite progress in EEPROM before it eventually crashes
   EEPROM.write(0, testNum+1 );
   EEPROM.commit();
+
+  if( testNum < max_tests ) {
+    Serial.println( MiddleLine );
+    SerialPrintfCentered("System Available heap: %d bytes", HEAP_AVAILABLE() );
+    Serial.println( MiddleLine );
+
+    SerialPrintfCentered("Zlib Dict alloc type: %s", needsGzDictAlloc? "borrowed":"auto" );
+    Serial.println( MiddleLine );
+
+    SerialPrintfCentered("Device ready for test #%d", testNum+1 );
+    Serial.println( MiddleLine );
+  }
 
   switch( testNum )
   {
@@ -624,7 +664,7 @@ void setup()
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
-    #if defined HAS_OTA_SUPPORT
+    #if defined HAS_OTA_SUPPORT && ( defined CONFIG_IDF_TARGET_ESP32 || defined ESP8266 ) // the data folder only bundles precompiled firmwares for esp32 and 8266
       case 5: test_succeeded = test_gzUpdater(); break;
       #if defined ESP32 && !__has_include(<PSRamFS.h>)
         case 6: test_succeeded = test_tarGzStreamUpdater(); break;
@@ -636,12 +676,12 @@ void setup()
   }
 
   if( tests_finished ) {
+
     EEPROM.write(0, 0 );
     EEPROM.commit();
-    #if !__has_include(<PSRamFS.h>) && __has_include(<SPIFFS.h>)
+    #if !__has_include(<PSRamFS.h>)
       BaseUnpacker *Unpacker = new BaseUnpacker();
-      SPIFFS.begin();
-      Unpacker->tarGzListDir( SPIFFS, "/", 3 );
+      Unpacker->tarGzListDir( tarGzFS, "/", 3 );
     #endif
     SerialPrintCentered("All tests performed, press reset to restart", false, true );
   }
