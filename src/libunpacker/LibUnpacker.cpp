@@ -83,6 +83,7 @@ unsigned int (*gzReadDestByte)(int offset, unsigned char *out);
 const char* tarDestFolder = nullptr;
 unsigned char __attribute__((aligned(4))) *output_buffer = nullptr; // gz write buffer
 unsigned char *uzlib_gzip_dict = nullptr; // gz dictionnary buffer
+static unsigned char *lent_buffers = nullptr; // dictionary and output buffer, from GzUnpacker::setBuffers()
 struct GZ::TINF_DATA uzLibDecompressor; // uzlib object
 
 tarGzErrorCode _error = ESP32_TARGZ_OK;
@@ -1064,10 +1065,27 @@ void GzUnpacker::setDestByteReader( gzDestByteReader cb )
   gzReadDestByte = cb;
 }
 
+void GzUnpacker::setBuffers( unsigned char* buffer )
+{
+  lent_buffers = buffer;
+}
+
+
+static void freeOutputBuffer()
+{
+  if( output_buffer != nullptr && ( lent_buffers == nullptr || output_buffer != lent_buffers + GZIP_DICT_SIZE ) ) {
+    free( output_buffer );
+  }
+  output_buffer = nullptr;
+}
+
+
 void GzUnpacker::gzExpanderCleanup()
 {
   if( uzlib_gzip_dict != nullptr ) {
-    if( tgz_use_psram ) {
+    if( uzlib_gzip_dict == lent_buffers ) {
+      // lent by setBuffers(), not ours to free
+    } else if( tgz_use_psram ) {
       free( uzlib_gzip_dict );
     } else {
       delete[] uzlib_gzip_dict;
@@ -1254,7 +1272,9 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   if ( use_dict == true && nodict == false ) {
 
-    if( tgz_use_psram ) {
+    if( lent_buffers ) {
+      uzlib_gzip_dict = lent_buffers;
+    } else if( tgz_use_psram ) {
       uzlib_gzip_dict = (unsigned char*)tgz_calloc(1, GZIP_DICT_SIZE);
     } else {
       // nothrow: without it, too little memory in one piece aborts the program rather than failing below
@@ -1304,7 +1324,11 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   GZ::uzlib_uncompress_init(&uzLibDecompressor, uzlib_gzip_dict, uzlib_dict_size);
 
-  output_buffer = (unsigned char *)tgz_calloc( output_buffer_size+1, sizeof(unsigned char) );
+  if( lent_buffers ) { // output_buffer_size is at most GZIP_BUFF_SIZE, so it fits after the dictionary
+    output_buffer = (unsigned char *)memset( lent_buffers + GZIP_DICT_SIZE, 0, output_buffer_size+1 );
+  } else {
+    output_buffer = (unsigned char *)tgz_calloc( output_buffer_size+1, sizeof(unsigned char) );
+  }
   if( output_buffer == NULL ) {
     log_e("[ERROR] can't alloc %d bytes for output buffer", output_buffer_size );
     return_value = ESP32_TARGZ_UZLIB_MALLOC_FAIL;
@@ -1437,8 +1461,7 @@ int GzUnpacker::gzUncompress( bool isupdate, bool stream_to_tar, bool use_dict, 
 
   _end:
 
-  if( output_buffer != NULL )
-    free( output_buffer );
+  freeOutputBuffer();
   gzExpanderCleanup();
 
   return return_value;

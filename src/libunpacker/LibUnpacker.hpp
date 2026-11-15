@@ -148,6 +148,10 @@ struct GzUnpacker : virtual public BaseUnpacker
   void    setStreamWriter( gzStreamWriter cb ); // optional, use with gzStreamExpander
   void    setDestByteReader( gzDestByteReader cb );
   void    gzExpanderCleanup();
+  // Use buffer, of at least GZIP_DICT_SIZE + GZIP_BUFF_SIZE + 1 bytes, for the dictionary and the output
+  // buffer instead of allocating them, for when the heap may not have that much in one piece but the
+  // application has a buffer it can lend while unpacking. nullptr goes back to allocating them.
+  void    setBuffers( unsigned char* buffer );
   int     gzUncompress( bool isupdate = false, bool stream_to_tar = false, bool use_dict = true, bool show_progress = true );
   static bool         gzStreamWriteCallback( unsigned char* buff, size_t buffsize );
   static bool         gzReadHeader(fs_File &gzFile);
