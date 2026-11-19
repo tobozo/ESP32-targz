@@ -683,7 +683,8 @@ void setup()
       BaseUnpacker *Unpacker = new BaseUnpacker();
       Unpacker->tarGzListDir( tarGzFS, "/", 3 );
     #endif
-    SerialPrintCentered("All tests performed, press reset to restart", false, true );
+    SerialPrintCentered("Test suite complete, press reset to restart", false, true );
+    printf("All tests performed\n");
   }
 
   if( test_succeeded ) {
@@ -692,7 +693,7 @@ void setup()
     Serial.println( CloseLine );
 
     testNum++;
-    #if defined ESP32
+    #if defined ESP32 || defined ARDUINO_ARCH_RP2040
       goto _test_begin;
     #else
       // go on with next test
