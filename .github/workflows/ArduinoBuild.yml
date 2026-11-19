@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.arduino-boards-fqbn }} - test compiling examples
+    name: ${{ matrix.board-name }} - test compiling examples
 
     runs-on: ubuntu-22.04
 
