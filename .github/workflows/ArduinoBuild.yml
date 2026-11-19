@@ -18,17 +18,26 @@ jobs:
     strategy:
       matrix:
 
-        arduino-boards-fqbn:
-          - esp8266:esp8266:generic:eesz=4M3M,xtal=80
-          - esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
-          - rp2040:rp2040:rpipico
+        board-name: [esp32, esp32p4, esp8266, rp2040]
+
+        # arduino-boards-fqbn:
+        #   - esp8266:esp8266:generic:eesz=4M3M,xtal=80
+        #   - esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
+        #   - esp32:esp32:esp32p4:FlashMode=dio,FlashSize=4M,ChipVariant=postv3
+        #   - rp2040:rp2040:rpipico
 
         include:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
             # Comma separated list of sketch names (no path required) or patterns to use in build
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
             board-name: esp32
+
+          - arduino-boards-fqbn: esp32:esp32:esp32p4:FlashMode=dio,FlashSize=4M,ChipVariant=postv3
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+            # Comma separated list of sketch names (no path required) or patterns to use in build
+            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
+            board-name: esp32p4
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
             sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Test_deflate.ino
@@ -60,7 +69,7 @@ jobs:
 
 
       - name: Create littlefs image (ESP32)
-        if: matrix.board-name == 'esp32'
+        if: startsWith( matrix.board-name, 'esp32')
         run: |
           sketch_folder=examples/Test_tar_gz_tgz
           MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
@@ -73,12 +82,13 @@ jobs:
           fi
 
       - name: Run ESP32 project in QEmu
-        if: matrix.board-name == 'esp32'
+        if: startsWith( matrix.board-name, 'esp32')
         uses: tobozo/esp32-qemu-sim@main
         with:
           # Set the build folder and file names for esp32-qemu-sim
           debug: true
           qemu-timeout: 999
+          chip: ${{ matrix.board-name }}
           timeout-interrupt-regex: "All tests performed"
           build-folder: examples/Test_tar_gz_tgz/build
           partitions-csv: partitions.csv
