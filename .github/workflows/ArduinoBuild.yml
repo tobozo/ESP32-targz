@@ -89,6 +89,7 @@ jobs:
           debug: true
           qemu-timeout: 999
           chip: ${{ matrix.board-name }}
+          psram: 2M
           timeout-interrupt-regex: "All tests performed|Guru Meditation"
           build-folder: examples/Test_tar_gz_tgz/build
           partitions-csv: partitions.csv
