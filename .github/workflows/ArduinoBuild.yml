@@ -33,7 +33,7 @@ jobs:
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
             board-name: esp32
 
-          - arduino-boards-fqbn: esp32:esp32:esp32p4:FlashMode=dio,FlashSize=4M,ChipVariant=postv3,USBMode=hwcdc,CDCOnBoot=cdc,DebugLevel=debug,PSRAM=enabled
+          - arduino-boards-fqbn: esp32:esp32:esp32p4:FlashMode=dio,FlashSize=4M,ChipVariant=postv3,USBMode=hwcdc,CDCOnBoot=cdc,DebugLevel=debug
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
             # Comma separated list of sketch names (no path required) or patterns to use in build
             sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
