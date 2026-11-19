@@ -53,20 +53,14 @@ void setup()
 
   Serial.printf("PSRamFS mounted: %d total bytes\n", PSRamFS.totalBytes());
 
-  // Copy TGZ sample data from PROGMEM to RAMDisk
-  const char* tar_source_file = "/16_files_of_1100_bytes.tar";
-  // File samplecopy = PSRamFS.open(tar_source_file, "w");
-  // samplecopy.write(tgz_data, tgz_data_len);
-  // samplecopy.close();
-
   if(LittleFS.exists(tar_source_file))
     LittleFS.remove(tar_source_file);
 
-  if( PSRamFS.createFile(tar_source_file, tgz_data, tgz_data_len) ) {
-    Serial.println("YAY");
-  } else {
-    Serial.println("NAY");
-  }
+  // Copy TGZ sample data from PROGMEM to RAMDisk
+  const char* tar_source_file = "/16_files_of_1100_bytes.tar";
+  File samplecopy = PSRamFS.open(tar_source_file, "w");
+  samplecopy.write(tgz_data, tgz_data_len);
+  samplecopy.close();
 
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
   TARGZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );
