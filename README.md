@@ -262,6 +262,71 @@ ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream
 ```
 
 
+Route selected TAR entries to an application sink
+-------------------------------------------------
+
+`TarUnpacker` and `TarGzUnpacker` can route an individual TAR entry to an
+application-owned sink while all other entries keep the normal filesystem
+extraction path. This is useful when an entry must be consumed directly (for
+example an OTA partition writer) and must never occupy space in the destination
+filesystem.
+
+The router is called after the existing include/exclude filters. `begin()`
+chooses one of these routes for each non-filtered entry:
+
+- `TAR::ENTRY_ROUTE_FILESYSTEM`: preserve the existing behavior;
+- `TAR::ENTRY_ROUTE_SKIP`: consume the entry without a destination;
+- `TAR::ENTRY_ROUTE_CUSTOM`: send its payload to `write()` and complete it with
+  `end()`;
+- `TAR::ENTRY_ROUTE_ABORT`: fail extraction before consuming that entry.
+
+For a custom route, `write()` must accept every payload block and `end()` is
+called only after its received byte count matches the TAR header. Returning
+`false` from `write()` or `end()` fails extraction with
+`ESP32_TARGZ_ENTRY_ROUTER_ERROR`; a size mismatch fails with
+`ESP32_TARGZ_ENTRY_SIZE_ERROR`. `abort()` is called once when an active custom
+entry cannot complete. It is the application sink's responsibility to release
+or roll back its own state there.
+
+The unpacker copies the router structure, but not its `context`. Keep that
+context valid until the extraction call returns. Like the rest of the streaming
+unpacker, the router is not reentrant: run one extraction at a time.
+
+```C++
+struct Counter {
+  uint64_t received = 0;
+};
+
+TAR::entry_route_t routeEntry(const TAR::entry_info_t& entry, void*) {
+  return entry.type == TAR::T_NORMAL && strcmp(entry.path, "payload.bin") == 0
+    ? TAR::ENTRY_ROUTE_CUSTOM
+    : TAR::ENTRY_ROUTE_FILESYSTEM;
+}
+
+bool consumeBlock(const TAR::entry_info_t&, const uint8_t*, size_t size, void* context) {
+  static_cast<Counter*>(context)->received += size;
+  return true; // return false to stop extraction
+}
+
+bool completeEntry(const TAR::entry_info_t& entry, void* context) {
+  return static_cast<Counter*>(context)->received == entry.size;
+}
+
+void abortEntry(const TAR::entry_info_t&, void*) {
+  // Release or abort the application-owned sink here.
+}
+
+Counter counter;
+TAR::entry_router_t router = { routeEntry, consumeBlock, completeEntry, abortEntry, &counter };
+TarGzUnpacker unpacker;
+unpacker.setTarEntryRouter(&router);
+unpacker.tarGzStreamExpander(&archiveStream, tarGzFS, "/");
+```
+
+See [`examples/ESP32/Route_tar_gz_entry`](examples/ESP32/Route_tar_gz_entry)
+for a complete sketch.
+
+
 ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
 -----------------------------------------------------------------------
 ```C
@@ -621,5 +686,4 @@ Credits:
   - [hitecSmartHome](https://github.com/hitecSmartHome) (feedback fueler)
   - [GitHubLionel](https://github.com/GitHubLionel) (contribution)
   - [kedube](https://github.com/kedube) (contribution)
-
 
