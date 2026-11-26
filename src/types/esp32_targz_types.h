@@ -84,6 +84,52 @@ namespace TAR
 {
   struct header_translated_s;
   typedef struct header_translated_s header_translated_t; // forward declaration
+
+  /** Metadata presented to an optional per-entry stream router. */
+  struct entry_info_t
+  {
+    const char* path;   // normalized only for a leading "./" archive prefix
+    uint64_t size;      // declared TAR payload size
+    uint8_t type;       // TAR::entry_type_e value from the translated header
+    int index;          // entry index supplied by TinyUntar
+  };
+
+  /** Select how the unpacker handles one TAR entry. */
+  enum entry_route_t : uint8_t
+  {
+    ENTRY_ROUTE_FILESYSTEM = 0, // preserve the normal destination filesystem path
+    ENTRY_ROUTE_SKIP,           // consume payload bytes without creating a destination
+    ENTRY_ROUTE_CUSTOM,         // deliver payload blocks to entry_router_t::write
+    ENTRY_ROUTE_ABORT           // stop extraction before consuming this entry
+  };
+
+  typedef entry_route_t (*entry_begin_cb)(const entry_info_t& entry, void* context);
+  typedef bool (*entry_write_cb)(const entry_info_t& entry, const uint8_t* data,
+                                 size_t size, void* context);
+  typedef bool (*entry_end_cb)(const entry_info_t& entry, void* context);
+  typedef void (*entry_abort_cb)(const entry_info_t& entry, void* context);
+
+  /**
+   * Optional callbacks for routing selected TAR entries to an application sink.
+   * The unpacker copies this structure; the pointed-to context must remain valid
+   * until the active extraction call returns. Filters run before begin().
+   */
+  struct entry_router_t
+  {
+    entry_router_t(entry_begin_cb beginCallback = nullptr,
+                   entry_write_cb writeCallback = nullptr,
+                   entry_end_cb endCallback = nullptr,
+                   entry_abort_cb abortCallback = nullptr,
+                   void* callbackContext = nullptr)
+      : begin(beginCallback), write(writeCallback), end(endCallback),
+        abort(abortCallback), context(callbackContext) {}
+
+    entry_begin_cb begin;
+    entry_write_cb write;
+    entry_end_cb end;
+    entry_abort_cb abort;
+    void* context;
+  };
 }
 
 // overridable gz stream writer
@@ -120,6 +166,8 @@ typedef enum tarGzErrorCode /* int8_t */
   ESP32_TARGZ_UZLIB_PARSE_HEADER_FAILED  =  -105, // Gz Error when parsing header
   ESP32_TARGZ_UZLIB_MALLOC_FAIL          =  -106, // Gz Error when allocating memory
   ESP32_TARGZ_INTEGRITY_FAIL             =  -107, // General error, file integrity check fail
+  ESP32_TARGZ_ENTRY_ROUTER_ERROR         =  -108, // Application entry-router callback rejected an entry
+  ESP32_TARGZ_ENTRY_SIZE_ERROR           =  -109, // Application entry-router byte count differs from TAR header
 
   // UZLIB: keeping error values from uzlib.h as is (no offset)
   ESP32_TARGZ_UZLIB_INVALID_FILE         =  -2,   // Not a valid gzip file
@@ -223,4 +271,3 @@ namespace TAR
     #define struct_stat_t struct TAR::stat
   #endif
 #endif
-

@@ -116,6 +116,10 @@ struct TarUnpacker : virtual public BaseUnpacker
   void setTarMessageCallback( genericLoggerCallback cb ); // for tar
   void setTarVerify( bool verify ); // enables health checks but does slower writes
 
+  // Route individual TAR entries without changing the default filesystem
+  // extractor. Passing nullptr restores the existing filesystem-only behavior.
+  void setTarEntryRouter( const TAR::entry_router_t* router );
+
   // callback setters: handles criterias for allowing or skipping files/folders creation
   // NOTE: the exclude filter runs first, set to nullptr (default) for disabling
   void setTarExcludeFilter( tarExcludeFilter cb );
@@ -269,6 +273,5 @@ struct TarGzUnpacker : public TarUnpacker, public GzUnpacker
   };
 
 #endif // #if defined ESP32 && defined HAS_OTA_SUPPORT
-
 
 
