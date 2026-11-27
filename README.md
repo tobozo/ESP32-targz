@@ -262,6 +262,110 @@ ESP32 Only: Direct expansion (no intermediate file) from `.tar.gz.` stream
 ```
 
 
+Route selected TAR entries to an application sink
+-------------------------------------------------
+
+`TarUnpacker` and `TarGzUnpacker` can route an individual TAR entry to an
+application-owned sink while all other entries keep the normal filesystem
+extraction path. This is useful when an entry must be consumed directly (for
+example an OTA partition writer) and must never occupy space in the destination
+filesystem.
+
+The router is called after the existing include/exclude filters. `begin()`
+chooses one of these routes for each non-filtered entry:
+
+- `TAR::ENTRY_ROUTE_FILESYSTEM`: preserve the existing behavior;
+- `TAR::ENTRY_ROUTE_SKIP`: consume the entry without a destination;
+- `TAR::ENTRY_ROUTE_CUSTOM`: send its payload to `write()` and complete it with
+  `end()`;
+- `TAR::ENTRY_ROUTE_ABORT`: fail extraction before consuming that entry.
+
+For a custom route, `write()` must accept every payload block and `end()` is
+called only after its received byte count matches the TAR header. Returning
+`false` from `write()` or `end()` fails extraction with
+`ESP32_TARGZ_ENTRY_ROUTER_ERROR`; a size mismatch fails with
+`ESP32_TARGZ_ENTRY_SIZE_ERROR`. `abort()` is called once when an active custom
+entry cannot complete. It is the application sink's responsibility to release
+or roll back its own state there.
+
+The unpacker copies the router structure, but not its `context`. Keep that
+context valid until the extraction call returns. Like the rest of the streaming
+unpacker, the router is not reentrant: run one extraction at a time.
+
+
+
+```C++
+struct Counter {
+  uint64_t received = 0;
+};
+
+// route callback for .begin()
+TAR::EntryRoute routeEntry(const TAR::EntryInfo& entry, void*) {
+  return entry.type == TAR::T_NORMAL && strcmp(entry.path, "payload.bin") == 0
+    ? TAR::ENTRY_ROUTE_CUSTOM
+    : TAR::ENTRY_ROUTE_FILESYSTEM;
+}
+
+// route callback for .write()
+bool consumeBlock(const TAR::EntryInfo&, const uint8_t*, size_t size, void* context) {
+  static_cast<Counter*>(context)->received += size;
+  return true; // return false to stop extraction
+}
+
+// route callback for .end()
+bool completeEntry(const TAR::EntryInfo& entry, void* context) {
+  return static_cast<Counter*>(context)->received == entry.size;
+}
+
+// route callback for .abort()
+void abortEntry(const TAR::EntryInfo&, void*) {
+  // Release or abort the application-owned sink here.
+}
+
+Counter counter;
+TarGzUnpacker unpacker;
+TAR::EntryRouter router = 
+{ 
+  .begin   = routeEntry, 
+  .write   = consumeBlock, 
+  .end     = completeEntry, 
+  .abort   = abortEntry, 
+  .context = &counter 
+};
+unpacker.setTarEntryRouter(&router);
+unpacker.tarGzStreamExpander(&archiveStream, tarGzFS, "/");
+```
+
+
+Route getters:
+```cpp
+  const TAR::EntryRouter TarUnpacker::getEntryRouter(); // return a copy of the current route, even if inactive
+  const TAR::EntryRouter TarUnpacker::getFOTARouter(); // return a copy of the default FOTA route
+```
+  
+Customize a route:
+```cpp
+  auto router = unpacker->getEntryRouter();
+  router.begin = myCustomRouteEntry; 
+  unpacker->setTarEntryRouter(&router);
+```
+
+Decompress tarGz to filesystem && flash firmware using predefined FOTA route:
+```cpp
+  // NOTE: "ota_success" will stay false if OTA failed OR if "my_firmware.bin" was not found in the archive.
+  bool ota_success = false;
+  unpacker.flashEntryOnExtract("my_firmware.bin", &ota_success);
+  //// Do as follows if FOTA route needs to be edited:
+  // auto UpdateRouter = unpacker->getFOTARouter();
+  // UpdateRouter.begin = myCustomUpdateRouteEntry; 
+  // unpacker->setTarEntryRouter(&UpdateRouter);
+  unpacker.tarGzStreamExpander(&archiveStream, tarGzFS, "/");
+```
+
+See [`examples/ESP32/Route_tar_gz_entry`](examples/ESP32/Route_tar_gz_entry)
+for a complete sketch.
+
+
 ESP32 Only: Direct Update (no intermediate file) from `.tar.gz.` stream
 -----------------------------------------------------------------------
 ```C
@@ -621,5 +725,4 @@ Credits:
   - [hitecSmartHome](https://github.com/hitecSmartHome) (feedback fueler)
   - [GitHubLionel](https://github.com/GitHubLionel) (contribution)
   - [kedube](https://github.com/kedube) (contribution)
-
 

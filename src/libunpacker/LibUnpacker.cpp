@@ -73,6 +73,12 @@ bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
 bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
 void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 bool   tarSkipThisEntry = false;
+TAR::EntryRouter tarEntryRouter;
+bool   tarEntryRouterEnabled = false;
+bool   tarCustomEntryActive = false;
+TAR::EntryInfo tarActiveEntry = { nullptr, 0, 0, 0 };
+uint64_t tarCustomEntryBytes = 0;
+char   tarNormalizedEntryPath[101] = { 0 };
 
 void   (*gzMessageCallback)( const char* format, ...) = nullptr;
 void   (*gzProgressCallback)( uint8_t progress ) = nullptr;
@@ -138,6 +144,99 @@ void setError( tarGzErrorCode code )
   _error = code;
   if( _error != ESP32_TARGZ_OK && halt_on_error() ) targz_system_halt();
 }
+
+
+static TAR::EntryInfo getTarEntryInfo(TAR::header_translated_t *header, int entry_index)
+{
+  const char* path = header->filename;
+  // A leading "./" is a common, harmless archive prefix. Normalize it for
+  // routing without changing the legacy filesystem extraction path.
+  while( path[0] == '.' && path[1] == '/' ) {
+    path += 2;
+  }
+  snprintf(tarNormalizedEntryPath, sizeof(tarNormalizedEntryPath), "%s", path);
+  return { tarNormalizedEntryPath, header->filesize, static_cast<uint8_t>(header->type), entry_index };
+}
+
+
+static void abortCustomTarEntry()
+{
+  if( tarCustomEntryActive && tarEntryRouter.abort ) {
+    tarEntryRouter.abort(tarActiveEntry, tarEntryRouter.context);
+  }
+  tarCustomEntryActive = false;
+  tarCustomEntryBytes = 0;
+}
+
+
+#if defined HAS_OTA_SUPPORT
+
+  // default callbacks and variables for routed FOTA support
+
+  const char* FOTATarPath = nullptr;
+  bool FOTASucceeded = false;
+  bool *FOTASucceededPtr = &FOTASucceeded;
+  struct RoutedEntryState { uint64_t received = 0; };
+
+  RoutedEntryState FOTAState = { 0 };
+
+  TAR::EntryRoute onTarIfUpdateBegin(const TAR::EntryInfo& entry, void*)
+  {
+    if( FOTATarPath != nullptr && entry.type == TAR::T_NORMAL && strcmp(entry.path, FOTATarPath) == 0 ) {
+      log_d("Routing %s (%llu bytes) to the updater sink", entry.path, entry.size);
+      *FOTASucceededPtr = false; // reset flag
+      Update.begin(entry.size);
+      return TAR::ENTRY_ROUTE_CUSTOM;
+    }
+    return TAR::ENTRY_ROUTE_FILESYSTEM;
+  }
+
+
+  bool onTarUpdateWrite(const TAR::EntryInfo&, const uint8_t*buf, size_t size, void* context)
+  {
+    if (Update.write((uint8_t*)buf, size) != size) {
+      return false;
+    }
+    if( context ) {
+      static_cast<RoutedEntryState*>(context)->received += size;
+    }
+    return true;
+  }
+
+
+  bool onTarUpdateClose(const TAR::EntryInfo& entry, void* context)
+  {
+    *FOTASucceededPtr = Update.end(true);
+
+    bool context_checked = true;
+
+    if( context ) {
+      const auto* state = static_cast<RoutedEntryState*>(context);
+      log_d("Updater sink received %llu bytes for %s", state->received, entry.path);
+      context_checked = state->received == entry.size;
+    }
+    return *FOTASucceededPtr && context_checked;
+  }
+
+
+  void onTarUpdateError(const TAR::EntryInfo& entry, void*)
+  {
+    log_e("OTA Error: ", Update.getError());
+  }
+
+
+  // A Minimalistic route for FOTA operations
+  TAR::EntryRouter FOTARouter =
+  {
+    .begin   = onTarIfUpdateBegin,
+    .write   = onTarUpdateWrite,
+    .end     = onTarUpdateClose,
+    .abort   = onTarUpdateError,
+    .context = &FOTAState
+  };
+
+
+#endif
 
 
 
@@ -502,8 +601,6 @@ void BaseUnpacker::hexDumpFile( fs_FS &fs, const char* filename, uint32_t output
 
 
 
-
-
 TarUnpacker::TarUnpacker()
 {
   #if __has_include(<PSRamFS.h>)
@@ -546,6 +643,27 @@ void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 }
 
 
+void TarUnpacker::setTarEntryRouter( const TAR::EntryRouter* router )
+{
+  // Copy callbacks, not the caller-owned context. This makes changing a
+  // temporary configuration object safe while keeping sink ownership explicit.
+  if( router == nullptr ) {
+    tarEntryRouter = {};
+    tarEntryRouterEnabled = false;
+    return;
+  }
+  tarEntryRouter = *router;
+  tarEntryRouterEnabled = tarEntryRouter.begin != nullptr;
+}
+
+
+void TarUnpacker::setTarEntryRoutes(TAR::EntryBeginCb begin, TAR::EntryWriteCb write, TAR::EntryEndCb end, TAR::EntryAbortCb abort, void* ctx)
+{
+  tarEntryRouter = { begin, write, end, abort, ctx };
+  tarEntryRouterEnabled = tarEntryRouter.begin != nullptr;
+}
+
+
 // exclude / include based on tar header properties (filename, size, type)
 void TarUnpacker::setTarExcludeFilter( tarExcludeFilter cb )
 {
@@ -575,11 +693,15 @@ void TarUnpacker::setTarVerify( bool verify )
 
 
 
-int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED int entry_index,  CC_UNUSED void *context_data )
+int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header, int entry_index, CC_UNUSED void *context_data )
 {
   dump_header(header);
 
+  // A previous custom entry can only still be active after malformed parser
+  // control flow. Give its owner one cleanup opportunity before continuing.
+  abortCustomTarEntry();
   tarSkipThisEntry = false;
+  tarGzIO.output = nullptr;
 
   if( tarSkipThisEntryOut ) {
     if( tarSkipThisEntryOut( header ) ) {
@@ -597,10 +719,37 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
     }
   }
 
+  TAR::EntryRoute route = TAR::ENTRY_ROUTE_FILESYSTEM;
+  if( !tarSkipThisEntry && tarEntryRouterEnabled ) {
+    tarActiveEntry = getTarEntryInfo(header, entry_index);
+    route = tarEntryRouter.begin(tarActiveEntry, tarEntryRouter.context);
+    if( route == TAR::ENTRY_ROUTE_ABORT ) {
+      setError(ESP32_TARGZ_ENTRY_ROUTER_ERROR);
+      return ESP32_TARGZ_ENTRY_ROUTER_ERROR;
+    }
+    if( route == TAR::ENTRY_ROUTE_CUSTOM ) {
+      // A custom route is a complete sink, not a partial override of the
+      // filesystem path. Require both data and completion callbacks up front.
+      if( tarEntryRouter.write == nullptr || tarEntryRouter.end == nullptr ) {
+        setError(ESP32_TARGZ_ENTRY_ROUTER_ERROR);
+        return ESP32_TARGZ_ENTRY_ROUTER_ERROR;
+      }
+      tarCustomEntryActive = true;
+      tarCustomEntryBytes = 0;
+    } else if( route == TAR::ENTRY_ROUTE_SKIP ) {
+      tarSkipThisEntry = true;
+    } else if( route != TAR::ENTRY_ROUTE_FILESYSTEM ) {
+      setError(ESP32_TARGZ_ENTRY_ROUTER_ERROR);
+      return ESP32_TARGZ_ENTRY_ROUTER_ERROR;
+    }
+  }
+
   // https://github.com/tobozo/ESP32-targz/issues/33
   if( header->type == TAR::T_NORMAL  || header->type == TAR::T_EXTENDED ) {
 
-    if( fstotalBytes &&  fsfreeBytes ) {
+    // A custom sink owns its capacity and must not trigger filesystem space,
+    // directory creation, file opening or post-write verification.
+    if( route == TAR::ENTRY_ROUTE_FILESYSTEM && fstotalBytes && fsfreeBytes ) {
       uint64_t freeBytes  = fsfreeBytes();
       if( freeBytes < header->filesize ) {
         // Abort before the partition is smashed!
@@ -608,13 +757,13 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header,  CC_UNUSED
         setError( ESP32_TARGZ_FS_FULL_ERROR );
         return ESP32_TARGZ_FS_FULL_ERROR;
       }
-    } else {
+    } else if( route == TAR::ENTRY_ROUTE_FILESYSTEM ) {
       #if defined WARN_LIMITED_FS
         log_w("[TAR WARNING] Can't check target medium for free space (required:%llu, free:\?\?), will try to expand anyway", header->filesize );
       #endif
     }
 
-    if( !tarSkipThisEntry ) {
+    if( route == TAR::ENTRY_ROUTE_FILESYSTEM && !tarSkipThisEntry ) {
       memset( tar_file_path, 0, 256 );
       // check that TAR path does not start with "./" and truncate if necessary
       if( header->filename[0] == '.' && header->filename[1] == '/' ) {
@@ -724,6 +873,30 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 {
   int ret = ESP32_TARGZ_OK;
 
+  if( tarCustomEntryActive ) {
+    // TAR does not expose a separate "declared-size verified" event. Verify
+    // the byte count before giving the application sink its successful end.
+    if( tarCustomEntryBytes != tarActiveEntry.size ) {
+      log_e("[TAR ERROR] Routed entry %s has %llu bytes, expected %llu", tarActiveEntry.path,
+            tarCustomEntryBytes, tarActiveEntry.size);
+      abortCustomTarEntry();
+      setError( ESP32_TARGZ_ENTRY_SIZE_ERROR );
+      return ESP32_TARGZ_ENTRY_SIZE_ERROR;
+    }
+    if( !tarEntryRouter.end(tarActiveEntry, tarEntryRouter.context) ) {
+      abortCustomTarEntry();
+      setError( ESP32_TARGZ_ENTRY_ROUTER_ERROR );
+      return ESP32_TARGZ_ENTRY_ROUTER_ERROR;
+    }
+
+    tarCustomEntryActive = false;
+    tarCustomEntryBytes = 0;
+    tarProgressCallback( 100 );
+    tarMessageCallback( "%s", header->filename );
+    totalFiles++;
+    return ret;
+  }
+
   if( untarredFile ) {
     if( unTarDoHealthChecks ) {
       memset( tar_file_path, 0, 256 );
@@ -787,6 +960,35 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 
 
 #if defined HAS_OTA_SUPPORT
+
+
+  // `firmWarePath` will be using custom Update route and flashed if found in the archive
+  void TarUnpacker::flashEntryOnExtract(const char* firmWarePath, bool *otaSuccessPtr)
+  {
+    log_d("Firmware file '%s' will use the Update route", firmWarePath);
+
+    if( otaSuccessPtr )
+      FOTASucceededPtr = otaSuccessPtr;
+    else
+      FOTASucceededPtr = &FOTASucceeded;
+
+    FOTATarPath = firmWarePath;
+    FOTAState.received = 0;
+    setTarEntryRouter(&FOTARouter);
+  }
+
+
+  const TAR::EntryRouter TarUnpacker::getFOTARouter()
+  {
+    return FOTARouter;
+  }
+
+
+  const TAR::EntryRouter TarUnpacker::getEntryRouter()
+  {
+    return tarEntryRouter;
+  }
+
 
   int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
   {
@@ -909,6 +1111,8 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
     return ESP32_TARGZ_OK;
   }
 
+
+
 #endif
 
 
@@ -922,6 +1126,32 @@ int TarUnpacker::tarStreamReadCallback( unsigned char* buff, size_t buffsize )
 
 int TarUnpacker::tarStreamWriteCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length)
 {
+
+  if( tarCustomEntryActive ) {
+    // The sink must receive exactly the payload declared by the TAR header;
+    // reject overflow before it reaches an application-owned destination.
+    if( length < 0 || tarCustomEntryBytes > tarActiveEntry.size
+        || static_cast<uint64_t>(length) > tarActiveEntry.size - tarCustomEntryBytes ) {
+      abortCustomTarEntry();
+      setError( ESP32_TARGZ_ENTRY_SIZE_ERROR );
+      return ESP32_TARGZ_ENTRY_SIZE_ERROR;
+    }
+    if( !tarEntryRouter.write(tarActiveEntry, block, static_cast<size_t>(length), tarEntryRouter.context) ) {
+      abortCustomTarEntry();
+      setError( ESP32_TARGZ_ENTRY_ROUTER_ERROR );
+      return ESP32_TARGZ_ENTRY_ROUTER_ERROR;
+    }
+    tarCustomEntryBytes += length;
+    untarredBytesCount += length;
+    tarCurrentFileSizeProgress += length;
+    if( tarCurrentFileSize > 0 ) {
+      const int32_t progress = (100 * tarCurrentFileSizeProgress) / tarCurrentFileSize;
+      if( progress != 100 && progress != 0 ) {
+        tarProgressCallback( progress );
+      }
+    }
+    return ESP32_TARGZ_OK;
+  }
 
   if( tarSkipThisEntry ) {
     log_v("[TAR FILTER] Skipping data bits from: %s.", header->filename);
@@ -1007,7 +1237,12 @@ bool TarUnpacker::tarStreamExpander( Stream *stream, size_t streamSize, fs_FS &d
   int res = TAR::read_tar( &tarCallbacks, NULL );
   if( res != TAR_OK ) {
     log_e("[ERROR] operation aborted while expanding stream (return code #%d)", res-30);
-    setError( (tarGzErrorCode)(res-30) );
+    // Preserve a specific error reported by a custom sink instead of hiding
+    // it behind TinyUntar's generic callback error.
+    if( _error == ESP32_TARGZ_OK ) {
+      setError( (tarGzErrorCode)(res-30) );
+    }
+    abortCustomTarEntry();
     return false;
   }
 
@@ -2172,6 +2407,7 @@ bool TarGzUnpacker::tarGzExpanderNoTempFile( fs_FS sourceFS, const char* sourceF
   if( ret!=0 ) {
     log_e("gzUncompress returned error code %d", ret);
     setError( (tarGzErrorCode)ret );
+    abortCustomTarEntry();
     return false;
   }
   log_v("uzLib expander finished!");
@@ -2376,6 +2612,7 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs_FS &destFS, const ch
   if( ret!=0 ) {
     log_e("tarGzStreamExpander returned error code %d", ret);
     setError( (tarGzErrorCode)ret );
+    abortCustomTarEntry();
     return false;
   }
 
@@ -2478,5 +2715,3 @@ bool TarGzUnpacker::tarGzStreamExpander( Stream *stream, fs_FS &destFS, const ch
   }
 
 #endif // #if defined ESP32 && defined HAS_OTA_SUPPORT
-
-
