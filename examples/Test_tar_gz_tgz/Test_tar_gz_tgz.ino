@@ -664,7 +664,7 @@ void setup()
     case 2: test_succeeded = test_tarGzExpander(); break;
     case 3: test_succeeded = test_tarGzExpander_no_intermediate(); break;
     case 4: test_succeeded = test_tarGzStreamExpander(); break;
-    #if defined HAS_OTA_SUPPORT && ( defined CONFIG_IDF_TARGET_ESP32 || defined ESP8266 ) // the data folder only bundles precompiled firmwares for esp32 and 8266
+    #if defined HAS_OTA_SUPPORT /*&& ( defined CONFIG_IDF_TARGET_ESP32 || defined ESP8266 )*/ // the data folder only bundles precompiled firmwares for esp32 and 8266
       case 5: test_succeeded = test_gzUpdater(); break;
       #if defined ESP32 && !__has_include(<PSRamFS.h>)
         case 6: test_succeeded = test_tarGzStreamUpdater(); break;

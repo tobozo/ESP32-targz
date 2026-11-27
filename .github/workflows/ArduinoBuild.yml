@@ -30,22 +30,22 @@ jobs:
           - arduino-boards-fqbn: esp32:esp32:esp32:FlashMode=dio,FlashFreq=80,FlashSize=4M
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
             # Comma separated list of sketch names (no path required) or patterns to use in build
-            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
+            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino,Test_tgz_FOTA_stage1.ino,Test_tgz_FOTA_stage2.ino
             board-name: esp32
 
           - arduino-boards-fqbn: esp32:esp32:esp32p4:FlashMode=dio,FlashSize=4M,ChipVariant=postv3,PSRAM=enabled
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
             # Comma separated list of sketch names (no path required) or patterns to use in build
-            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino
+            sketch-names: Test_tar_gz_tgz.ino,Update_from_gz_stream.ino,Unpack_tar_gz_stream.ino,Test_deflate.ino,Route_tar_gz_entry.ino
             board-name: esp32p4
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
-            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Test_deflate.ino
+            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Test_deflate.ino,Route_tar_gz_entry.ino
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
             board-name: esp8266
 
           - arduino-boards-fqbn: rp2040:rp2040:rpipico
-            sketch-names: Test_tar_gz_tgz.ino,Test_deflate.ino
+            sketch-names: Test_tar_gz_tgz.ino,Test_deflate.ino,Route_tar_gz_entry.ino
             platform-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
             board-name: rp2040
 
@@ -72,12 +72,18 @@ jobs:
         if: startsWith( matrix.board-name, 'esp32')
         run: |
           sketch_folder=examples/Test_tar_gz_tgz
+          sketch_data_folder="$sketch_folder/data"
+          # customize the tgz template by adding second stage precompiled binary
+          stage2_bin=`find examples | grep Test_tgz_FOTA_stage2.ino.bin`
+          tgz_template="$sketch_data_folder/targz_example.tar.gz"
+          .github/scripts/gen_littlefs_for_FOTA.sh -b $stage2_bin -d $sketch_data_folder -t $tgz_template
+          # generate data partition for qemu
           MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
-          if [[ -d "$sketch_folder/data" ]]; then
+          if [[ -d "$sketch_data_folder" ]]; then
             echo "MKLITTLEFS_BIN = $MKLITTLEFS_BIN"
-            echo "Data folder = $sketch_folder/data"
+            echo "Data folder = $sketch_data_folder"
             [[ ! -f "$MKLITTLEFS_BIN" ]] && { echo "[ERROR] mklittlefs not found"; exit 1; }
-            $MKLITTLEFS_BIN -s 1441792 -b 4096 -p 256 -c $sketch_folder/data $sketch_folder/build/Test_tar_gz_tgz.ino.spiffs.bin
+            $MKLITTLEFS_BIN -s 1441792 -b 4096 -p 256 -c $sketch_data_folder $sketch_folder/build/Test_tar_gz_tgz.ino.spiffs.bin
             ls $sketch_folder/build/Test_tar_gz_tgz.ino.spiffs.bin -la
           fi
 
