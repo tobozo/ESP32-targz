@@ -114,6 +114,7 @@ cd ..
 
 # Copy the new archive to the LittleFS data folder for later uploading
 cp -f $targz_temp_file $destination_data_dir/$targz_sample_file
+gzip --stdout $targz_temp_dir/$firmware_basename_in_archive > $destination_data_dir/firmware_example.gz
 
 # Cleanup
 rm $targz_temp_file
