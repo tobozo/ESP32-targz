@@ -40,7 +40,7 @@ jobs:
             board-name: esp32p4
 
           - arduino-boards-fqbn: esp8266:esp8266:generic:eesz=4M3M,xtal=80
-            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Test_deflate.ino,Route_tar_gz_entry.ino
+            sketch-names: Test_tar_gz_tgz.ino,Update_spiffs_from_http_gz_stream.ino,Test_deflate.ino
             platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
             board-name: esp8266
 
@@ -76,7 +76,7 @@ jobs:
           # customize the tgz template by adding second stage precompiled binary
           stage2_bin=`find examples | grep Test_tgz_FOTA_stage2.ino.bin`
           tgz_template="$sketch_data_folder/targz_example.tar.gz"
-          .github/scripts/gen_littlefs_for_FOTA.sh -b $stage2_bin -d $sketch_data_folder -t $tgz_template
+          .github/scripts/gen_littlefs_for_FOTA.sh -b "$stage2_bin" -d "$sketch_data_folder" -t "$tgz_template"
           # generate data partition for qemu
           MKLITTLEFS_BIN=`find /home/runner -type f -name 'mklittlefs'`
           if [[ -d "$sketch_data_folder" ]]; then

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script is used by the CI to create the custom targz file
 # some examples will need when testing custom routing in ESP32-targz.
