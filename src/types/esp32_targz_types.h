@@ -86,7 +86,7 @@ namespace TAR
   typedef struct header_translated_s header_translated_t; // forward declaration
 
   /** Metadata presented to an optional per-entry stream router. */
-  struct entry_info_t
+  struct EntryInfo
   {
     const char* path;   // normalized only for a leading "./" archive prefix
     uint64_t size;      // declared TAR payload size
@@ -95,40 +95,31 @@ namespace TAR
   };
 
   /** Select how the unpacker handles one TAR entry. */
-  enum entry_route_t : uint8_t
+  enum EntryRoute : uint8_t
   {
     ENTRY_ROUTE_FILESYSTEM = 0, // preserve the normal destination filesystem path
     ENTRY_ROUTE_SKIP,           // consume payload bytes without creating a destination
-    ENTRY_ROUTE_CUSTOM,         // deliver payload blocks to entry_router_t::write
+    ENTRY_ROUTE_CUSTOM,         // deliver payload blocks to EntryRouter::write
     ENTRY_ROUTE_ABORT           // stop extraction before consuming this entry
   };
 
-  typedef entry_route_t (*entry_begin_cb)(const entry_info_t& entry, void* context);
-  typedef bool (*entry_write_cb)(const entry_info_t& entry, const uint8_t* data,
-                                 size_t size, void* context);
-  typedef bool (*entry_end_cb)(const entry_info_t& entry, void* context);
-  typedef void (*entry_abort_cb)(const entry_info_t& entry, void* context);
+  typedef EntryRoute (*EntryBeginCb)(const EntryInfo& entry, void* context);
+  typedef bool (*EntryWriteCb)(const EntryInfo& entry, const uint8_t* data, size_t size, void* context);
+  typedef bool (*EntryEndCb)(const EntryInfo& entry, void* context);
+  typedef void (*EntryAbortCb)(const EntryInfo& entry, void* context);
 
   /**
    * Optional callbacks for routing selected TAR entries to an application sink.
    * The unpacker copies this structure; the pointed-to context must remain valid
    * until the active extraction call returns. Filters run before begin().
    */
-  struct entry_router_t
+  struct EntryRouter
   {
-    entry_router_t(entry_begin_cb beginCallback = nullptr,
-                   entry_write_cb writeCallback = nullptr,
-                   entry_end_cb endCallback = nullptr,
-                   entry_abort_cb abortCallback = nullptr,
-                   void* callbackContext = nullptr)
-      : begin(beginCallback), write(writeCallback), end(endCallback),
-        abort(abortCallback), context(callbackContext) {}
-
-    entry_begin_cb begin;
-    entry_write_cb write;
-    entry_end_cb end;
-    entry_abort_cb abort;
-    void* context;
+    EntryBeginCb begin{nullptr};
+    EntryWriteCb write{nullptr};
+    EntryEndCb   end{nullptr};
+    EntryAbortCb abort{nullptr};
+    void*        context{nullptr};
   };
 }
 

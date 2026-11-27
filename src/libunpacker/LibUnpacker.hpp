@@ -118,23 +118,42 @@ struct TarUnpacker : virtual public BaseUnpacker
 
   // Route individual TAR entries without changing the default filesystem
   // extractor. Passing nullptr restores the existing filesystem-only behavior.
-  void setTarEntryRouter( const TAR::entry_router_t* router );
+  void setTarEntryRouter( const TAR::EntryRouter* router );
+  // Same but decomposed
+  void setTarEntryRoutes( TAR::EntryBeginCb begin, TAR::EntryWriteCb write, TAR::EntryEndCb end, TAR::EntryAbortCb abort=nullptr, void* ctx=nullptr );
+  // A getter for entry router e.g. to overwrite some or all default callbacks, call ::setTarEntryRouter(route) afterwards
+  const TAR::EntryRouter getEntryRouter();
 
-  // callback setters: handles criterias for allowing or skipping files/folders creation
-  // NOTE: the exclude filter runs first, set to nullptr (default) for disabling
+  // Additional callback setters: handle criterias for allowing or skipping files/folders creation.
+  // NOTE(1): may be redundant with setTarEntryRouter() when both include and exclude filters are implemented as EntryRouter::begin() member
+  // NOTE(2): the exclude filter runs first, set to nullptr (default) for disabling.
   void setTarExcludeFilter( tarExcludeFilter cb );
   void setTarIncludeFilter( tarIncludeFilter cb );
 
+  // internal callbacks
   static int tarStreamReadCallback( unsigned char* buff, size_t buffsize );
   static int tarStreamWriteCallback( TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
-
   static int tarHeaderCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
   static int tarEndCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
 
   #if defined HAS_OTA_SUPPORT
+
+    // Get default entry router for FOTA operations (progress disabled, minimal support, default partition)
+    // NOTE: use it to overwrite some or all default callbacks, call ::setTarEntryRouter(route) afterwards
+    const TAR::EntryRouter getFOTARouter();
+
+    // Enable default entry router for FOTA operations for a given firmware path
+    // NOTE(1): firmware path *in the tar file*, so no leading slash!
+    // NOTE(2): *ota_succeeded=false means OTA failed OR firmwarePath was not found in TAR.
+    //          For more granularity, either overwrite the routes with more logic, or
+    //          use a custom callback with setTarIncludeFilter()
+    void flashEntryOnExtract(const char* firmWarePath, bool *ota_succeeded=nullptr);
+
+    // internal callbacks
     static int tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data);
     static int tarEndUpdateCallBack( TAR::header_translated_t *header, int entry_index, void *context_data);
     static int tarStreamWriteUpdateCallback(TAR::header_translated_t *header, int entry_index, void *context_data, unsigned char *block, int length);
+
   #endif
 
 };

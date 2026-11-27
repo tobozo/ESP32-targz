@@ -73,10 +73,10 @@ bool   (*tarSkipThisEntryOut)( TAR::header_translated_t *header ) = nullptr;
 bool   (*tarSkipThisEntryIn)( TAR::header_translated_t *header ) = nullptr;
 void   (*tarStatusProgressCallback)( const char* name, size_t size, size_t total_unpacked ) = nullptr;
 bool   tarSkipThisEntry = false;
-TAR::entry_router_t tarEntryRouter;
+TAR::EntryRouter tarEntryRouter;
 bool   tarEntryRouterEnabled = false;
 bool   tarCustomEntryActive = false;
-TAR::entry_info_t tarActiveEntry = { nullptr, 0, 0, 0 };
+TAR::EntryInfo tarActiveEntry = { nullptr, 0, 0, 0 };
 uint64_t tarCustomEntryBytes = 0;
 char   tarNormalizedEntryPath[101] = { 0 };
 
@@ -146,7 +146,7 @@ void setError( tarGzErrorCode code )
 }
 
 
-static TAR::entry_info_t getTarEntryInfo(TAR::header_translated_t *header, int entry_index)
+static TAR::EntryInfo getTarEntryInfo(TAR::header_translated_t *header, int entry_index)
 {
   const char* path = header->filename;
   // A leading "./" is a common, harmless archive prefix. Normalize it for
@@ -167,6 +167,76 @@ static void abortCustomTarEntry()
   tarCustomEntryActive = false;
   tarCustomEntryBytes = 0;
 }
+
+
+#if defined HAS_OTA_SUPPORT
+
+  // default callbacks and variables for routed FOTA support
+
+  const char* FOTATarPath = nullptr;
+  bool FOTASucceeded = false;
+  bool *FOTASucceededPtr = &FOTASucceeded;
+  struct RoutedEntryState { uint64_t received = 0; };
+
+  RoutedEntryState FOTAState = { 0 };
+
+  TAR::EntryRoute onTarIfUpdateBegin(const TAR::EntryInfo& entry, void*)
+  {
+    if( FOTATarPath != nullptr && entry.type == TAR::T_NORMAL && strcmp(entry.path, FOTATarPath) == 0 ) {
+      log_d("Routing %s (%llu bytes) to the updater sink", entry.path, entry.size);
+      *FOTASucceededPtr = false; // reset flag
+      Update.begin(entry.size);
+      return TAR::ENTRY_ROUTE_CUSTOM;
+    }
+    return TAR::ENTRY_ROUTE_FILESYSTEM;
+  }
+
+
+  bool onTarUpdateWrite(const TAR::EntryInfo&, const uint8_t*buf, size_t size, void* context)
+  {
+    if (Update.write((uint8_t*)buf, size) != size) {
+      return false;
+    }
+    if( context ) {
+      static_cast<RoutedEntryState*>(context)->received += size;
+    }
+    return true;
+  }
+
+
+  bool onTarUpdateClose(const TAR::EntryInfo& entry, void* context)
+  {
+    *FOTASucceededPtr = Update.end(true);
+
+    bool context_checked = true;
+
+    if( context ) {
+      const auto* state = static_cast<RoutedEntryState*>(context);
+      log_d("Updater sink received %llu bytes for %s", state->received, entry.path);
+      context_checked = state->received == entry.size;
+    }
+    return *FOTASucceededPtr && context_checked;
+  }
+
+
+  void onTarUpdateError(const TAR::EntryInfo& entry, void*)
+  {
+    log_e("OTA Error: ", Update.getError());
+  }
+
+
+  // A Minimalistic route for FOTA operations
+  TAR::EntryRouter FOTARouter =
+  {
+    .begin   = onTarIfUpdateBegin,
+    .write   = onTarUpdateWrite,
+    .end     = onTarUpdateClose,
+    .abort   = onTarUpdateError,
+    .context = &FOTAState
+  };
+
+
+#endif
 
 
 
@@ -531,8 +601,6 @@ void BaseUnpacker::hexDumpFile( fs_FS &fs, const char* filename, uint32_t output
 
 
 
-
-
 TarUnpacker::TarUnpacker()
 {
   #if __has_include(<PSRamFS.h>)
@@ -575,7 +643,7 @@ void TarUnpacker::setTarMessageCallback( genericLoggerCallback cb )
 }
 
 
-void TarUnpacker::setTarEntryRouter( const TAR::entry_router_t* router )
+void TarUnpacker::setTarEntryRouter( const TAR::EntryRouter* router )
 {
   // Copy callbacks, not the caller-owned context. This makes changing a
   // temporary configuration object safe while keeping sink ownership explicit.
@@ -585,6 +653,13 @@ void TarUnpacker::setTarEntryRouter( const TAR::entry_router_t* router )
     return;
   }
   tarEntryRouter = *router;
+  tarEntryRouterEnabled = tarEntryRouter.begin != nullptr;
+}
+
+
+void TarUnpacker::setTarEntryRoutes(TAR::EntryBeginCb begin, TAR::EntryWriteCb write, TAR::EntryEndCb end, TAR::EntryAbortCb abort, void* ctx)
+{
+  tarEntryRouter = { begin, write, end, abort, ctx };
   tarEntryRouterEnabled = tarEntryRouter.begin != nullptr;
 }
 
@@ -644,7 +719,7 @@ int TarUnpacker::tarHeaderCallBack( TAR::header_translated_t *header, int entry_
     }
   }
 
-  TAR::entry_route_t route = TAR::ENTRY_ROUTE_FILESYSTEM;
+  TAR::EntryRoute route = TAR::ENTRY_ROUTE_FILESYSTEM;
   if( !tarSkipThisEntry && tarEntryRouterEnabled ) {
     tarActiveEntry = getTarEntryInfo(header, entry_index);
     route = tarEntryRouter.begin(tarActiveEntry, tarEntryRouter.context);
@@ -886,6 +961,35 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
 
 #if defined HAS_OTA_SUPPORT
 
+
+  // `firmWarePath` will be using custom Update route and flashed if found in the archive
+  void TarUnpacker::flashEntryOnExtract(const char* firmWarePath, bool *otaSuccessPtr)
+  {
+    log_d("Firmware file '%s' will use the Update route", firmWarePath);
+
+    if( otaSuccessPtr )
+      FOTASucceededPtr = otaSuccessPtr;
+    else
+      FOTASucceededPtr = &FOTASucceeded;
+
+    FOTATarPath = firmWarePath;
+    FOTAState.received = 0;
+    setTarEntryRouter(&FOTARouter);
+  }
+
+
+  const TAR::EntryRouter TarUnpacker::getFOTARouter()
+  {
+    return FOTARouter;
+  }
+
+
+  const TAR::EntryRouter TarUnpacker::getEntryRouter()
+  {
+    return tarEntryRouter;
+  }
+
+
   int TarUnpacker::tarHeaderUpdateCallBack(TAR::header_translated_t *header,  int entry_index,  void *context_data)
   {
     dump_header(header);
@@ -1006,6 +1110,8 @@ int TarUnpacker::tarEndCallBack( TAR::header_translated_t *header, CC_UNUSED int
     }
     return ESP32_TARGZ_OK;
   }
+
+
 
 #endif
 
