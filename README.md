@@ -292,35 +292,74 @@ The unpacker copies the router structure, but not its `context`. Keep that
 context valid until the extraction call returns. Like the rest of the streaming
 unpacker, the router is not reentrant: run one extraction at a time.
 
+
+
 ```C++
 struct Counter {
   uint64_t received = 0;
 };
 
-TAR::entry_route_t routeEntry(const TAR::entry_info_t& entry, void*) {
+// route callback for .begin()
+TAR::EntryRoute routeEntry(const TAR::EntryInfo& entry, void*) {
   return entry.type == TAR::T_NORMAL && strcmp(entry.path, "payload.bin") == 0
     ? TAR::ENTRY_ROUTE_CUSTOM
     : TAR::ENTRY_ROUTE_FILESYSTEM;
 }
 
-bool consumeBlock(const TAR::entry_info_t&, const uint8_t*, size_t size, void* context) {
+// route callback for .write()
+bool consumeBlock(const TAR::EntryInfo&, const uint8_t*, size_t size, void* context) {
   static_cast<Counter*>(context)->received += size;
   return true; // return false to stop extraction
 }
 
-bool completeEntry(const TAR::entry_info_t& entry, void* context) {
+// route callback for .end()
+bool completeEntry(const TAR::EntryInfo& entry, void* context) {
   return static_cast<Counter*>(context)->received == entry.size;
 }
 
-void abortEntry(const TAR::entry_info_t&, void*) {
+// route callback for .abort()
+void abortEntry(const TAR::EntryInfo&, void*) {
   // Release or abort the application-owned sink here.
 }
 
 Counter counter;
-TAR::entry_router_t router = { routeEntry, consumeBlock, completeEntry, abortEntry, &counter };
 TarGzUnpacker unpacker;
+TAR::EntryRouter router = 
+{ 
+  .begin   = routeEntry, 
+  .write   = consumeBlock, 
+  .end     = completeEntry, 
+  .abort   = abortEntry, 
+  .context = &counter 
+};
 unpacker.setTarEntryRouter(&router);
 unpacker.tarGzStreamExpander(&archiveStream, tarGzFS, "/");
+```
+
+
+Route getters:
+```cpp
+  const TAR::EntryRouter TarUnpacker::getEntryRouter(); // return a copy of the current route, even if inactive
+  const TAR::EntryRouter TarUnpacker::getFOTARouter(); // return a copy of the default FOTA route
+```
+  
+Customize a route:
+```cpp
+  auto router = unpacker->getEntryRouter();
+  router.begin = myCustomRouteEntry; 
+  unpacker->setTarEntryRouter(&router);
+```
+
+Decompress tarGz to filesystem && flash firmware using predefined FOTA route:
+```cpp
+  // NOTE: "ota_success" will stay false if OTA failed OR if "my_firmware.bin" was not found in the archive.
+  bool ota_success = false;
+  unpacker.flashEntryOnExtract("my_firmware.bin", &ota_success);
+  //// Do as follows if FOTA route needs to be edited:
+  // auto UpdateRouter = unpacker->getFOTARouter();
+  // UpdateRouter.begin = myCustomUpdateRouteEntry; 
+  // unpacker->setTarEntryRouter(&UpdateRouter);
+  unpacker.tarGzStreamExpander(&archiveStream, tarGzFS, "/");
 ```
 
 See [`examples/ESP32/Route_tar_gz_entry`](examples/ESP32/Route_tar_gz_entry)
