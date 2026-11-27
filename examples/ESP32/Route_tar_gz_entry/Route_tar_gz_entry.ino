@@ -20,7 +20,7 @@ struct RoutedEntryState {
   uint64_t received = 0;
 };
 
-static TAR::entry_route_t selectEntry(const TAR::entry_info_t& entry, void*)
+static TAR::EntryRoute selectEntry(const TAR::EntryInfo& entry, void*)
 {
   if( entry.type == TAR::T_NORMAL && strcmp(entry.path, "zombo.com/index.html") == 0 ) {
     Serial.printf("Routing %s (%llu bytes) to the custom sink\n", entry.path, entry.size);
@@ -29,21 +29,21 @@ static TAR::entry_route_t selectEntry(const TAR::entry_info_t& entry, void*)
   return TAR::ENTRY_ROUTE_FILESYSTEM;
 }
 
-static bool consumeEntryBlock(const TAR::entry_info_t&, const uint8_t*, size_t size, void* context)
+static bool consumeEntryBlock(const TAR::EntryInfo&, const uint8_t*, size_t size, void* context)
 {
   // Replace this counter with an application writer, e.g. an OTA Update.write.
   static_cast<RoutedEntryState*>(context)->received += size;
   return true;
 }
 
-static bool completeEntry(const TAR::entry_info_t& entry, void* context)
+static bool completeEntry(const TAR::EntryInfo& entry, void* context)
 {
   const auto* state = static_cast<RoutedEntryState*>(context);
   Serial.printf("Custom sink received %llu bytes for %s\n", state->received, entry.path);
   return state->received == entry.size;
 }
 
-static void abortEntry(const TAR::entry_info_t& entry, void*)
+static void abortEntry(const TAR::EntryInfo& entry, void*)
 {
   Serial.printf("Custom sink aborted for %s\n", entry.path);
 }
@@ -63,7 +63,7 @@ void setup()
   }
 
   RoutedEntryState state;
-  TAR::entry_router_t router = {
+  TAR::EntryRouter router = {
     selectEntry,
     consumeEntryBlock,
     completeEntry,
