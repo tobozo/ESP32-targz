@@ -1,16 +1,16 @@
 #include <ESP32-targz.h>
 
-static TAR::entry_route_t routeToFilesystem(const TAR::entry_info_t&, void*)
+static TAR::EntryRoute routeToFilesystem(const TAR::EntryInfo&, void*)
 {
   return TAR::ENTRY_ROUTE_FILESYSTEM;
 }
 
-static bool acceptEntryBlock(const TAR::entry_info_t&, const uint8_t*, size_t, void*)
+static bool acceptEntryBlock(const TAR::EntryInfo&, const uint8_t*, size_t, void*)
 {
   return true;
 }
 
-static bool completeEntry(const TAR::entry_info_t&, void*)
+static bool completeEntry(const TAR::EntryInfo&, void*)
 {
   return true;
 }
@@ -24,7 +24,7 @@ void setup()
   TarGzUnpacker *TARGZUnpacker = new TarGzUnpacker();
 
   // API smoke test: returning FILESYSTEM preserves legacy extraction.
-  TAR::entry_router_t router = {
+  TAR::EntryRouter router = {
     routeToFilesystem,
     acceptEntryBlock,
     completeEntry,
